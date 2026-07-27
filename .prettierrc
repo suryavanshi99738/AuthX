@@ -1,0 +1,23 @@
+{
+  "semi": true,
+  "trailingComma": "es5",
+  "singleQuote": true,
+  "printWidth": 100,
+  "tabWidth": 2,
+  "useTabs": false,
+  "bracketSpacing": true,
+  "arrowParens": "always",
+  "endOfLine": "lf",
+  "bracketSameLine": false,
+  "jsxSingleQuote": false,
+  "quoteProps": "as-needed",
+  "importOrder": [
+    "^@/(.*)$",
+    "^react$",
+    "^react-dom$",
+    "^next$",
+    "^[a-zA-Z]"
+  ],
+  "importOrderSeparation": true,
+  "importOrderSortSpecifiers": true
+}
