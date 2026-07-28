@@ -1,6 +1,7 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Shield,
   KeyRound,
@@ -8,22 +9,18 @@ import {
   QrCode,
   Mail,
   Smartphone,
-  CheckCircle2,
+  ScanFace,
   ArrowRight,
   Lock,
-  Eye,
-  Activity,
-  AlertTriangle,
-  Cpu,
-  Database,
-  Server,
-  LayoutGrid,
-  GitBranch,
-  Package,
+  CheckCircle2,
+  X,
 } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 /* ── Animation Variants ── */
 const fadeInUp = {
@@ -44,92 +41,155 @@ const scaleIn = {
   visible: { opacity: 1, scale: 1 },
 };
 
-/* ── Data ── */
+const slideUp = {
+  hidden: { opacity: 0, y: 40 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.4, 0, 0.2, 1] } },
+  exit: { opacity: 0, y: 40, transition: { duration: 0.3 } },
+};
+
+/* ── Auth Method Data ── */
 const AUTH_METHODS = [
-  { icon: KeyRound, label: 'Passkeys', desc: 'WebAuthn / FIDO2', color: 'text-primary' },
-  { icon: Fingerprint, label: 'Biometrics', desc: 'Fingerprint & Face ID', color: 'text-success' },
-  { icon: QrCode, label: 'QR Auth', desc: 'QR Code Login', color: 'text-info' },
-  { icon: Mail, label: 'Email OTP', desc: 'One-Time Password', color: 'text-warning' },
-  { icon: Smartphone, label: 'Trusted Devices', desc: 'Device Recognition', color: 'text-primary' },
-  { icon: AlertTriangle, label: 'Risk-Based', desc: 'Adaptive Auth Engine', color: 'text-danger' },
+  {
+    id: 'passkey',
+    icon: KeyRound,
+    label: 'Passkeys',
+    desc: 'Login with device-stored passkeys using WebAuthn / FIDO2 — no passwords needed.',
+    color: 'bg-primary',
+    hoverColor: 'hover:bg-primary/5',
+    iconColor: 'text-primary',
+    badge: 'Most Secure',
+  },
+  {
+    id: 'biometric',
+    icon: Fingerprint,
+    label: 'Biometrics',
+    desc: 'Use your fingerprint or Face ID for instant, secure access.',
+    color: 'bg-success',
+    hoverColor: 'hover:bg-success/5',
+    iconColor: 'text-success',
+    badge: 'Fastest',
+  },
+  {
+    id: 'qr',
+    icon: QrCode,
+    label: 'QR Authentication',
+    desc: 'Scan a QR code from your trusted device to authenticate instantly.',
+    color: 'bg-info',
+    hoverColor: 'hover:bg-info/5',
+    iconColor: 'text-info',
+    badge: 'Convenient',
+  },
+  {
+    id: 'otp',
+    icon: Mail,
+    label: 'Email OTP',
+    desc: 'Receive a one-time password on your registered email to verify your identity.',
+    color: 'bg-warning',
+    hoverColor: 'hover:bg-warning/5',
+    iconColor: 'text-warning',
+    badge: 'Backup Method',
+  },
+  {
+    id: 'trusted-device',
+    icon: Smartphone,
+    label: 'Trusted Devices',
+    desc: 'Skip verification on devices you\'ve previously authenticated and marked as trusted.',
+    color: 'bg-primary',
+    hoverColor: 'hover:bg-primary/5',
+    iconColor: 'text-primary',
+    badge: 'Seamless',
+  },
+  {
+    id: 'face',
+    icon: ScanFace,
+    label: 'Face Recognition',
+    desc: 'Advanced facial recognition technology for secure and effortless login.',
+    color: 'bg-success',
+    hoverColor: 'hover:bg-success/5',
+    iconColor: 'text-success',
+    badge: 'Contactless',
+  },
 ];
 
-const ARCHITECTURE_ITEMS = [
-  { icon: LayoutGrid, label: 'Enterprise Folder Structure', desc: '30+ organized directories across frontend and backend' },
-  { icon: Cpu, label: 'Type System Foundation', desc: 'Strict TypeScript with enums, interfaces, and utility types' },
-  { icon: GitBranch, label: 'Separation of Concerns', desc: 'Controllers, Services, Models, Utils — clean layered architecture' },
-  { icon: Package, label: 'Design System Tokens', desc: 'Colors, typography, spacing, shadows, radius — CSS custom properties' },
-  { icon: Server, label: 'Express Backend (Mini-Service)', desc: 'Port 3001 with MongoDB, helmet, CORS, morgan, error handling' },
-  { icon: Database, label: '4 Mongoose Schemas Defined', desc: 'User, Session, Device, SecurityEvent models ready' },
+const SECURITY_FEATURES = [
+  { icon: Lock, label: 'Zero Passwords', desc: 'No passwords means no phishing, no brute-force, no credential leaks.' },
+  { icon: Shield, label: 'Bank-Grade Security', desc: 'FIDO2-compliant, end-to-end encrypted, and regulatory-ready.' },
+  { icon: CheckCircle2, label: 'Phishing Proof', desc: 'Passkeys and biometrics can\'t be stolen or reused on fake sites.' },
 ];
 
-const FUTURE_PHASES = [
-  { icon: Lock, label: 'Sprint 2 — Auth Core', items: ['Passkey Registration', 'Login Flow', 'Session Management', 'JWT Tokens'] },
-  { icon: Eye, label: 'Sprint 3 — Security Dashboard', items: ['Login History', 'Security Alerts', 'Device Recognition', 'Risk Engine'] },
-  { icon: Activity, label: 'Sprint 4 — Advanced Features', items: ['Emergency Lock', 'Fraud Detection', 'Adaptive MFA', 'Admin Panel'] },
-];
-
-const SPRINT1_CHECKLIST = [
-  'Next.js 16 + App Router Configured',
-  'TypeScript Strict Mode Enabled',
-  'Tailwind CSS 4 + Design Tokens',
-  'shadcn/ui Component Library',
-  'React Router Constants Defined',
-  'TanStack Query Client Configured',
-  'Framer Motion Animations Ready',
-  'Lucide Icons Integrated',
-  'Axios API Client with Interceptors',
-  'Express Backend with MongoDB',
-  'Mongoose Schemas (User, Session, Device, Event)',
-  'Health Check & Error Middleware',
-  'Path Aliases (@/ → src/)',
-  'ESLint + Prettier Configured',
-  'Environment Variables (.env + .env.example)',
-  'Complete Enterprise Folder Structure',
-  'Barrel Export Pattern Applied',
-  'Inter Font + BankShield Design System',
-  'SOLID Architecture Principles',
-  'Production-Ready Configuration',
-];
+type AuthMode = 'login' | 'signup';
 
 export default function Home() {
+  const [authDialogOpen, setAuthDialogOpen] = useState(false);
+  const [authMode, setAuthMode] = useState<AuthMode>('login');
+  const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
+  const [email, setEmail] = useState('');
+
+  const openAuth = (mode: AuthMode) => {
+    setAuthMode(mode);
+    setSelectedMethod(null);
+    setEmail('');
+    setAuthDialogOpen(true);
+  };
+
+  const handleMethodSelect = (methodId: string) => {
+    setSelectedMethod(methodId);
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       {/* ── Hero Section ── */}
-      <header className="pt-12 pb-16 px-4">
+      <header className="pt-16 pb-20 px-4">
         <motion.div
-          className="max-w-5xl mx-auto text-center"
+          className="max-w-4xl mx-auto text-center"
           initial="hidden"
           animate="visible"
           variants={staggerContainer}
         >
-          <motion.div variants={fadeInUp} className="flex items-center justify-center gap-3 mb-6">
-            <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center">
-              <Shield className="w-8 h-8 text-primary" />
+          <motion.div variants={fadeInUp} className="flex items-center justify-center mb-8">
+            <div className="w-16 h-16 rounded-xl bg-primary/10 flex items-center justify-center shadow-card">
+              <Shield className="w-9 h-9 text-primary" />
             </div>
           </motion.div>
 
-          <motion.h1 variants={fadeInUp} className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-foreground mb-4">
+          <motion.h1
+            variants={fadeInUp}
+            className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-foreground mb-4"
+          >
             BankShield Auth
           </motion.h1>
 
-          <motion.p variants={fadeInUp} className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-6">
-            Passwordless Authentication Platform for Banking Systems
+          <motion.p
+            variants={fadeInUp}
+            className="text-lg md:text-xl text-muted-foreground max-w-xl mx-auto mb-10"
+          >
+            The future of banking authentication. No passwords, no phishing, no credential leaks.
+            Just secure, seamless access.
           </motion.p>
 
-          <motion.div variants={fadeInUp} className="flex items-center justify-center gap-2">
-            <Badge variant="outline" className="text-xs px-3 py-1 border-primary/30 text-primary">
-              Sprint 1 — Architecture Foundation
-            </Badge>
-            <Badge variant="outline" className="text-xs px-3 py-1 border-success/30 text-success">
-              ✅ Ready for Sprint 2
-            </Badge>
+          <motion.div variants={fadeInUp} className="flex items-center justify-center gap-4">
+            <Button
+              size="lg"
+              className="text-base px-8 py-3 rounded-xl shadow-card hover:shadow-card-hover transition-smooth"
+              onClick={() => openAuth('login')}
+            >
+              Log In
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              className="text-base px-8 py-3 rounded-xl transition-smooth"
+              onClick={() => openAuth('signup')}
+            >
+              Sign Up
+            </Button>
           </motion.div>
         </motion.div>
       </header>
 
-      {/* ── Auth Methods Preview ── */}
-      <section className="px-4 pb-16">
+      {/* ── Auth Methods Showcase ── */}
+      <section className="px-4 pb-20">
         <motion.div
           className="max-w-5xl mx-auto"
           initial="hidden"
@@ -137,53 +197,37 @@ export default function Home() {
           viewport={{ once: true, margin: '-50px' }}
           variants={staggerContainer}
         >
-          <motion.h2 variants={fadeInUp} className="text-2xl font-semibold text-center mb-8">
-            Authentication Methods (Future)
-          </motion.h2>
+          <motion.div variants={fadeInUp} className="text-center mb-10">
+            <h2 className="text-2xl md:text-3xl font-semibold mb-3">
+              Multiple Ways to Authenticate
+            </h2>
+            <p className="text-muted-foreground max-w-lg mx-auto">
+              Choose the method that works best for you. All are secure, all are passwordless.
+            </p>
+          </motion.div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {AUTH_METHODS.map((method) => (
-              <motion.div key={method.label} variants={scaleIn}>
-                <Card className="shadow-card hover:shadow-card-hover transition-smooth text-center py-6">
-                  <CardContent className="pt-0 flex flex-col items-center gap-2">
-                    <method.icon className={`w-8 h-8 ${method.color}`} />
-                    <span className="text-sm font-medium">{method.label}</span>
-                    <span className="text-xs text-muted-foreground">{method.desc}</span>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
-          </div>
-        </motion.div>
-      </section>
-
-      {/* ── Architecture Highlights ── */}
-      <section className="px-4 pb-16">
-        <motion.div
-          className="max-w-5xl mx-auto"
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: '-50px' }}
-          variants={staggerContainer}
-        >
-          <motion.h2 variants={fadeInUp} className="text-2xl font-semibold text-center mb-8">
-            Architecture Highlights
-          </motion.h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {ARCHITECTURE_ITEMS.map((item) => (
-              <motion.div key={item.label} variants={scaleIn}>
-                <Card className="shadow-card hover:shadow-card-hover transition-smooth">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                        <item.icon className="w-5 h-5 text-primary" />
+              <motion.div key={method.id} variants={scaleIn}>
+                <Card
+                  className={`shadow-card hover:shadow-card-hover transition-smooth cursor-pointer group ${method.hoverColor}`}
+                  onClick={() => openAuth('login')}
+                >
+                  <CardContent className="pt-6 pb-6">
+                    <div className="flex items-start gap-4">
+                      <div className={`w-12 h-12 rounded-xl ${method.color}/10 flex items-center justify-center shrink-0 group-hover:scale-105 transition-smooth`}>
+                        <method.icon className={`w-6 h-6 ${method.iconColor}`} />
                       </div>
-                      <CardTitle className="text-base">{item.label}</CardTitle>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-semibold text-foreground">{method.label}</span>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full ${method.color}/10 ${method.iconColor} font-medium`}>
+                            {method.badge}
+                          </span>
+                        </div>
+                        <p className="text-sm text-muted-foreground leading-relaxed">{method.desc}</p>
+                      </div>
                     </div>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground">{item.desc}</p>
                   </CardContent>
                 </Card>
               </motion.div>
@@ -192,139 +236,34 @@ export default function Home() {
         </motion.div>
       </section>
 
-      {/* ── Design System Preview ── */}
-      <section className="px-4 pb-16">
+      {/* ── Security Benefits ── */}
+      <section className="px-4 pb-20">
         <motion.div
-          className="max-w-5xl mx-auto"
+          className="max-w-4xl mx-auto"
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: '-50px' }}
           variants={staggerContainer}
         >
-          <motion.h2 variants={fadeInUp} className="text-2xl font-semibold text-center mb-8">
-            Design System Tokens
-          </motion.h2>
-
-          <motion.div variants={fadeInUp}>
-            <Card className="shadow-card">
-              <CardContent className="pt-6">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                  {/* Primary */}
-                  <div className="space-y-2">
-                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Primary</span>
-                    <div className="w-full h-12 rounded-lg bg-primary" />
-                    <span className="text-xs text-muted-foreground">#2563EB</span>
-                  </div>
-                  {/* Success */}
-                  <div className="space-y-2">
-                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Success</span>
-                    <div className="w-full h-12 rounded-lg bg-success" />
-                    <span className="text-xs text-muted-foreground">#16A34A</span>
-                  </div>
-                  {/* Warning */}
-                  <div className="space-y-2">
-                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Warning</span>
-                    <div className="w-full h-12 rounded-lg bg-warning" />
-                    <span className="text-xs text-muted-foreground">#F59E0B</span>
-                  </div>
-                  {/* Danger */}
-                  <div className="space-y-2">
-                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Danger</span>
-                    <div className="w-full h-12 rounded-lg bg-danger" />
-                    <span className="text-xs text-muted-foreground">#DC2626</span>
-                  </div>
-                </div>
-
-                <Separator className="my-6" />
-
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                  <div className="space-y-1">
-                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Font</span>
-                    <p className="text-sm font-medium">Inter</p>
-                  </div>
-                  <div className="space-y-1">
-                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Radius</span>
-                    <p className="text-sm font-medium">20px</p>
-                  </div>
-                  <div className="space-y-1">
-                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Spacing</span>
-                    <p className="text-sm font-medium">8px Grid</p>
-                  </div>
-                  <div className="space-y-1">
-                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Animation</span>
-                    <p className="text-sm font-medium">Smooth · Minimal</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+          <motion.div variants={fadeInUp} className="text-center mb-10">
+            <h2 className="text-2xl md:text-3xl font-semibold mb-3">
+              Why Passwordless?
+            </h2>
+            <p className="text-muted-foreground max-w-lg mx-auto">
+              Traditional passwords are vulnerable. BankShield Auth eliminates the risk entirely.
+            </p>
           </motion.div>
-        </motion.div>
-      </section>
-
-      {/* ── Sprint 1 Checklist ── */}
-      <section className="px-4 pb-16">
-        <motion.div
-          className="max-w-5xl mx-auto"
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: '-50px' }}
-          variants={staggerContainer}
-        >
-          <motion.h2 variants={fadeInUp} className="text-2xl font-semibold text-center mb-8">
-            Sprint 1 Checklist
-          </motion.h2>
-
-          <motion.div variants={fadeInUp}>
-            <Card className="shadow-card">
-              <CardContent className="pt-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3 max-h-96 overflow-y-auto">
-                  {SPRINT1_CHECKLIST.map((item, i) => (
-                    <div key={i} className="flex items-start gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-success mt-0.5 shrink-0" />
-                      <span className="text-sm text-foreground">{item}</span>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        </motion.div>
-      </section>
-
-      {/* ── Future Phases ── */}
-      <section className="px-4 pb-16">
-        <motion.div
-          className="max-w-5xl mx-auto"
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: '-50px' }}
-          variants={staggerContainer}
-        >
-          <motion.h2 variants={fadeInUp} className="text-2xl font-semibold text-center mb-8">
-            Future Development Phases
-          </motion.h2>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {FUTURE_PHASES.map((phase) => (
-              <motion.div key={phase.label} variants={scaleIn}>
-                <Card className="shadow-card hover:shadow-card-hover transition-smooth">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-                        <phase.icon className="w-5 h-5 text-muted-foreground" />
-                      </div>
-                      <CardTitle className="text-base">{phase.label}</CardTitle>
+            {SECURITY_FEATURES.map((feature) => (
+              <motion.div key={feature.label} variants={scaleIn}>
+                <Card className="shadow-card hover:shadow-card-hover transition-smooth text-center py-8">
+                  <CardContent className="pt-0 flex flex-col items-center gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                      <feature.icon className="w-6 h-6 text-primary" />
                     </div>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="space-y-2">
-                      {phase.items.map((item) => (
-                        <li key={item} className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <ArrowRight className="w-3 h-3 shrink-0" />
-                          {item}
-                        </li>
-                      ))}
-                    </ul>
+                    <span className="font-semibold text-foreground">{feature.label}</span>
+                    <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">{feature.desc}</p>
                   </CardContent>
                 </Card>
               </motion.div>
@@ -333,73 +272,239 @@ export default function Home() {
         </motion.div>
       </section>
 
-      {/* ── Folder Structure ── */}
-      <section className="px-4 pb-16">
-        <motion.div
-          className="max-w-5xl mx-auto"
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: '-50px' }}
-          variants={fadeInUp}
-        >
-          <h2 className="text-2xl font-semibold text-center mb-8">Project Structure</h2>
+      {/* ── Auth Dialog ── */}
+      <Dialog open={authDialogOpen} onOpenChange={setAuthDialogOpen}>
+        <DialogContent className="sm:max-w-lg p-0 overflow-hidden rounded-2xl">
+          <AnimatePresence mode="wait">
+            {!selectedMethod ? (
+              /* ── Method Selection View ── */
+              <motion.div key="methods" variants={slideUp} initial="hidden" animate="visible" exit="exit">
+                <DialogHeader className="px-6 pt-6 pb-4">
+                  <DialogTitle className="text-xl font-semibold">
+                    {authMode === 'login' ? 'Log In to BankShield' : 'Create Your Account'}
+                  </DialogTitle>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {authMode === 'login'
+                      ? 'Choose your preferred authentication method'
+                      : 'Sign up securely — no passwords required'}
+                  </p>
+                </DialogHeader>
 
-          <Card className="shadow-card">
-            <CardContent className="pt-6">
-              <pre className="text-xs md:text-sm font-mono text-muted-foreground overflow-x-auto leading-relaxed whitespace-pre">
-{`src/                          ← Frontend (Next.js 16 App Router)
-  assets/                      ← Static assets (images, icons, illustrations)
-  components/
-    common/                    ← Shared reusable components
-    cards/                     ← Card-based components
-    charts/                    ← Data visualization components
-    feedback/                  ← Alerts, toasts, notifications
-    forms/                     ← Form components & inputs
-    modals/                    ← Dialog & modal components
-    navigation/                ← Nav, sidebar, breadcrumbs
-    tables/                    ← Data table components
-    ui/                        ← shadcn/ui primitives (50+ components)
-  layouts/                     ← Page layout wrappers
-  hooks/                       ← Custom React hooks
-  contexts/                    ← React context providers
-  routes/                      ← Route constants & guards
-  services/
-    api/                       ← Axios client configuration
-    auth/                      ← Auth service (placeholder)
-  types/                       ← TypeScript type definitions
-  constants/                   ← App constants (auth, api, routes)
-  utils/                       ← Utility functions (validation, format)
-  styles/                      ← Style utilities
-  lib/                         ← Core lib (db, utils, api-client, query-client)
+                <Separator />
 
-mini-services/auth-service/    ← Backend (Express + MongoDB on port 3001)
-  config/                      ← Environment & service configuration
-  controllers/                 ← Request handlers (auth, health)
-  middlewares/                  ← Express middleware (error, auth, rate-limit)
-  models/                      ← Mongoose schemas (User, Session, Device, Event)
-  routes/                      ← Express route definitions
-  services/                    ← Business logic services (auth, session, OTP)
-  utils/                       ← Backend utilities (logger, response, encryption)
-  database/                    ← MongoDB connection manager
-  types/                       ← Backend TypeScript types`}
-              </pre>
-            </CardContent>
-          </Card>
-        </motion.div>
-      </section>
+                <div className="px-6 py-4 space-y-3 max-h-[400px] overflow-y-auto">
+                  {AUTH_METHODS.map((method) => (
+                    <button
+                      key={method.id}
+                      onClick={() => handleMethodSelect(method.id)}
+                      className="w-full flex items-center gap-4 p-4 rounded-xl border border-border hover:border-primary/30 hover:bg-primary/5 transition-smooth group"
+                    >
+                      <div className={`w-10 h-10 rounded-lg ${method.color}/10 flex items-center justify-center shrink-0 group-hover:scale-105 transition-smooth`}>
+                        <method.icon className={`w-5 h-5 ${method.iconColor}`} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-foreground">{method.label}</span>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full ${method.color}/10 ${method.iconColor} font-medium`}>
+                            {method.badge}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5 truncate">{method.desc}</p>
+                      </div>
+                      <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-smooth shrink-0" />
+                    </button>
+                  ))}
+                </div>
+
+                <Separator />
+
+                <div className="px-6 py-4 flex items-center justify-center gap-4">
+                  <span className="text-sm text-muted-foreground">
+                    {authMode === 'login' ? 'Don\'t have an account?' : 'Already have an account?'}
+                  </span>
+                  <Button
+                    variant="link"
+                    className="text-primary"
+                    onClick={() => setAuthMode(authMode === 'login' ? 'signup' : 'login')}
+                  >
+                    {authMode === 'login' ? 'Sign Up' : 'Log In'}
+                  </Button>
+                </div>
+              </motion.div>
+            ) : (
+              /* ── Method Detail View ── */
+              <motion.div key="detail" variants={slideUp} initial="hidden" animate="visible" exit="exit">
+                {(() => {
+                  const method = AUTH_METHODS.find((m) => m.id === selectedMethod);
+                  if (!method) return null;
+
+                  return (
+                    <>
+                      <DialogHeader className="px-6 pt-6 pb-4">
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={() => setSelectedMethod(null)}
+                            className="w-8 h-8 rounded-lg border border-border flex items-center justify-center hover:bg-muted transition-smooth"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                          <DialogTitle className="text-xl font-semibold">
+                            {authMode === 'login' ? 'Log In with' : 'Sign Up with'} {method.label}
+                          </DialogTitle>
+                        </div>
+                      </DialogHeader>
+
+                      <Separator />
+
+                      <div className="px-6 py-6 space-y-6">
+                        {/* ── Method Icon & Description ── */}
+                        <div className="flex items-center gap-4">
+                          <div className={`w-14 h-14 rounded-xl ${method.color}/10 flex items-center justify-center`}>
+                            <method.icon className={`w-7 h-7 ${method.iconColor}`} />
+                          </div>
+                          <div>
+                            <p className="font-semibold text-foreground">{method.label}</p>
+                            <p className="text-sm text-muted-foreground">{method.desc}</p>
+                          </div>
+                        </div>
+
+                        {/* ── Email Input (common for most methods) ── */}
+                        <div className="space-y-2">
+                          <Label htmlFor="auth-email" className="text-sm font-medium">
+                            Email Address
+                          </Label>
+                          <Input
+                            id="auth-email"
+                            type="email"
+                            placeholder="you@example.com"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            className="rounded-xl"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            {authMode === 'signup'
+                              ? 'We\'ll use this email to verify your identity and send security alerts.'
+                              : 'Enter the email associated with your BankShield account.'}
+                          </p>
+                        </div>
+
+                        {/* ── Method-Specific Content ── */}
+                        {selectedMethod === 'passkey' && (
+                          <div className="p-4 rounded-xl bg-primary/5 border border-primary/20">
+                            <div className="flex items-center gap-2 mb-2">
+                              <KeyRound className="w-4 h-4 text-primary" />
+                              <span className="text-sm font-medium text-primary">Passkey Authentication</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              After entering your email, you\'ll be prompted to use a passkey stored on your device.
+                              This uses WebAuthn/FIDO2 — the gold standard for secure authentication.
+                            </p>
+                          </div>
+                        )}
+
+                        {selectedMethod === 'biometric' && (
+                          <div className="p-4 rounded-xl bg-success/5 border border-success/20">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Fingerprint className="w-4 h-4 text-success" />
+                              <span className="text-sm font-medium text-success">Biometric Verification</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              Place your finger on the sensor or look at the camera to verify your identity.
+                              Your biometric data never leaves your device.
+                            </p>
+                          </div>
+                        )}
+
+                        {selectedMethod === 'qr' && (
+                          <div className="p-4 rounded-xl bg-info/5 border border-info/20">
+                            <div className="flex items-center gap-2 mb-2">
+                              <QrCode className="w-4 h-4 text-info" />
+                              <span className="text-sm font-medium text-info">QR Code Login</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              A QR code will appear on screen. Scan it with your BankShield mobile app
+                              to authenticate instantly — no typing required.
+                            </p>
+                          </div>
+                        )}
+
+                        {selectedMethod === 'otp' && (
+                          <div className="p-4 rounded-xl bg-warning/5 border border-warning/20">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Mail className="w-4 h-4 text-warning" />
+                              <span className="text-sm font-medium text-warning">Email OTP Verification</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              A 6-digit one-time password will be sent to your email.
+                              Enter it within 5 minutes to complete authentication.
+                            </p>
+                          </div>
+                        )}
+
+                        {selectedMethod === 'trusted-device' && (
+                          <div className="p-4 rounded-xl bg-primary/5 border border-primary/20">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Smartphone className="w-4 h-4 text-primary" />
+                              <span className="text-sm font-medium text-primary">Trusted Device Access</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              If you\'ve previously marked this device as trusted, you can skip additional
+                              verification steps for a faster login experience.
+                            </p>
+                          </div>
+                        )}
+
+                        {selectedMethod === 'face' && (
+                          <div className="p-4 rounded-xl bg-success/5 border border-success/20">
+                            <div className="flex items-center gap-2 mb-2">
+                              <ScanFace className="w-4 h-4 text-success" />
+                              <span className="text-sm font-medium text-success">Face Recognition</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              Advanced facial recognition will verify your identity using your device camera.
+                              Contactless, fast, and highly secure.
+                            </p>
+                          </div>
+                        )}
+
+                        {/* ── Action Button ── */}
+                        <Button
+                          className="w-full rounded-xl py-3 text-base shadow-card hover:shadow-card-hover transition-smooth"
+                          disabled={!email.trim()}
+                        >
+                          {authMode === 'login' ? 'Continue to Login' : 'Continue to Sign Up'}
+                          <ArrowRight className="w-4 h-4 ml-2" />
+                        </Button>
+
+                        {/* ── Security Notice ── */}
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground justify-center">
+                          <Lock className="w-3 h-3" />
+                          <span>
+                            Your authentication data is encrypted and never stored on our servers.
+                          </span>
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Footer ── */}
       <footer className="mt-auto bg-card border-t border-border py-8 px-4">
-        <div className="max-w-5xl mx-auto text-center">
+        <div className="max-w-4xl mx-auto text-center">
           <div className="flex items-center justify-center gap-2 mb-3">
             <Shield className="w-5 h-5 text-primary" />
             <span className="text-sm font-semibold">BankShield Auth</span>
           </div>
           <p className="text-xs text-muted-foreground">
-            Passwordless Authentication Platform for Banking Systems · Sprint 1 — Architecture Foundation Complete
+            Passwordless Authentication Platform for Banking Systems
           </p>
           <p className="text-xs text-muted-foreground mt-1">
-            Next.js 16 · TypeScript · Tailwind CSS 4 · shadcn/ui · Express · MongoDB
+            FIDO2 Compliant · End-to-End Encrypted · Regulatory Ready
           </p>
         </div>
       </footer>
