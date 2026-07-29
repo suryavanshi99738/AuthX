@@ -5,6 +5,7 @@ import { verifyRegistrationResponse } from '@simplewebauthn/server';
 import type { RegistrationResponseJSON } from '@simplewebauthn/server';
 import { getChallenge } from '@/lib/challenge-store';
 import { db } from '@/lib/db';
+import { uint8ArrayToBase64url, isUint8Array } from '@/lib/utils';
 
 export async function POST(request: NextRequest) {
   try {
@@ -47,18 +48,25 @@ export async function POST(request: NextRequest) {
 
     const { registrationInfo } = verification;
 
+    // Convert Uint8Array fields to base64url strings for SQLite storage
+    const credentialId = isUint8Array(registrationInfo.credentialID)
+      ? uint8ArrayToBase64url(registrationInfo.credentialID as Uint8Array)
+      : registrationInfo.credentialID as string;
+
+    const publicKey = isUint8Array(registrationInfo.credentialPublicKey)
+      ? uint8ArrayToBase64url(registrationInfo.credentialPublicKey as Uint8Array)
+      : registrationInfo.credentialPublicKey as string;
+
     // Store the credential in the database
     const newCredential = await db.passkeyCredential.create({
       data: {
         userId,
-        credentialId: registrationInfo.credentialID,
-        publicKey: registrationInfo.credentialPublicKey,
+        credentialId,
+        publicKey,
         counter: registrationInfo.counter,
         deviceType: registrationInfo.credentialDeviceType,
         backedUp: registrationInfo.credentialBackedUp,
-        transports: registrationInfo.credentialDeviceType
-          ? JSON.stringify(['internal'])
-          : null,
+        transports: JSON.stringify(['internal']),
       },
     });
 

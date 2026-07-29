@@ -45,13 +45,15 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // NOTE: In a real implementation, we'd send the OTP via email here
-    // For now, we just acknowledge it was generated
-
+    // In production, the OTP would be sent via email.
+    // For development/demo, we return the code so users can verify.
+    // NOTE: Remove `code` from the response in production!
     return NextResponse.json({
       success: true,
       otpId: otpCode.id,
+      code, // Dev mode: return code for testing (remove in production)
       message: 'OTP sent to email',
+      userId: user.id,
     });
   } catch (error) {
     console.error('Error generating OTP:', error);

@@ -5,6 +5,7 @@ import { verifyAuthenticationResponse } from '@simplewebauthn/server';
 import type { AuthenticationResponseJSON } from '@simplewebauthn/server';
 import { getChallenge } from '@/lib/challenge-store';
 import { db } from '@/lib/db';
+import { base64urlToUint8Array } from '@/lib/utils';
 
 export async function POST(request: NextRequest) {
   try {
@@ -45,6 +46,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Convert stored base64url publicKey back to Uint8Array for verification
+    const publicKeyUint8Array = base64urlToUint8Array(passkey.publicKey);
+
     // Verify the authentication response
     const verification = await verifyAuthenticationResponse({
       response: credential,
@@ -53,7 +57,7 @@ export async function POST(request: NextRequest) {
       expectedRPID: 'localhost',
       credential: {
         id: passkey.credentialId,
-        publicKey: passkey.publicKey,
+        publicKey: publicKeyUint8Array,
         counter: passkey.counter,
       },
     });

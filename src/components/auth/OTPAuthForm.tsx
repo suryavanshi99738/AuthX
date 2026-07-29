@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Mail, ArrowLeft, Lock, Hash } from 'lucide-react';
+import { Mail, ArrowLeft, Lock, Hash, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -33,6 +33,7 @@ export function OTPAuthForm() {
   const [overlayMessage, setOverlayMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [userId, setUserId] = useState('');
+  const [receivedOtpCode, setReceivedOtpCode] = useState('');
   const otpRef = useRef<HTMLInputElement>(null);
 
   const handleGenerateOTP = async () => {
@@ -54,7 +55,7 @@ export function OTPAuthForm() {
 
       setUserId(userResult.user.id);
 
-      // Generate OTP
+      // Generate OTP — the API returns the code in dev mode
       const otpResult = await generateOTP(email);
       if (!otpResult.success) {
         setOverlayStatus('error');
@@ -62,10 +63,20 @@ export function OTPAuthForm() {
         return;
       }
 
-      // Success - show OTP input
-      setOverlayVisible(false);
-      setStep('otp-input');
-      setTimeout(() => otpRef.current?.focus(), 100);
+      // Store the received OTP code for display (dev mode)
+      const codeFromApi = otpResult.code as string | undefined;
+      if (codeFromApi) {
+        setReceivedOtpCode(codeFromApi);
+      }
+
+      // Success — show OTP input
+      setOverlayStatus('success');
+      setOverlayMessage('OTP Sent Successfully!');
+
+      setTimeout(() => {
+        setOverlayVisible(false);
+        setStep('otp-input');
+      }, 800);
     } catch (error) {
       setOverlayStatus('error');
       setErrorMessage(error instanceof Error ? error.message : 'An unexpected error occurred');
@@ -99,7 +110,7 @@ export function OTPAuthForm() {
       setOverlayStatus('success');
       setOverlayMessage('Verified Successfully!');
 
-      // Get user info from userResult
+      // Get user info
       const userResult = await createUserOrGet(email);
       if (userResult.success && userResult.user) {
         setUser({ id: userResult.user.id, email: userResult.user.email, name: userResult.user.name });
@@ -138,6 +149,7 @@ export function OTPAuthForm() {
             if (step === 'otp-input') {
               setStep('email');
               setOtpCode('');
+              setReceivedOtpCode('');
             } else {
               setAuthMethod('default');
             }
@@ -201,6 +213,18 @@ export function OTPAuthForm() {
 
         {step === 'otp-input' && (
           <>
+            {/* Show received OTP code (dev mode display since we can't send real emails) */}
+            {receivedOtpCode && (
+              <div className="p-4 rounded-xl bg-success/5 border border-success/20">
+                <div className="flex items-center gap-2 mb-2">
+                  <CheckCircle2 className="w-4 h-4 text-success" />
+                  <p className="text-sm font-semibold text-foreground">Your Verification Code</p>
+                </div>
+                <p className="text-3xl font-bold text-foreground tracking-widest font-mono">{receivedOtpCode}</p>
+                <p className="text-xs text-muted-foreground mt-1">Enter this code below to verify your identity</p>
+              </div>
+            )}
+
             {/* OTP input */}
             <div className="space-y-2">
               <Label className="text-sm font-medium">Enter 6-Digit Code</Label>

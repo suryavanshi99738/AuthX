@@ -15,7 +15,6 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
-import { fadeInUp } from '@/lib/animations';
 
 interface SidebarItem {
   id: string;
@@ -62,15 +61,10 @@ export function Sidebar({ activeItem, onItemClick, isDemo }: SidebarProps) {
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.4 }}
     >
-      {/* Header with toggle */}
-      <div className="flex items-center justify-between p-4 border-b border-border">
-        {!collapsed && (
-          <motion.div
-            className="flex items-center gap-2"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.2 }}
-          >
+      {/* Brand header */}
+      <div className={cn('p-4 border-b border-border', collapsed && 'p-3')}>
+        {!collapsed ? (
+          <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
               <Shield className="w-4 h-4 text-primary" />
             </div>
@@ -80,25 +74,33 @@ export function Sidebar({ activeItem, onItemClick, isDemo }: SidebarProps) {
                 Demo
               </span>
             )}
-          </motion.div>
+          </div>
+        ) : (
+          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center mx-auto">
+            <Shield className="w-4 h-4 text-primary" />
+          </div>
         )}
-        <button
+      </div>
+
+      {/* Toggle icon — at left upper side, below brand header (not topmost level) */}
+      <div className={cn('px-2 pt-2 pb-1', collapsed ? 'flex justify-center' : 'flex items-center justify-end')}>
+        <motion.button
           onClick={() => setCollapsed(!collapsed)}
-          className={cn(
-            'flex items-center justify-center w-8 h-8 rounded-lg hover:bg-muted transition-smooth',
-            collapsed && 'mx-auto'
-          )}
+          className="flex items-center justify-center w-9 h-9 rounded-xl hover:bg-muted transition-smooth group"
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           {collapsed ? (
-            <PanelLeft className="w-4 h-4 text-muted-foreground" />
+            <PanelLeft className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-smooth" />
           ) : (
-            <PanelLeftClose className="w-4 h-4 text-muted-foreground" />
+            <PanelLeftClose className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-smooth" />
           )}
-        </button>
+        </motion.button>
       </div>
 
       {/* Navigation items */}
-      <nav className="flex-1 py-4 px-2 space-y-1">
+      <nav className="flex-1 py-2 px-2 space-y-1">
         {sidebarItems.map((item) => {
           const isActive = activeItem === item.id;
           return (

@@ -22,10 +22,13 @@ export async function POST(request: NextRequest) {
       where: { userId },
     });
 
+    // @simplewebauthn/server v13 requires userID as Uint8Array, not string
+    const userIDBuffer = new TextEncoder().encode(userId);
+
     const options = await generateRegistrationOptions({
       rpName: 'BankShield Auth',
       rpID: 'localhost',
-      userID: userId,
+      userID: userIDBuffer,
       userName: email,
       userDisplayName: email,
       excludeCredentials: existingPasskeys.map((passkey) => ({
