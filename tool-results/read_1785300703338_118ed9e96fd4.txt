@@ -1,0 +1,1134 @@
+     1→'use client';
+     2→
+     3→import { useState, useRef, useCallback } from 'react';
+     4→import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'framer-motion';
+     5→import {
+     6→  Shield,
+     7→  KeyRound,
+     8→  Fingerprint,
+     9→  QrCode,
+    10→  Mail,
+    11→  Smartphone,
+    12→  ScanFace,
+    13→  ArrowRight,
+    14→  Lock,
+    15→  CheckCircle2,
+    16→  X,
+    17→  Play,
+    18→  Eye,
+    19→  Sparkles,
+    20→  User,
+    21→  Phone,
+    22→  ChevronRight,
+    23→  ArrowLeft,
+    24→  Hand,
+    25→  ScanLine,
+    26→  Hash,
+    27→} from 'lucide-react';
+    28→import { Button } from '@/components/ui/button';
+    29→import { Card, CardContent } from '@/components/ui/card';
+    30→import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+    31→import { Input } from '@/components/ui/input';
+    32→import { Label } from '@/components/ui/label';
+    33→import { Separator } from '@/components/ui/separator';
+    34→
+    35→/* ── Types ── */
+    36→type PageView = 'landing' | 'auth';
+    37→type AuthTab = 'login' | 'signup';
+    38→type AuthMethod = 'default' | 'passkey' | 'biometric' | 'qr' | 'otp';
+    39→
+    40→/* ── Animation Variants ── */
+    41→const fadeInUp = {
+    42→  hidden: { opacity: 0, y: 24 },
+    43→  visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] } },
+    44→};
+    45→
+    46→const staggerContainer = {
+    47→  hidden: { opacity: 0 },
+    48→  visible: { opacity: 1, transition: { staggerChildren: 0.1, delayChildren: 0.15 } },
+    49→};
+    50→
+    51→const scaleIn = {
+    52→  hidden: { opacity: 0, scale: 0.92 },
+    53→  visible: { opacity: 1, scale: 1, transition: { duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] } },
+    54→};
+    55→
+    56→const pageTransition = {
+    57→  initial: { opacity: 0 },
+    58→  animate: { opacity: 1, transition: { duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] } },
+    59→  exit: { opacity: 0, transition: { duration: 0.3 } },
+    60→};
+    61→
+    62→/* ── Auth Method Definitions ── */
+    63→const AUTH_ICONS = [
+    64→  { id: 'passkey' as AuthMethod, icon: KeyRound, label: 'Passkey', color: 'text-primary' },
+    65→  { id: 'biometric' as AuthMethod, icon: Fingerprint, label: 'Biometric', color: 'text-success' },
+    66→  { id: 'qr' as AuthMethod, icon: QrCode, label: 'QR Code', color: 'text-info' },
+    67→  { id: 'otp' as AuthMethod, icon: Mail, label: 'OTP', color: 'text-warning' },
+    68→];
+    69→
+    70→const SECURITY_FEATURES = [
+    71→  { icon: Lock, label: 'Zero Passwords', desc: 'No passwords means no phishing, no brute-force, no credential leaks.' },
+    72→  { icon: Shield, label: 'Bank-Grade Security', desc: 'FIDO2-compliant, end-to-end encrypted, and regulatory-ready.' },
+    73→  { icon: CheckCircle2, label: 'Phishing Proof', desc: 'Passkeys and biometrics can\'t be stolen or reused on fake sites.' },
+    74→];
+    75→
+    76→const SIGNUP_BENEFITS = [
+    77→  { icon: Shield, label: 'Passwordless authentication', desc: 'No passwords to remember, lose, or steal.' },
+    78→  { icon: Smartphone, label: 'Secure device recognition', desc: 'Your trusted devices are your key.' },
+    79→  { icon: Eye, label: 'Privacy focused', desc: 'Your biometric data never leaves your device.' },
+    80→];
+    81→
+    82→/* ── Interactive 3D Shield (Landing Page) ── */
+    83→function InteractiveShield() {
+    84→  const containerRef = useRef<HTMLDivElement>(null);
+    85→  const [mousePos, setMousePos] = useState({ x: 0.5, y: 0.5 });
+    86→  const [isHovered, setIsHovered] = useState(false);
+    87→  const [clickCount, setClickCount] = useState(0);
+    88→
+    89→  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    90→    if (!containerRef.current) return;
+    91→    const rect = containerRef.current.getBoundingClientRect();
+    92→    setMousePos({ x: (e.clientX - rect.left) / rect.width, y: (e.clientY - rect.top) / rect.height });
+    93→  }, []);
+    94→
+    95→  const handleMouseLeave = useCallback(() => {
+    96→    setMousePos({ x: 0.5, y: 0.5 });
+    97→    setIsHovered(false);
+    98→  }, []);
+    99→
+   100→  const handleMouseEnter = useCallback(() => setIsHovered(true), []);
+   101→
+   102→  const handleClick = useCallback(() => setClickCount((c) => c + 1), []);
+   103→
+   104→  const offsetX = (mousePos.x - 0.5) * 16;
+   105→  const offsetY = (mousePos.y - 0.5) * 10;
+   106→
+   107→  return (
+   108→    <div ref={containerRef} onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave} onMouseEnter={handleMouseEnter}
+   109→      onClick={handleClick}
+   110→      className="relative w-full h-full flex items-center justify-center cursor-pointer select-none"
+   111→      style={{ perspective: '800px' }}>
+   112→      <div className="absolute inset-0 pointer-events-none" style={{
+   113→        background: `radial-gradient(ellipse 60% 50% at 50% 45%, rgba(37, 99, 235, ${isHovered ? 0.15 : 0.08}) 0%, transparent 70%)`,
+   114→        transition: 'background 0.4s ease',
+   115→      }} />
+   116→      <motion.div
+   117→        className="relative"
+   118→        initial={{ opacity: 0, scale: 0.85 }}
+   119→        animate={{
+   120→          opacity: 1,
+   121→          scale: isHovered ? 1.06 : (clickCount > 0 ? [1, 1.08, 1] : 1),
+   122→          y: [0, -6, 0],
+   123→        }}
+   124→        transition={{
+   125→          opacity: { duration: 0.8 },
+   126→          scale: isHovered ? { duration: 0.3, ease: 'easeOut' } : { duration: 0.4, ease: 'easeInOut' },
+   127→          y: { duration: 5, repeat: Infinity, ease: 'easeInOut' },
+   128→        }}
+   129→        style={{ transformStyle: 'preserve-3d', transform: `rotateY(${offsetX * 1}deg) rotateX(${offsetY * -0.8}deg)`, transition: 'transform 0.15s ease-out' }}>
+   130→        {/* Outer ring */}
+   131→        <motion.div className="absolute" style={{ transform: 'translateZ(20px)', top: '-24px', left: '-24px', right: '-24px', bottom: '-24px' }}
+   132→          animate={{ opacity: isHovered ? 0.4 : 0.2 }} transition={{ duration: 0.3 }}>
+   133→          <svg viewBox="0 0 240 280" className="w-full h-full">
+   134→            <path d="M120 16 L220 60 L220 180 C220 220 180 260 120 270 C60 260 20 220 20 180 L20 60 Z" fill="none" stroke="#2563EB" strokeWidth="1.5" />
+   135→            <circle cx="120" cy="140" r="110" fill="none" stroke="#2563EB" strokeWidth="0.5" opacity="0.3" strokeDasharray="4 8" />
+   136→          </svg>
+   137→        </motion.div>
+   138→        {/* Mid ring */}
+   139→        <motion.div className="absolute" style={{ transform: 'translateZ(10px)', top: '-12px', left: '-12px', right: '-12px', bottom: '-12px' }}
+   140→          animate={{ opacity: isHovered ? 0.5 : 0.3 }} transition={{ duration: 0.3 }}>
+   141→          <svg viewBox="0 0 216 256" className="w-full h-full">
+   142→            <path d="M108 20 L196 56 L196 168 C196 200 160 236 108 244 C56 236 20 200 20 168 L20 56 Z" fill="none" stroke="#2563EB" strokeWidth="2" strokeDasharray="6 4" />
+   143→          </svg>
+   144→        </motion.div>
+   145→        {/* Main shield */}
+   146→        <motion.div style={{ transform: 'translateZ(0px)' }}
+   147→          animate={{ scale: clickCount > 0 ? [1, 1.05, 1] : 1 }}
+   148→          transition={{ duration: 0.4 }}>
+   149→          <svg viewBox="0 0 192 232" width="192" height="232" className="drop-shadow-lg">
+   150→            <defs>
+   151→              <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+   152→                <stop offset="0%" stopColor="#2563EB" stopOpacity={isHovered ? 0.25 : 0.15} />
+   153→                <stop offset="50%" stopColor="#2563EB" stopOpacity={isHovered ? 0.15 : 0.08} />
+   154→                <stop offset="100%" stopColor="#1E40AF" stopOpacity={isHovered ? 0.2 : 0.12} />
+   155→              </linearGradient>
+   156→              <linearGradient id="shieldStroke" x1="0%" y1="0%" x2="100%" y2="100%">
+   157→                <stop offset="0%" stopColor="#2563EB" />
+   158→                <stop offset="100%" stopColor="#1E40AF" />
+   159→              </linearGradient>
+   160→            </defs>
+   161→            <path d="M96 12 L180 48 L180 148 C180 178 148 210 96 220 C44 210 12 178 12 148 L12 48 Z" fill="url(#shieldGrad)" stroke="url(#shieldStroke)" strokeWidth="2.5" />
+   162→            <path d="M96 32 L164 60 L164 140 C164 165 136 192 96 200 C56 192 28 165 28 140 L28 60 Z" fill="none" stroke="#2563EB" strokeWidth="1" opacity="0.4" />
+   163→            <rect x="78" y="105" width="36" height="30" rx="4" fill="#2563EB" opacity="0.9" />
+   164→            <path d="M86 105 L86 92 C86 82 96 74 106 82 L106 92 L106 105" fill="none" stroke="#2563EB" strokeWidth="2.5" strokeLinecap="round" opacity="0.9" />
+   165→            <circle cx="96" cy="118" r="4" fill="#FFFFFF" />
+   166→            <path d="M80 56 L92 68 L116 44" fill="none" stroke="#16A34A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+   167→          </svg>
+   168→        </motion.div>
+   169→        {/* Floating particles - interactive */}
+   170→        {[0, 1, 2, 3, 4].map((i) => (
+   171→          <motion.div key={i} className="absolute w-2 h-2 rounded-full"
+   172→            style={{
+   173→              left: `${45 + (i % 3) * 10}%`,
+   174→              top: `${30 + i * 10}%`,
+   175→              backgroundColor: isHovered ? '#2563EB' : 'rgba(37,99,235,0.3)',
+   176→            }}
+   177→            animate={{
+   178→              opacity: isHovered ? [0.4, 0.9, 0.4] : [0, 0.6, 0],
+   179→              y: [0, -(20 + i * 12)],
+   180→              x: [(i % 2 === 0 ? -1 : 1) * (8 + i * 4)],
+   181→              scale: isHovered ? [1, 1.5, 1] : [1, 1, 1],
+   182→            }}
+   183→            transition={{ duration: isHovered ? 2 : 3 + i * 0.5, repeat: Infinity, delay: i * 0.6, ease: 'easeInOut' }}
+   184→          />
+   185→        ))}
+   186→        {/* Hover glow ring */}
+   187→        <AnimatePresence>
+   188→          {isHovered && (
+   189→            <motion.div
+   190→              initial={{ opacity: 0, scale: 0.8 }}
+   191→              animate={{ opacity: 0.15, scale: 1.2 }}
+   192→              exit={{ opacity: 0, scale: 0.8 }}
+   193→              className="absolute inset-0 rounded-full pointer-events-none"
+   194→              style={{ background: 'radial-gradient(circle, rgba(37,99,235,0.2) 0%, transparent 70%)' }}
+   195→            />
+   196→          )}
+   197→        </AnimatePresence>
+   198→      </motion.div>
+   199→    </div>
+   200→  );
+   201→}
+   202→
+   203→/* ── Auth Page Interactive Shield ── */
+   204→function AuthInteractiveShield() {
+   205→  const [isHovered, setIsHovered] = useState(false);
+   206→  const [clickCount, setClickCount] = useState(0);
+   207→
+   208→  const handleClick = useCallback(() => setClickCount((c) => c + 1), []);
+   209→
+   210→  return (
+   211→    <div
+   212→      onMouseEnter={() => setIsHovered(true)}
+   213→      onMouseLeave={() => setIsHovered(false)}
+   214→      onClick={handleClick}
+   215→      className="relative cursor-pointer"
+   216→    >
+   217→      <motion.div
+   218→        initial={{ opacity: 0, scale: 0.8 }}
+   219→        animate={{
+   220→          opacity: 1,
+   221→          scale: isHovered ? 1.08 : (clickCount > 0 ? [1, 1.1, 1] : 1),
+   222→          y: [0, -8, 0],
+   223→        }}
+   224→        transition={{
+   225→          opacity: { duration: 0.8 },
+   226→          scale: isHovered ? { duration: 0.3 } : { duration: 0.4 },
+   227→          y: { duration: 6, repeat: Infinity, ease: 'easeInOut' },
+   228→        }}
+   229→      >
+   230→        <svg viewBox="0 0 160 192" width="160" height="192" className="drop-shadow-2xl">
+   231→          <defs>
+   232→            <linearGradient id="authShieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+   233→              <stop offset="0%" stopColor="#FFFFFF" stopOpacity={isHovered ? 0.35 : 0.25} />
+   234→              <stop offset="100%" stopColor="#FFFFFF" stopOpacity={isHovered ? 0.15 : 0.08} />
+   235→            </linearGradient>
+   236→          </defs>
+   237→          <path d="M80 10 L150 42 L150 125 C150 150 125 178 80 186 C35 178 10 150 10 125 L10 42 Z" fill="url(#authShieldGrad)" stroke="white" strokeWidth="1.5" opacity="0.9" />
+   238→          <path d="M80 28 L134 52 L134 118 C134 136 112 160 80 168 C48 160 26 136 26 118 L26 52 Z" fill="none" stroke="white" strokeWidth="0.8" opacity="0.4" />
+   239→          <rect x="62" y="88" width="36" height="28" rx="4" fill="white" opacity="0.85" />
+   240→          <path d="M70 88 L70 78 C70 68 80 60 90 68 L90 78 L90 88" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" opacity="0.85" />
+   241→          <circle cx="80" cy="100" r="3.5" fill="#2563EB" />
+   242→          <path d="M66 48 L76 58 L98 38" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.7" />
+   243→        </svg>
+   244→      </motion.div>
+   245→      {/* Hover glow */}
+   246→      <AnimatePresence>
+   247→        {isHovered && (
+   248→          <motion.div
+   249→            initial={{ opacity: 0, scale: 0.5 }}
+   250→            animate={{ opacity: 0.3, scale: 1.4 }}
+   251→            exit={{ opacity: 0, scale: 0.5 }}
+   252→            className="absolute inset-0 pointer-events-none"
+   253→            style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.25) 0%, transparent 60%)' }}
+   254→          />
+   255→        )}
+   256→      </AnimatePresence>
+   257→    </div>
+   258→  );
+   259→}
+   260→
+   261→/* ── Spotlight Heading (Hero Text Interaction) ── */
+   262→function SpotlightHeading() {
+   263→  const containerRef = useRef<HTMLDivElement>(null);
+   264→  const mouseX = useMotionValue(0);
+   265→  const mouseY = useMotionValue(0);
+   266→  const [isHovered, setIsHovered] = useState(false);
+   267→
+   268→  const smoothX = useSpring(mouseX, { stiffness: 300, damping: 30, mass: 0.5 });
+   269→  const smoothY = useSpring(mouseY, { stiffness: 300, damping: 30, mass: 0.5 });
+   270→
+   271→  const maskImage = useTransform(
+   272→    [smoothX, smoothY] as const,
+   273→    ([x, y]) =>
+   274→      `radial-gradient(circle 120px at ${x}px ${y}px, white 0%, rgba(255,255,255,0.6) 40%, transparent 70%)`
+   275→  );
+   276→
+   277→  const spotLightBg = useTransform(
+   278→    [smoothX, smoothY] as const,
+   279→    ([x, y]) =>
+   280→      `radial-gradient(circle 200px at ${x}px ${y}px, rgba(37,99,235,0.12) 0%, rgba(37,99,235,0.04) 40%, transparent 70%)`
+   281→  );
+   282→
+   283→  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+   284→    if (!containerRef.current) return;
+   285→    const rect = containerRef.current.getBoundingClientRect();
+   286→    mouseX.set(e.clientX - rect.left);
+   287→    mouseY.set(e.clientY - rect.top);
+   288→  }, [mouseX, mouseY]);
+   289→
+   290→  const handleMouseEnter = useCallback(() => setIsHovered(true), []);
+   291→  const handleMouseLeave = useCallback(() => setIsHovered(false), []);
+   292→
+   293→  const headingText = "The future of banking\nauthentication";
+   294→  const headingLines = headingText.split('\n');
+   295→
+   296→  const headingClasses = "font-display text-4xl md:text-5xl lg:text-[3.5rem] font-extrabold tracking-tight leading-[1.1]";
+   297→
+   298→  return (
+   299→    <motion.div
+   300→      ref={containerRef}
+   301→      variants={fadeInUp}
+   302→      onMouseMove={handleMouseMove}
+   303→      onMouseEnter={handleMouseEnter}
+   304→      onMouseLeave={handleMouseLeave}
+   305→      className="relative mb-4 cursor-default select-none overflow-hidden rounded-lg"
+   306→    >
+   307→      {/* Base text layer — dark navy */}
+   308→      <h1 className={`${headingClasses} text-[#0F172A]`}>
+   309→        {headingLines.map((line, i) => (
+   310→          <span key={i}>
+   311→            {line}
+   312→            {i < headingLines.length - 1 && <br />}
+   313→          </span>
+   314→        ))}
+   315→      </h1>
+   316→
+   317→      {/* Spotlight glow — blue radial gradient following cursor */}
+   318→      <motion.div
+   319→        className="absolute inset-0 pointer-events-none"
+   320→        style={{
+   321→          background: spotLightBg,
+   322→          filter: 'blur(30px)',
+   323→          opacity: isHovered ? 1 : 0,
+   324→          transition: 'opacity 0.4s ease',
+   325→          willChange: 'background',
+   326→        }}
+   327→      />
+   328→
+   329→      {/* Revealed text layer — white, masked by cursor spotlight */}
+   330→      <motion.h1
+   331→        className={`absolute inset-0 ${headingClasses} text-white`}
+   332→        style={{
+   333→          WebkitMaskImage: maskImage,
+   334→          maskImage: maskImage,
+   335→          willChange: 'mask-image, -webkit-mask-image',
+   336→        }}
+   337→      >
+   338→        {headingLines.map((line, i) => (
+   339→          <span key={i}>
+   340→            {line}
+   341→            {i < headingLines.length - 1 && <br />}
+   342→          </span>
+   343→        ))}
+   344→      </motion.h1>
+   345→    </motion.div>
+   346→  );
+   347→}
+   348→
+   349→/* ── Landing Page ── */
+   350→function LandingPage({ onGetStarted, onGetDemo }: { onGetStarted: () => void; onGetDemo: () => void }) {
+   351→
+   352→  return (
+   353→    <div className="min-h-screen flex flex-col bg-background">
+   354→      {/* ── Navbar ── */}
+   355→      <nav className="px-6 md:px-12 lg:px-16 py-5">
+   356→        <div className="max-w-6xl mx-auto flex items-center justify-between">
+   357→          <div className="flex items-center gap-2.5">
+   358→            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+   359→              <Shield className="w-4.5 h-4.5 text-primary" />
+   360→            </div>
+   361→            <span className="font-heading text-base font-semibold">BankShield</span>
+   362→          </div>
+   363→          <div className="flex items-center gap-3">
+   364→            <Button variant="ghost" size="sm" className="text-sm text-muted-foreground" onClick={onGetDemo}>
+   365→              Demo
+   366→            </Button>
+   367→            <Button size="sm" className="text-sm rounded-lg" onClick={onGetStarted}>
+   368→              Get Started
+   369→            </Button>
+   370→          </div>
+   371→        </div>
+   372→      </nav>
+   373→
+   374→      {/* ── Hero: 2-Column ── */}
+   375→      <section className="flex-1 flex items-center px-6 md:px-12 lg:px-16 py-8">
+   376→        <div className="max-w-6xl mx-auto w-full grid grid-cols-1 lg:grid-cols-[45fr_55fr] gap-8 lg:gap-12 items-center">
+   377→          {/* LEFT: 3D Shield */}
+   378→          <motion.div className="hidden lg:flex items-center justify-center min-h-[480px]"
+   379→            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1 }}>
+   380→            <InteractiveShield />
+   381→          </motion.div>
+   382→
+   383→          {/* RIGHT: Content */}
+   384→          <motion.div className="flex flex-col justify-center" initial="hidden" animate="visible" variants={staggerContainer}>
+   385→            <motion.div variants={fadeInUp} className="flex items-center gap-3 mb-6">
+   386→              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shadow-card">
+   387→                <Shield className="w-6 h-6 text-primary" />
+   388→              </div>
+   389→              <span className="text-sm font-medium text-primary/80 tracking-wide">BANKSHIELD</span>
+   390→            </motion.div>
+   391→
+   392→            <SpotlightHeading />
+   393→
+   394→            <motion.p variants={fadeInUp} className="text-lg md:text-[1.125rem] text-muted-foreground max-w-md mb-10 leading-relaxed">
+   395→              No passwords, no phishing, no credential leaks.
+   396→              Just secure, seamless access to your accounts.
+   397→            </motion.p>
+   398→
+   399→            {/* CTA Buttons */}
+   400→            <motion.div variants={fadeInUp} className="flex items-center gap-4">
+   401→              <Button size="lg" className="text-base px-8 py-3 rounded-xl shadow-card hover:shadow-card-hover transition-smooth" onClick={onGetStarted}>
+   402→                Get Started
+   403→                <ArrowRight className="w-4 h-4 ml-2" />
+   404→              </Button>
+   405→              <Button size="lg" variant="outline" className="text-base px-8 py-3 rounded-xl transition-smooth" onClick={onGetDemo}>
+   406→                <Play className="w-4 h-4 mr-2" />
+   407→                Get Demo
+   408→              </Button>
+   409→            </motion.div>
+   410→
+   411→            <motion.div variants={fadeInUp} className="flex items-center gap-6 mt-10 text-xs text-muted-foreground">
+   412→              <div className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-success" /><span>FIDO2 Compliant</span></div>
+   413→              <div className="flex items-center gap-2"><Lock className="w-4 h-4 text-primary" /><span>E2E Encrypted</span></div>
+   414→              <div className="flex items-center gap-2"><Shield className="w-4 h-4 text-primary" /><span>Regulatory Ready</span></div>
+   415→            </motion.div>
+   416→          </motion.div>
+   417→        </div>
+   418→      </section>
+   419→
+   420→      {/* ── Auth Methods Showcase ── */}
+   421→      <section className="px-6 md:px-12 lg:px-16 pb-20">
+   422→        <motion.div className="max-w-5xl mx-auto" initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} variants={staggerContainer}>
+   423→          <motion.div variants={fadeInUp} className="text-center mb-10">
+   424→            <h2 className="font-heading text-2xl md:text-3xl font-semibold mb-3">Multiple Ways to Authenticate</h2>
+   425→            <p className="text-muted-foreground max-w-lg mx-auto">Choose the method that works best for you. All are secure, all are passwordless.</p>
+   426→          </motion.div>
+   427→          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+   428→            {AUTH_ICONS.map((m) => {
+   429→              const descs: Record<string, string> = {
+   430→                passkey: 'Login with device-stored passkeys using WebAuthn / FIDO2.',
+   431→                biometric: 'Use your fingerprint or Face ID for instant, secure access.',
+   432→                qr: 'Scan a QR code from your trusted device to authenticate.',
+   433→                otp: 'Receive a one-time password on your registered email.',
+   434→              };
+   435→              return (
+   436→                <motion.div key={m.id} variants={scaleIn}>
+   437→                  <Card className="shadow-card hover:shadow-card-hover transition-smooth cursor-pointer group" onClick={onGetStarted}>
+   438→                    <CardContent className="pt-6 pb-6">
+   439→                      <div className="flex items-start gap-4">
+   440→                        <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 group-hover:scale-105 transition-smooth">
+   441→                          <m.icon className={`w-6 h-6 ${m.color}`} />
+   442→                        </div>
+   443→                        <div className="flex-1 min-w-0">
+   444→                          <span className="font-semibold text-foreground">{m.label}</span>
+   445→                          <p className="text-sm text-muted-foreground leading-relaxed mt-1">{descs[m.id]}</p>
+   446→                        </div>
+   447→                      </div>
+   448→                    </CardContent>
+   449→                  </Card>
+   450→                </motion.div>
+   451→              );
+   452→            })}
+   453→          </div>
+   454→        </motion.div>
+   455→      </section>
+   456→
+   457→      {/* ── Security Benefits ── */}
+   458→      <section className="px-6 md:px-12 lg:px-16 pb-20">
+   459→        <motion.div className="max-w-4xl mx-auto" initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} variants={staggerContainer}>
+   460→          <motion.div variants={fadeInUp} className="text-center mb-10">
+   461→            <h2 className="font-heading text-2xl md:text-3xl font-semibold mb-3">Why Passwordless?</h2>
+   462→            <p className="text-muted-foreground max-w-lg mx-auto">Traditional passwords are vulnerable. BankShield Auth eliminates the risk entirely.</p>
+   463→          </motion.div>
+   464→          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+   465→            {SECURITY_FEATURES.map((f) => (
+   466→              <motion.div key={f.label} variants={scaleIn}>
+   467→                <Card className="shadow-card hover:shadow-card-hover transition-smooth text-center py-8">
+   468→                  <CardContent className="pt-0 flex flex-col items-center gap-4">
+   469→                    <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center"><f.icon className="w-6 h-6 text-primary" /></div>
+   470→                    <span className="font-semibold text-foreground">{f.label}</span>
+   471→                    <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">{f.desc}</p>
+   472→                  </CardContent>
+   473→                </Card>
+   474→              </motion.div>
+   475→            ))}
+   476→          </div>
+   477→        </motion.div>
+   478→      </section>
+   479→
+   480→      {/* ── Footer ── */}
+   481→      <footer className="mt-auto bg-card border-t border-border py-8 px-6">
+   482→        <div className="max-w-6xl mx-auto text-center">
+   483→          <div className="flex items-center justify-center gap-2 mb-3">
+   484→            <Shield className="w-5 h-5 text-primary" />
+   485→            <span className="text-sm font-semibold font-heading">BankShield Auth</span>
+   486→          </div>
+   487→          <p className="text-xs text-muted-foreground">Passwordless Authentication Platform for Banking Systems</p>
+   488→          <p className="text-xs text-muted-foreground mt-1">FIDO2 Compliant · End-to-End Encrypted · Regulatory Ready</p>
+   489→        </div>
+   490→      </footer>
+   491→    </div>
+   492→  );
+   493→}
+   494→
+   495→/* ── Auth Method Detail Forms ── */
+   496→function PasskeyForm({ email, setEmail }: { email: string; setEmail: (v: string) => void }) {
+   497→  return (
+   498→    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }}>
+   499→      <div className="space-y-5">
+   500→        <div className="space-y-2">
+   501→          <Label className="text-sm font-medium">Email Address</Label>
+   502→          <Input type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} className="h-12 rounded-xl" />
+   503→        </div>
+   504→
+   505→        {/* Passkey Info Section */}
+   506→        <div className="p-4 rounded-xl bg-primary/5 border border-primary/20">
+   507→          <div className="flex items-center gap-3 mb-3">
+   508→            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+   509→              <KeyRound className="w-5 h-5 text-primary" />
+   510→            </div>
+   511→            <div>
+   512→              <p className="font-semibold text-foreground text-sm">Passkey Authentication</p>
+   513→              <p className="text-xs text-muted-foreground">WebAuthn / FIDO2 Standard</p>
+   514→            </div>
+   515→          </div>
+   516→          <p className="text-xs text-muted-foreground leading-relaxed">
+   517→            Passkeys are stored securely on your device. No server-side credential storage — eliminating phishing and credential theft entirely.
+   518→          </p>
+   519→        </div>
+   520→
+   521→        <Button className="w-full h-12 rounded-xl text-base shadow-card hover:shadow-card-hover transition-smooth" disabled={!email.trim()}>
+   522→          Register Passkey
+   523→          <KeyRound className="w-4 h-4 ml-2" />
+   524→        </Button>
+   525→
+   526→        {/* Security notice */}
+   527→        <div className="flex items-center gap-2 text-xs text-muted-foreground justify-center pt-2">
+   528→          <Lock className="w-3 h-3" />
+   529→          <span>Your passkey is stored only on your device — never on our servers.</span>
+   530→        </div>
+   531→      </div>
+   532→    </motion.div>
+   533→  );
+   534→}
+   535→
+   536→function BiometricForm({ email, setEmail }: { email: string; setEmail: (v: string) => void }) {
+   537→  const [bioMethod, setBioMethod] = useState<'fingerprint' | 'face'>('fingerprint');
+   538→
+   539→  return (
+   540→    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }}>
+   541→      <div className="space-y-5">
+   542→        <div className="space-y-2">
+   543→          <Label className="text-sm font-medium">Email Address</Label>
+   544→          <Input type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} className="h-12 rounded-xl" />
+   545→        </div>
+   546→
+   547→        {/* Biometric Sub-options */}
+   548→        <div className="space-y-2">
+   549→          <Label className="text-sm font-medium">Choose Biometric Method</Label>
+   550→          <div className="grid grid-cols-2 gap-3">
+   551→            {/* Fingerprint Option */}
+   552→            <button
+   553→              onClick={() => setBioMethod('fingerprint')}
+   554→              className={`flex items-center gap-3 p-4 rounded-xl border transition-smooth ${
+   555→                bioMethod === 'fingerprint'
+   556→                  ? 'border-primary bg-primary/10 shadow-card'
+   557→                  : 'border-border hover:border-primary/30 hover:bg-primary/5'
+   558→              }`}
+   559→            >
+   560→              <Fingerprint className={`w-6 h-6 ${bioMethod === 'fingerprint' ? 'text-primary' : 'text-muted-foreground'}`} />
+   561→              <div className="text-left">
+   562→                <p className={`text-sm font-medium ${bioMethod === 'fingerprint' ? 'text-foreground' : 'text-muted-foreground'}`}>Fingerprint</p>
+   563→                <p className="text-[10px] text-muted-foreground">Touch ID / Fingerprint Scanner</p>
+   564→              </div>
+   565→            </button>
+   566→
+   567→            {/* Face Recognition Option */}
+   568→            <button
+   569→              onClick={() => setBioMethod('face')}
+   570→              className={`flex items-center gap-3 p-4 rounded-xl border transition-smooth ${
+   571→                bioMethod === 'face'
+   572→                  ? 'border-primary bg-primary/10 shadow-card'
+   573→                  : 'border-border hover:border-primary/30 hover:bg-primary/5'
+   574→              }`}
+   575→            >
+   576→              <ScanFace className={`w-6 h-6 ${bioMethod === 'face' ? 'text-primary' : 'text-muted-foreground'}`} />
+   577→              <div className="text-left">
+   578→                <p className={`text-sm font-medium ${bioMethod === 'face' ? 'text-foreground' : 'text-muted-foreground'}`}>Face ID</p>
+   579→                <p className="text-[10px] text-muted-foreground">Face Recognition / Face Unlock</p>
+   580→              </div>
+   581→            </button>
+   582→          </div>
+   583→        </div>
+   584→
+   585→        {/* Selected method info */}
+   586→        <AnimatePresence mode="wait">
+   587→          {bioMethod === 'fingerprint' ? (
+   588→            <motion.div key="fingerprint-info" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.2 }}>
+   589→              <div className="p-4 rounded-xl bg-success/5 border border-success/20">
+   590→                <div className="flex items-center gap-3 mb-2">
+   591→                  <Fingerprint className="w-5 h-5 text-success" />
+   592→                  <p className="text-sm font-semibold text-foreground">Fingerprint Verification</p>
+   593→                </div>
+   594→                <p className="text-xs text-muted-foreground leading-relaxed">
+   595→                  Place your finger on the sensor to verify your identity. Your fingerprint data stays on your device and is never transmitted.
+   596→                </p>
+   597→              </div>
+   598→            </motion.div>
+   599→          ) : (
+   600→            <motion.div key="face-info" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.2 }}>
+   601→              <div className="p-4 rounded-xl bg-primary/5 border border-primary/20">
+   602→                <div className="flex items-center gap-3 mb-2">
+   603→                  <ScanFace className="w-5 h-5 text-primary" />
+   604→                  <p className="text-sm font-semibold text-foreground">Face Recognition</p>
+   605→                </div>
+   606→                <p className="text-xs text-muted-foreground leading-relaxed">
+   607→                  Look at your device camera to verify your identity. Face ID uses secure on-device processing — your face data never leaves your hardware.
+   608→                </p>
+   609→              </div>
+   610→            </motion.div>
+   611→          )}
+   612→        </AnimatePresence>
+   613→
+   614→        <Button className="w-full h-12 rounded-xl text-base shadow-card hover:shadow-card-hover transition-smooth" disabled={!email.trim()}>
+   615→          Verify with {bioMethod === 'fingerprint' ? 'Fingerprint' : 'Face ID'}
+   616→          {bioMethod === 'fingerprint' ? <Fingerprint className="w-4 h-4 ml-2" /> : <ScanFace className="w-4 h-4 ml-2" />}
+   617→        </Button>
+   618→
+   619→        {/* Security notice */}
+   620→        <div className="flex items-center gap-2 text-xs text-muted-foreground justify-center pt-2">
+   621→          <Eye className="w-3 h-3" />
+   622→          <span>Your biometric data never leaves your device — privacy first.</span>
+   623→        </div>
+   624→      </div>
+   625→    </motion.div>
+   626→  );
+   627→}
+   628→
+   629→function QRForm({ email, setEmail }: { email: string; setEmail: (v: string) => void }) {
+   630→  return (
+   631→    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }}>
+   632→      <div className="space-y-5">
+   633→        <div className="space-y-2">
+   634→          <Label className="text-sm font-medium">Email Address</Label>
+   635→          <Input type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} className="h-12 rounded-xl" />
+   636→        </div>
+   637→
+   638→        {/* QR Code Section */}
+   639→        <div className="p-4 rounded-xl bg-info/5 border border-info/20">
+   640→          <div className="flex items-center gap-3 mb-3">
+   641→            <div className="w-10 h-10 rounded-xl bg-info/10 flex items-center justify-center">
+   642→              <QrCode className="w-5 h-5 text-info" />
+   643→            </div>
+   644→            <div>
+   645→              <p className="font-semibold text-foreground text-sm">QR Code Authentication</p>
+   646→              <p className="text-xs text-muted-foreground">Scan from your trusted device</p>
+   647→            </div>
+   648→          </div>
+   649→
+   650→          {/* QR Placeholder */}
+   651→          <div className="flex items-center justify-center py-4">
+   652→            <div className="w-16 h-16 rounded-lg bg-white border-2 border-info/30 flex items-center justify-center">
+   653→              <QrCode className="w-8 h-8 text-info/50" />
+   654→            </div>
+   655→          </div>
+   656→
+   657→          <p className="text-xs text-muted-foreground leading-relaxed text-center">
+   658→            A QR code will be generated after you enter your email. Scan it from your registered mobile device to authenticate instantly.
+   659→          </p>
+   660→        </div>
+   661→
+   662→        <Button className="w-full h-12 rounded-xl text-base shadow-card hover:shadow-card-hover transition-smooth" disabled={!email.trim()}>
+   663→          Generate QR Code
+   664→          <QrCode className="w-4 h-4 ml-2" />
+   665→        </Button>
+   666→
+   667→        {/* Security notice */}
+   668→        <div className="flex items-center gap-2 text-xs text-muted-foreground justify-center pt-2">
+   669→          <ScanLine className="w-3 h-3" />
+   670→          <span>QR codes are session-bound and expire in 60 seconds.</span>
+   671→        </div>
+   672→      </div>
+   673→    </motion.div>
+   674→  );
+   675→}
+   676→
+   677→function OTPForm({ email, setEmail }: { email: string; setEmail: (v: string) => void }) {
+   678→  const [otpSent, setOtpSent] = useState(false);
+   679→  const [otpCode, setOtpCode] = useState('');
+   680→
+   681→  return (
+   682→    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }}>
+   683→      <div className="space-y-5">
+   684→        <div className="space-y-2">
+   685→          <Label className="text-sm font-medium">Email Address</Label>
+   686→          <Input type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} className="h-12 rounded-xl" />
+   687→        </div>
+   688→
+   689→        {/* OTP Info Section */}
+   690→        <div className="p-4 rounded-xl bg-warning/5 border border-warning/20">
+   691→          <div className="flex items-center gap-3 mb-3">
+   692→            <div className="w-10 h-10 rounded-xl bg-warning/10 flex items-center justify-center">
+   693→              <Mail className="w-5 h-5 text-warning" />
+   694→            </div>
+   695→            <div>
+   696→              <p className="font-semibold text-foreground text-sm">One-Time Password</p>
+   697→              <p className="text-xs text-muted-foreground">Sent to your registered email</p>
+   698→            </div>
+   699→          </div>
+   700→          <p className="text-xs text-muted-foreground leading-relaxed">
+   701→            After entering your email, we&apos;ll send a 6-digit verification code. Enter it below to complete authentication.
+   702→          </p>
+   703→        </div>
+   704→
+   705→        {/* Send OTP Button */}
+   706→        {!otpSent ? (
+   707→          <Button className="w-full h-12 rounded-xl text-base shadow-card hover:shadow-card-hover transition-smooth" disabled={!email.trim()}
+   708→            onClick={() => setOtpSent(true)}>
+   709→            Send OTP Code
+   710→            <Mail className="w-4 h-4 ml-2" />
+   711→          </Button>
+   712→        ) : (
+   713→          <>
+   714→            {/* OTP Input */}
+   715→            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-2">
+   716→              <Label className="text-sm font-medium">Enter 6-digit OTP Code</Label>
+   717→              <div className="flex gap-2 justify-center">
+   718→                {[0, 1, 2, 3, 4, 5].map((i) => (
+   719→                  <Input
+   720→                    key={i}
+   721→                    type="text"
+   722→                    maxLength={1}
+   723→                    className="w-12 h-12 rounded-xl text-center text-lg font-semibold"
+   724→                    value={otpCode[i] || ''}
+   725→                    onChange={(e) => {
+   726→                      const val = e.target.value;
+   727→                      const newCode = otpCode.split('');
+   728→                      newCode[i] = val;
+   729→                      setOtpCode(newCode.join(''));
+   730→                      // Auto-focus next input
+   731→                      if (val && i < 5) {
+   732→                        const nextInput = e.target.parentElement?.querySelectorAll('input')[i + 1];
+   733→                        nextInput?.focus();
+   734→                      }
+   735→                    }}
+   736→                  />
+   737→                ))}
+   738→              </div>
+   739→              <p className="text-xs text-muted-foreground text-center">
+   740→                Code sent to {email}. Expires in 5 minutes.
+   741→              </p>
+   742→            </motion.div>
+   743→
+   744→            <Button className="w-full h-12 rounded-xl text-base shadow-card hover:shadow-card-hover transition-smooth" disabled={otpCode.length !== 6}>
+   745→              Verify OTP
+   746→              <CheckCircle2 className="w-4 h-4 ml-2" />
+   747→            </Button>
+   748→
+   749→            <button className="text-xs text-primary hover:underline transition-smooth text-center w-full" onClick={() => setOtpSent(false)}>
+   750→              Resend OTP code
+   751→            </button>
+   752→          </>
+   753→        )}
+   754→
+   755→        {/* Security notice */}
+   756→        <div className="flex items-center gap-2 text-xs text-muted-foreground justify-center pt-2">
+   757→          <Hash className="w-3 h-3" />
+   758→          <span>OTP codes are single-use and expire automatically.</span>
+   759→        </div>
+   760→      </div>
+   761→    </motion.div>
+   762→  );
+   763→}
+   764→
+   765→/* ── Authentication Page ── */
+   766→function AuthPage({ onBack }: { onBack: () => void }) {
+   767→  const [authTab, setAuthTab] = useState<AuthTab>('login');
+   768→  const [authMethod, setAuthMethod] = useState<AuthMethod>('default');
+   769→  const [loginEmail, setLoginEmail] = useState('');
+   770→  const [signupName, setSignupName] = useState('');
+   771→  const [signupEmail, setSignupEmail] = useState('');
+   772→  const [signupPhone, setSignupPhone] = useState('');
+   773→
+   774→  return (
+   775→    <div className="min-h-screen flex flex-col lg:flex-row">
+   776→      {/* ── LEFT: Info Panel (Blue Gradient) ── */}
+   777→      <div className="flex-1 lg:flex-[1_1_50%] relative overflow-hidden order-1 min-h-[320px] lg:min-h-0"
+   778→        style={{ background: 'linear-gradient(135deg, #2563EB 0%, #1E40AF 50%, #1E3A5F 100%)' }}>
+   779→        {/* Decorative circles */}
+   780→        <div className="absolute w-[500px] h-[500px] rounded-full border border-white/10" style={{ top: '-10%', left: '-15%' }} />
+   781→        <div className="absolute w-[350px] h-[350px] rounded-full border border-white/5" style={{ bottom: '-5%', right: '-10%' }} />
+   782→        <div className="absolute w-[200px] h-[200px] rounded-full border border-white/10" style={{ top: '50%', right: '25%' }} />
+   783→
+   784→        {/* Floating dots */}
+   785→        {[0, 1, 2, 3, 4, 5].map((i) => (
+   786→          <motion.div key={i} className="absolute w-1.5 h-1.5 rounded-full bg-white/30"
+   787→            animate={{ opacity: [0.2, 0.6, 0.2], y: [0, -(10 + i * 6)], x: [(i % 2 === 0 ? -1 : 1) * (4 + i * 3)] }}
+   788→            transition={{ duration: 3 + i * 0.4, repeat: Infinity, delay: i * 0.5, ease: 'easeInOut' }}
+   789→            style={{ left: `${20 + (i % 3) * 25}%`, top: `${25 + i * 10}%` }} />
+   790→        ))}
+   791→
+   792→        {/* Content positioned properly */}
+   793→        <div className="relative z-10 flex flex-col items-center justify-center h-full px-8 lg:px-12">
+   794→          {/* Heading at top */}
+   795→          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, duration: 0.5 }}
+   796→            className="text-center lg:text-left mb-6 lg:mb-8 w-full max-w-sm">
+   797→            <h2 className="font-heading text-2xl md:text-3xl font-bold text-white mb-3">
+   798→              Secure banking starts here
+   799→            </h2>
+   800→            <p className="text-sm text-white/70 leading-relaxed">
+   801→              The next generation of authentication — built for banks, designed for people.
+   802→            </p>
+   803→          </motion.div>
+   804→
+   805→          {/* Feature pills */}
+   806→          <motion.div
+   807→            initial={{ opacity: 0, y: 10 }}
+   808→            animate={{ opacity: 1, y: 0 }}
+   809→            transition={{ delay: 0.4, duration: 0.5 }}
+   810→            className="flex flex-wrap gap-2 mb-6 lg:mb-8 justify-center lg:justify-start w-full max-w-sm"
+   811→          >
+   812→            {['Passkeys', 'Biometrics', 'QR Auth', 'FIDO2'].map((label) => (
+   813→              <span key={label} className="px-3 py-1.5 rounded-full text-xs font-medium text-white/90"
+   814→                style={{ background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)' }}>
+   815→                {label}
+   816→              </span>
+   817→            ))}
+   818→          </motion.div>
+   819→
+   820→          {/* Central interactive shield */}
+   821→          <AuthInteractiveShield />
+   822→
+   823→          {/* Glassmorphism card at bottom */}
+   824→          <motion.div
+   825→            initial={{ opacity: 0, y: 20 }}
+   826→            animate={{ opacity: 1, y: 0 }}
+   827→            transition={{ delay: 0.6, duration: 0.5 }}
+   828→            className="mt-6 lg:mt-8 w-full max-w-sm p-5 rounded-2xl"
+   829→            style={{ background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.15)' }}
+   830→          >
+   831→            <div className="flex items-center gap-3 mb-3">
+   832→              <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
+   833→                <Sparkles className="w-4 h-4 text-white" />
+   834→              </div>
+   835→              <span className="text-sm font-semibold text-white">FIDO2 Certified</span>
+   836→            </div>
+   837→            <p className="text-xs text-white/70 leading-relaxed">
+   838→              Built on the WebAuthn standard trusted by the world&apos;s largest financial institutions.
+   839→            </p>
+   840→          </motion.div>
+   841→        </div>
+   842→      </div>
+   843→
+   844→      {/* ── RIGHT: Auth Panel (White) ── */}
+   845→      <div className="flex-1 lg:flex-[1_1_50%] bg-white flex items-center justify-center p-6 md:p-12 lg:p-16 order-2">
+   846→        <motion.div
+   847→          className="w-full max-w-md"
+   848→          initial={{ opacity: 0, x: 20 }}
+   849→          animate={{ opacity: 1, x: 0 }}
+   850→          transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
+   851→        >
+   852→          {/* Back button */}
+   853→          <button onClick={onBack} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-smooth mb-8">
+   854→            <ArrowLeft className="w-4 h-4" />
+   855→            Back to home
+   856→          </button>
+   857→
+   858→          {/* Logo */}
+   859→          <div className="flex items-center gap-3 mb-8">
+   860→            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+   861→              <Shield className="w-5 h-5 text-primary" />
+   862→            </div>
+   863→            <span className="font-heading text-lg font-semibold">BankShield</span>
+   864→          </div>
+   865→
+   866→          {/* Heading */}
+   867→          <h1 className="font-heading text-2xl md:text-3xl font-semibold text-foreground mb-2">
+   868→            Welcome to BankShield Auth
+   869→          </h1>
+   870→          <p className="text-sm text-muted-foreground mb-8">
+   871→            Choose your preferred method to continue — no passwords required.
+   872→          </p>
+   873→
+   874→          {/* ── Tab Selector ── */}
+   875→          <div className="relative flex p-1 bg-muted rounded-xl mb-8">
+   876→            {/* Active indicator */}
+   877→            <motion.div
+   878→              className="absolute top-1 bottom-1 bg-white rounded-lg shadow-card"
+   879→              style={{ width: 'calc(50% - 4px)' }}
+   880→              animate={{ left: authTab === 'login' ? '4px' : 'calc(50% + 0px)' }}
+   881→              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+   882→            />
+   883→            <button
+   884→              onClick={() => { setAuthTab('login'); setAuthMethod('default'); }}
+   885→              className={`relative z-10 flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-colors ${authTab === 'login' ? 'text-foreground' : 'text-muted-foreground'}`}
+   886→            >
+   887→              <Lock className="w-4 h-4" />
+   888→              Login
+   889→            </button>
+   890→            <button
+   891→              onClick={() => { setAuthTab('signup'); setAuthMethod('default'); }}
+   892→              className={`relative z-10 flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-colors ${authTab === 'signup' ? 'text-foreground' : 'text-muted-foreground'}`}
+   893→            >
+   894→              <User className="w-4 h-4" />
+   895→              Sign Up
+   896→            </button>
+   897→          </div>
+   898→
+   899→          {/* ── Form Content ── */}
+   900→          <AnimatePresence mode="wait">
+   901→            {authTab === 'login' ? (
+   902→              <motion.div key="login" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} transition={{ duration: 0.3 }}>
+   903→                {/* Login Form with method selection */}
+   904→                <AnimatePresence mode="wait">
+   905→                  {authMethod === 'default' ? (
+   906→                    <motion.div key="default-login" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+   907→                      <div className="space-y-5">
+   908→                        <div className="space-y-2">
+   909→                          <Label htmlFor="login-email" className="text-sm font-medium">Email Address</Label>
+   910→                          <Input id="login-email" type="email" placeholder="you@example.com" value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} className="h-12 rounded-xl" />
+   911→                        </div>
+   912→
+   913→                        <Button className="w-full h-12 rounded-xl text-base shadow-card hover:shadow-card-hover transition-smooth" disabled={!loginEmail.trim()}>
+   914→                          Continue
+   915→                          <ArrowRight className="w-4 h-4 ml-2" />
+   916→                        </Button>
+   917→
+   918→                        {/* Divider */}
+   919→                        <div className="relative my-6">
+   920→                          <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border" /></div>
+   921→                          <div className="relative flex justify-center text-xs"><span className="bg-white px-3 text-muted-foreground">or authenticate with</span></div>
+   922→                        </div>
+   923→
+   924→                        {/* Auth Method Icons */}
+   925→                        <div className="grid grid-cols-4 gap-3">
+   926→                          {AUTH_ICONS.map((method) => (
+   927→                            <button key={method.id} onClick={() => setAuthMethod(method.id)}
+   928→                              className="flex flex-col items-center gap-2 p-3 rounded-xl border border-border hover:border-primary/30 hover:bg-primary/5 transition-smooth group">
+   929→                              <method.icon className={`w-5 h-5 ${method.color} group-hover:scale-110 transition-smooth`} />
+   930→                              <span className="text-[10px] text-muted-foreground font-medium">{method.label}</span>
+   931→                            </button>
+   932→                          ))}
+   933→                        </div>
+   934→
+   935→                        {/* Security notice */}
+   936→                        <div className="flex items-center gap-2 text-xs text-muted-foreground justify-center pt-2">
+   937→                          <Lock className="w-3 h-3" />
+   938→                          <span>Your data is encrypted and never stored on our servers.</span>
+   939→                        </div>
+   940→                      </div>
+   941→                    </motion.div>
+   942→                  ) : (
+   943→                    <motion.div key={`${authMethod}-form`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+   944→                      {/* Back to default method selector */}
+   945→                      <button onClick={() => setAuthMethod('default')}
+   946→                        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-smooth mb-6">
+   947→                        <ArrowLeft className="w-4 h-4" />
+   948→                        Back to all methods
+   949→                      </button>
+   950→
+   951→                      {/* Method-specific heading */}
+   952→                      <div className="flex items-center gap-3 mb-5">
+   953→                        {AUTH_ICONS.find((m) => m.id === authMethod) && (
+   954→                          <>
+   955→                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+   956→                              authMethod === 'passkey' ? 'bg-primary/10' :
+   957→                              authMethod === 'biometric' ? 'bg-success/10' :
+   958→                              authMethod === 'qr' ? 'bg-info/10' :
+   959→                              'bg-warning/10'
+   960→                            }`}>
+   961→                              {(() => {
+   962→                                const m = AUTH_ICONS.find((m) => m.id === authMethod);
+   963→                                return m ? <m.icon className={`w-4 h-4 ${m.color}`} /> : null;
+   964→                              })()}
+   965→                            </div>
+   966→                            <span className="font-semibold text-foreground">
+   967→                              {authMethod === 'passkey' ? 'Passkey Login' :
+   968→                               authMethod === 'biometric' ? 'Biometric Login' :
+   969→                               authMethod === 'qr' ? 'QR Code Login' :
+   970→                               'OTP Login'}
+   971→                            </span>
+   972→                          </>
+   973→                        )}
+   974→                      </div>
+   975→
+   976→                      {/* Render method-specific form */}
+   977→                      {authMethod === 'passkey' && <PasskeyForm email={loginEmail} setEmail={setLoginEmail} />}
+   978→                      {authMethod === 'biometric' && <BiometricForm email={loginEmail} setEmail={setLoginEmail} />}
+   979→                      {authMethod === 'qr' && <QRForm email={loginEmail} setEmail={setLoginEmail} />}
+   980→                      {authMethod === 'otp' && <OTPForm email={loginEmail} setEmail={setLoginEmail} />}
+   981→                    </motion.div>
+   982→                  )}
+   983→                </AnimatePresence>
+   984→              </motion.div>
+   985→            ) : (
+   986→              <motion.div key="signup" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} transition={{ duration: 0.3 }}>
+   987→                {/* Sign Up Form */}
+   988→                <div className="space-y-5">
+   989→                  <div className="space-y-2">
+   990→                    <Label htmlFor="signup-name" className="text-sm font-medium">Full Name</Label>
+   991→                    <div className="relative">
+   992→                      <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+   993→                      <Input id="signup-name" type="text" placeholder="John Doe" value={signupName} onChange={(e) => setSignupName(e.target.value)} className="h-12 rounded-xl pl-10" />
+   994→                    </div>
+   995→                  </div>
+   996→
+   997→                  <div className="space-y-2">
+   998→                    <Label htmlFor="signup-email" className="text-sm font-medium">Email Address</Label>
+   999→                    <div className="relative">
+  1000→                      <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+  1001→                      <Input id="signup-email" type="email" placeholder="you@example.com" value={signupEmail} onChange={(e) => setSignupEmail(e.target.value)} className="h-12 rounded-xl pl-10" />
+  1002→                    </div>
+  1003→                  </div>
+  1004→
+  1005→                  <div className="space-y-2">
+  1006→                    <Label htmlFor="signup-phone" className="text-sm font-medium">Phone Number</Label>
+  1007→                    <div className="relative">
+  1008→                      <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+  1009→                      <Input id="signup-phone" type="tel" placeholder="+1 (555) 000-0000" value={signupPhone} onChange={(e) => setSignupPhone(e.target.value)} className="h-12 rounded-xl pl-10" />
+  1010→                    </div>
+  1011→                  </div>
+  1012→
+  1013→                  <Button className="w-full h-12 rounded-xl text-base shadow-card hover:shadow-card-hover transition-smooth" disabled={!signupName.trim() || !signupEmail.trim()}>
+  1014→                    Continue
+  1015→                    <ArrowRight className="w-4 h-4 ml-2" />
+  1016→                  </Button>
+  1017→
+  1018→                  {/* Security benefits */}
+  1019→                  <div className="space-y-3 pt-4">
+  1020→                    {SIGNUP_BENEFITS.map((b) => (
+  1021→                      <div key={b.label} className="flex items-start gap-3">
+  1022→                        <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+  1023→                          <b.icon className="w-4 h-4 text-primary" />
+  1024→                        </div>
+  1025→                        <div>
+  1026→                          <p className="text-sm font-medium text-foreground">{b.label}</p>
+  1027→                          <p className="text-xs text-muted-foreground">{b.desc}</p>
+  1028→                        </div>
+  1029→                      </div>
+  1030→                    ))}
+  1031→                  </div>
+  1032→                </div>
+  1033→              </motion.div>
+  1034→            )}
+  1035→          </AnimatePresence>
+  1036→        </motion.div>
+  1037→      </div>
+  1038→    </div>
+  1039→  );
+  1040→}
+  1041→
+  1042→/* ── Demo Modal ── */
+  1043→function DemoModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  1044→  return (
+  1045→    <Dialog open={open} onOpenChange={onClose}>
+  1046→      <DialogContent className="sm:max-w-2xl p-0 overflow-hidden rounded-2xl">
+  1047→        <div className="grid grid-cols-1 md:grid-cols-2">
+  1048→          {/* Left: Visual */}
+  1049→          <div className="relative min-h-[280px] md:min-h-[400px] flex items-center justify-center"
+  1050→            style={{ background: 'linear-gradient(135deg, #2563EB 0%, #1E40AF 100%)' }}>
+  1051→            <div className="absolute inset-0 pointer-events-none" style={{
+  1052→              background: 'radial-gradient(circle at 50% 50%, rgba(255,255,255,0.1) 0%, transparent 60%)',
+  1053→            }} />
+  1054→            <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1, y: [0, -6, 0] }}
+  1055→              transition={{ opacity: { duration: 0.5 }, scale: { duration: 0.5 }, y: { duration: 5, repeat: Infinity, ease: 'easeInOut' } }}>
+  1056→              <svg viewBox="0 0 120 144" width="120" height="144">
+  1057→                <path d="M60 8 L112 32 L112 96 C112 116 88 138 60 144 C32 138 8 116 8 96 L8 32 Z" fill="rgba(255,255,255,0.15)" stroke="white" strokeWidth="1.5" />
+  1058→                <rect x="46" y="68" width="28" height="22" rx="3" fill="white" opacity="0.85" />
+  1059→                <path d="M52 68 L52 60 C52 52 60 46 68 52 L68 60 L68 68" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" opacity="0.85" />
+  1060→                <circle cx="60" cy="78" r="3" fill="#2563EB" />
+  1061→                <path d="M50 38 L58 46 L74 30" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.7" />
+  1062→              </svg>
+  1063→            </motion.div>
+  1064→          </div>
+  1065→
+  1066→          {/* Right: Content */}
+  1067→          <div className="p-8 flex flex-col justify-center">
+  1068→            <h3 className="font-heading text-xl font-semibold mb-3">See BankShield in Action</h3>
+  1069→            <p className="text-sm text-muted-foreground leading-relaxed mb-6">
+  1070→              Experience how passwordless authentication works for banking. No passwords to remember, no credentials to leak — just seamless, secure access.
+  1071→            </p>
+  1072→
+  1073→            <div className="space-y-4 mb-6">
+  1074→              {[
+  1075→                { icon: KeyRound, label: 'Passkey-first login', desc: 'WebAuthn/FIDO2 standard' },
+  1076→                { icon: Fingerprint, label: 'Biometric verification', desc: 'Fingerprint & Face ID' },
+  1077→                { icon: QrCode, label: 'QR authentication', desc: 'Scan & go — no typing' },
+  1078→                { icon: Mail, label: 'OTP fallback', desc: 'Email one-time codes' },
+  1079→              ].map((item) => (
+  1080→                <div key={item.label} className="flex items-center gap-3">
+  1081→                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+  1082→                    <item.icon className="w-4 h-4 text-primary" />
+  1083→                  </div>
+  1084→                  <div>
+  1085→                    <p className="text-sm font-medium text-foreground">{item.label}</p>
+  1086→                    <p className="text-xs text-muted-foreground">{item.desc}</p>
+  1087→                  </div>
+  1088→                </div>
+  1089→              ))}
+  1090→            </div>
+  1091→
+  1092→            <div className="flex items-center gap-3">
+  1093→              <Button className="rounded-xl flex-1" onClick={onClose}>
+  1094→                Get Started
+  1095→                <ChevronRight className="w-4 h-4 ml-1" />
+  1096→              </Button>
+  1097→              <Button variant="outline" className="rounded-xl" onClick={onClose}>
+  1098→                Close
+  1099→              </Button>
+  1100→            </div>
+  1101→          </div>
+  1102→        </div>
+  1103→      </DialogContent>
+  1104→    </Dialog>
+  1105→  );
+  1106→}
+  1107→
+  1108→/* ── Main Page Controller ── */
+  1109→export default function Home() {
+  1110→  const [pageView, setPageView] = useState<PageView>('landing');
+  1111→  const [demoOpen, setDemoOpen] = useState(false);
+  1112→
+  1113→  return (
+  1114→    <>
+  1115→      <AnimatePresence mode="wait">
+  1116→        {pageView === 'landing' ? (
+  1117→          <motion.div key="landing" {...pageTransition}>
+  1118→            <LandingPage
+  1119→              onGetStarted={() => setPageView('auth')}
+  1120→              onGetDemo={() => setDemoOpen(true)}
+  1121→            />
+  1122→          </motion.div>
+  1123→        ) : (
+  1124→          <motion.div key="auth" {...pageTransition}>
+  1125→            <AuthPage onBack={() => setPageView('landing')} />
+  1126→          </motion.div>
+  1127→        )}
+  1128→      </AnimatePresence>
+  1129→
+  1130→      <DemoModal open={demoOpen} onClose={() => setDemoOpen(false)} />
+  1131→    </>
+  1132→  );
+  1133→}
+  1134→

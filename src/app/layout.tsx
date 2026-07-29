@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Sora } from "next/font/google";
+import { Inter, Sora, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 
@@ -16,6 +16,14 @@ const sora = Sora({
   subsets: ["latin"],
   display: "swap",
   weight: ["400", "600", "700", "800"],
+});
+
+/* ── Plus Jakarta Sans (Hero Display) ── */
+const plusJakarta = Plus_Jakarta_Sans({
+  variable: "--font-jakarta",
+  subsets: ["latin"],
+  display: "swap",
+  weight: ["400", "500", "600", "700", "800"],
 });
 
 /* ── BankShield Auth Metadata ── */
@@ -59,7 +67,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} ${sora.variable} antialiased bg-background text-foreground min-h-screen flex flex-col`}>
+      <body className={`${inter.variable} ${sora.variable} ${plusJakarta.variable} antialiased bg-background text-foreground min-h-screen flex flex-col`}>
         {children}
         <Toaster />
       </body>

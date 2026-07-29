@@ -295,3 +295,8 @@
     font-family: "Sora", var(--font-sora), system-ui, sans-serif;
   }
 }
+
+/* ── BankShield Hero Display Font ── */
+@utility font-hero {
+  font-family: "Plus Jakarta Sans", var(--font-jakarta), system-ui, sans-serif;
+}

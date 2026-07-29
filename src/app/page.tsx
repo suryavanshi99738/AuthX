@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import {
   Shield,
   KeyRound,
@@ -258,9 +258,96 @@ function AuthInteractiveShield() {
   );
 }
 
+/* ── Spotlight Heading (Hero Text Interaction) ── */
+function SpotlightHeading() {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const mouseX = useMotionValue(0);
+  const mouseY = useMotionValue(0);
+  const [isHovered, setIsHovered] = useState(false);
+
+  const smoothX = useSpring(mouseX, { stiffness: 300, damping: 30, mass: 0.5 });
+  const smoothY = useSpring(mouseY, { stiffness: 300, damping: 30, mass: 0.5 });
+
+  const maskImage = useTransform(
+    [smoothX, smoothY] as const,
+    ([x, y]) =>
+      `radial-gradient(circle 120px at ${x}px ${y}px, white 0%, rgba(255,255,255,0.6) 40%, transparent 70%)`
+  );
+
+  const spotLightBg = useTransform(
+    [smoothX, smoothY] as const,
+    ([x, y]) =>
+      `radial-gradient(circle 200px at ${x}px ${y}px, rgba(37,99,235,0.12) 0%, rgba(37,99,235,0.04) 40%, transparent 70%)`
+  );
+
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    mouseX.set(e.clientX - rect.left);
+    mouseY.set(e.clientY - rect.top);
+  }, [mouseX, mouseY]);
+
+  const handleMouseEnter = useCallback(() => setIsHovered(true), []);
+  const handleMouseLeave = useCallback(() => setIsHovered(false), []);
+
+  const headingText = "The future of banking\nauthentication";
+  const headingLines = headingText.split('\n');
+
+  const headingClasses = "font-hero text-4xl md:text-5xl lg:text-[3.5rem] font-extrabold tracking-tight leading-[1.1]";
+
+  return (
+    <motion.div
+      ref={containerRef}
+      variants={fadeInUp}
+      onMouseMove={handleMouseMove}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      className="relative mb-4 cursor-default select-none overflow-hidden rounded-lg"
+    >
+      {/* Base text layer — dark navy */}
+      <h1 className={`${headingClasses} text-[#0F172A]`}>
+        {headingLines.map((line, i) => (
+          <span key={i}>
+            {line}
+            {i < headingLines.length - 1 && <br />}
+          </span>
+        ))}
+      </h1>
+
+      {/* Spotlight glow — blue radial gradient following cursor */}
+      <motion.div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: spotLightBg,
+          filter: 'blur(30px)',
+          opacity: isHovered ? 1 : 0,
+          transition: 'opacity 0.4s ease',
+          willChange: 'background',
+        }}
+      />
+
+      {/* Revealed text layer — white, masked by cursor spotlight */}
+      <motion.h1
+        className={`absolute inset-0 ${headingClasses} text-white`}
+        style={{
+          WebkitMaskImage: maskImage,
+          maskImage: maskImage,
+          willChange: 'mask-image, -webkit-mask-image',
+        }}
+      >
+        {headingLines.map((line, i) => (
+          <span key={i}>
+            {line}
+            {i < headingLines.length - 1 && <br />}
+          </span>
+        ))}
+      </motion.h1>
+    </motion.div>
+  );
+}
+
 /* ── Landing Page ── */
 function LandingPage({ onGetStarted, onGetDemo }: { onGetStarted: () => void; onGetDemo: () => void }) {
-  const [headingHovered, setHeadingHovered] = useState(false);
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -302,46 +389,7 @@ function LandingPage({ onGetStarted, onGetDemo }: { onGetStarted: () => void; on
               <span className="text-sm font-medium text-primary/80 tracking-wide">BANKSHIELD</span>
             </motion.div>
 
-            <motion.h1
-              variants={fadeInUp}
-              onMouseEnter={() => setHeadingHovered(true)}
-              onMouseLeave={() => setHeadingHovered(false)}
-              className="font-heading text-4xl md:text-5xl lg:text-[3.5rem] font-extrabold tracking-tight text-foreground mb-4 leading-[1.1] cursor-default select-none transition-colors duration-300"
-              style={{
-                color: headingHovered ? '#2563EB' : 'var(--foreground)',
-              }}
-            >
-              <motion.span
-                animate={{
-                  scale: headingHovered ? 1.02 : 1,
-                  letterSpacing: headingHovered ? '0.01em' : '-0.02em',
-                }}
-                transition={{ duration: 0.3, ease: 'easeOut' }}
-                className="inline-block"
-              >
-                The future of banking
-              </motion.span>
-              <br />
-              <motion.span
-                animate={{
-                  scale: headingHovered ? 1.04 : 1,
-                  color: headingHovered ? '#1E40AF' : 'var(--foreground)',
-                }}
-                transition={{ duration: 0.3, ease: 'easeOut' }}
-                className="inline-block"
-              >
-                authentication
-              </motion.span>
-              {/* Hover underline animation */}
-              <motion.div
-                className="h-1 rounded-full bg-primary mt-1"
-                animate={{
-                  width: headingHovered ? '100%' : '0%',
-                  opacity: headingHovered ? 1 : 0,
-                }}
-                transition={{ duration: 0.4, ease: 'easeOut' }}
-              />
-            </motion.h1>
+            <SpotlightHeading />
 
             <motion.p variants={fadeInUp} className="text-lg md:text-[1.125rem] text-muted-foreground max-w-md mb-10 leading-relaxed">
               No passwords, no phishing, no credential leaks.

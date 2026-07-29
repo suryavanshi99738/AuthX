@@ -194,3 +194,29 @@ Stage Summary:
 - Landing heading uses Sora font with interactive hover effects
 - Both shields are interactive (hover/click)
 - font-heading CSS fix added for Tailwind v4 compatibility
+---
+Task ID: 2
+Agent: Main Agent
+Task: Hero Text Interaction Enhancement - Spotlight cursor effect with text reveal
+
+Work Log:
+- Added Plus Jakarta Sans font to layout.tsx (variable: --font-jakarta, weights: 400-800)
+- Added font-hero CSS utility class in globals.css using @utility directive (not @layer utilities, since font-display conflicts with CSS property in Tailwind v4)
+- Created SpotlightHeading component with:
+  - useMotionValue + useSpring for smooth cursor tracking (stiffness: 300, damping: 30, mass: 0.5)
+  - useTransform for computed mask-image and spotlight background
+  - Two-layer text rendering: base (dark navy #0F172A) + revealed (white with CSS mask)
+  - Radial gradient mask on white text layer: circle 120px at cursor position
+  - Blue spotlight glow: radial-gradient 200px with blur(30px) filter
+  - Smooth fade on mouse leave (opacity 0.4s ease)
+  - GPU-accelerated with willChange hints
+- Replaced old heading (with headingHovered state) with SpotlightHeading component
+- Lint passed clean, browser verification confirmed all effects work
+
+Stage Summary:
+- Hero heading uses Plus Jakarta Sans (font-hero class), extrabold weight
+- Cursor spotlight effect: soft blue glow follows cursor within heading area
+- Text reveal effect: only letters inside spotlight become white, outside remain dark navy
+- Spring-based smooth interpolation for cursor movement
+- All other page elements unchanged (layout, colors, buttons, auth page, etc.)
+- font-hero CSS utility class added via @utility directive for Tailwind v4 compatibility
