@@ -25,6 +25,7 @@
   --color-foreground: var(--foreground);
   --font-sans: "Inter", var(--font-geist-sans), system-ui, sans-serif;
   --font-mono: var(--font-geist-mono);
+  --font-heading: "Sora", var(--font-sora), system-ui, sans-serif;
 
   /* ── shadcn/ui Semantic Colors ── */
   --color-card: var(--card);
@@ -287,5 +288,10 @@
     outline: 2px solid var(--primary);
     outline-offset: 2px;
     border-radius: var(--radius-sm);
+  }
+
+  /* ── BankShield Heading Font ── */
+  .font-heading {
+    font-family: "Sora", var(--font-sora), system-ui, sans-serif;
   }
 }
