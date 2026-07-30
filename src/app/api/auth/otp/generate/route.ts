@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Send the email — never return the code.
-    const emailResult = await sendVerificationEmail({ to: normalizedEmail, recipientName: user.name ?? undefined });
+    const emailResult = await sendVerificationEmail({ to: normalizedEmail, code, recipientName: user.name ?? undefined });
     if (!emailResult.success) {
       return errorResponse('Could not send the verification email. Please try again.', 503, 'EMAIL_SEND_FAILED');
     }

@@ -99,10 +99,21 @@ export async function sendVerificationEmail(params: VerificationEmailParams): Pr
     return { success: false, error: 'Email service is not configured.' };
   }
 
-  const html = buildVerificationHtml({
-    code: params.code,
-    recipientName: params.recipientName,
-  });
+  // Defensive guard: a missing/invalid code must never crash the route. Return
+  // a structured failure instead so callers can surface a clean 503.
+  if (!params.code || typeof params.code !== 'string' || params.code.length === 0) {
+    return { success: false, error: 'Missing verification code.' };
+  }
+
+  let html: string;
+  try {
+    html = buildVerificationHtml({
+      code: params.code,
+      recipientName: params.recipientName,
+    });
+  } catch {
+    return { success: false, error: 'Failed to build verification email.' };
+  }
 
   try {
     const res = await fetch(RESEND_ENDPOINT, {
