@@ -52,3 +52,48 @@ prompt
 server.log
 # Skills directory
 /skills/
+
+# --- Secrets & local config ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.keystore
+
+# --- Databases (local data, never commit) ---
+*.db
+*.sqlite
+*.sqlite3
+db/*.db
+db/*.sqlite
+db/*.sqlite3
+
+# --- Agent / dev-tooling scratch (never push) ---
+tool-results/
+agent-ctx/
+worklog.md
+upload/
+uploads/
+dev.log
+dev.out.log
+server.log
+
+# --- Verification / debug screenshots (scratch) ---
+/*.png
+verify-*.png
+bankshield-*.png
+dashboard-*.png
+demo-*.png
+real-*.png
+otp-screen.png
+under-dev-modal.png
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
