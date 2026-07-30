@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Mail, ArrowLeft, Lock, Hash, CheckCircle2 } from 'lucide-react';
+import { Mail, ArrowLeft, Lock, Hash } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,14 +18,24 @@ import {
   generateOTP,
   verifyOTP,
   createSession,
+  signupInit,
+  signupResend,
+  signupVerify,
 } from '@/services/auth-client';
 import { AuthLoadingOverlay } from './AuthLoadingOverlay';
 
-type Step = 'email' | 'otp-input' | 'done';
+type Step = 'email' | 'otp-input';
+
+const RESEND_COOLDOWN_SECONDS = 30;
 
 export function OTPAuthForm() {
-  const { setUser, setSession, setPageView, setAuthMethod, isDemo } = useAuth();
-  const [email, setEmail] = useState('');
+  const { setUser, setSession, setPageView, setAuthMethod, isDemo, authTab, signupDraft } = useAuth();
+
+  // Sign-up mode is active when the user arrived from the Sign Up tab with a
+  // completed draft (name/email/phone).
+  const isSignup = authTab === 'signup' && Boolean(signupDraft);
+
+  const [email, setEmail] = useState(isSignup ? signupDraft?.email ?? '' : '');
   const [otpCode, setOtpCode] = useState('');
   const [step, setStep] = useState<Step>('email');
   const [overlayVisible, setOverlayVisible] = useState(false);
@@ -33,97 +43,171 @@ export function OTPAuthForm() {
   const [overlayMessage, setOverlayMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [userId, setUserId] = useState('');
-  const [receivedOtpCode, setReceivedOtpCode] = useState('');
-  const otpRef = useRef<HTMLInputElement>(null);
+  const [resendIn, setResendIn] = useState(0);
+  const [sending, setSending] = useState(false);
 
-  const handleGenerateOTP = async () => {
-    if (!email.trim()) return;
+  // Resend cooldown countdown.
+  useEffect(() => {
+    if (resendIn <= 0) return;
+    const t = setTimeout(() => setResendIn((s) => Math.max(0, s - 1)), 1000);
+    return () => clearTimeout(t);
+  }, [resendIn]);
 
+  const startCooldown = () => setResendIn(RESEND_COOLDOWN_SECONDS);
+
+  const handleSendOtp = async () => {
+    if (sending) return;
+    const targetEmail = email.trim();
+    if (!targetEmail) return;
+
+    setSending(true);
     setOverlayVisible(true);
     setOverlayStatus('loading');
-    setOverlayMessage('Sending Secure OTP...');
+    setOverlayMessage(isSignup ? 'Sending verification code…' : 'Sending Secure OTP…');
     setErrorMessage('');
 
     try {
-      // Get or create user
-      const userResult = await createUserOrGet(email);
-      if (!userResult.success || !userResult.user) {
-        setOverlayStatus('error');
-        setErrorMessage(userResult.error || 'Failed to create user');
-        return;
+      if (isSignup && signupDraft) {
+        const result = await signupInit(signupDraft.fullName, signupDraft.email, signupDraft.phone);
+        if (!result.success) {
+          setOverlayStatus('error');
+          setErrorMessage(result.error || 'Failed to send verification code');
+          return;
+        }
+      } else {
+        // Login flow: ensure user exists, then issue OTP.
+        const userResult = await createUserOrGet(targetEmail);
+        if (!userResult.success || !userResult.user) {
+          setOverlayStatus('error');
+          setErrorMessage(userResult.error || 'Failed to create user');
+          return;
+        }
+        setUserId(userResult.user.id);
+
+        const otpResult = await generateOTP(targetEmail);
+        if (!otpResult.success) {
+          setOverlayStatus('error');
+          setErrorMessage(otpResult.error || 'Failed to generate OTP');
+          return;
+        }
       }
 
-      setUserId(userResult.user.id);
-
-      // Generate OTP — the API returns the code in dev mode
-      const otpResult = await generateOTP(email);
-      if (!otpResult.success) {
-        setOverlayStatus('error');
-        setErrorMessage(otpResult.error || 'Failed to generate OTP');
-        return;
-      }
-
-      // Store the received OTP code for display (dev mode)
-      const codeFromApi = otpResult.code as string | undefined;
-      if (codeFromApi) {
-        setReceivedOtpCode(codeFromApi);
-      }
-
-      // Success — show OTP input
       setOverlayStatus('success');
-      setOverlayMessage('OTP Sent Successfully!');
+      setOverlayMessage('Verification code sent!');
+      startCooldown();
 
       setTimeout(() => {
         setOverlayVisible(false);
         setStep('otp-input');
       }, 800);
-    } catch (error) {
+    } catch {
       setOverlayStatus('error');
-      setErrorMessage(error instanceof Error ? error.message : 'An unexpected error occurred');
+      setErrorMessage('An unexpected error occurred');
+    } finally {
+      setSending(false);
     }
   };
 
-  const handleVerifyOTP = async () => {
+  const handleResendOtp = async () => {
+    if (resendIn > 0 || sending) return;
+    const targetEmail = (isSignup ? signupDraft?.email : email) ?? '';
+    if (!targetEmail) return;
+
+    setSending(true);
+    setOverlayVisible(true);
+    setOverlayStatus('loading');
+    setOverlayMessage('Resending code…');
+    setErrorMessage('');
+
+    try {
+      const result = isSignup
+        ? await signupResend(targetEmail)
+        : await generateOTP(targetEmail);
+      if (!result.success) {
+        setOverlayStatus('error');
+        setErrorMessage(result.error || 'Failed to resend code');
+        return;
+      }
+      setOverlayStatus('success');
+      setOverlayMessage('New code sent!');
+      startCooldown();
+      setOtpCode('');
+      setTimeout(() => setOverlayVisible(false), 800);
+    } catch {
+      setOverlayStatus('error');
+      setErrorMessage('An unexpected error occurred');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
     if (otpCode.length !== 6) return;
 
     setOverlayVisible(true);
     setOverlayStatus('loading');
-    setOverlayMessage('Verifying Identity...');
+    setOverlayMessage('Verifying Identity…');
     setErrorMessage('');
 
+    const targetEmail = (isSignup ? signupDraft?.email : email) ?? '';
+
     try {
-      const verifyResult = await verifyOTP(email, otpCode);
-      if (!verifyResult.success) {
-        setOverlayStatus('error');
-        setErrorMessage(verifyResult.error || 'Invalid or expired OTP');
-        return;
+      if (isSignup) {
+        // Sign-up verification: creates the account + session atomically.
+        const result = await signupVerify(targetEmail, otpCode);
+        if (!result.success || !result.user || !result.session) {
+          setOverlayStatus('error');
+          setErrorMessage(result.error || 'Invalid or expired code');
+          return;
+        }
+        setUser({ id: result.user.id, email: result.user.email, name: result.user.name });
+        setSession(result.session.token);
+        setOverlayStatus('success');
+        setOverlayMessage('Account created successfully!');
+        setTimeout(() => {
+          setOverlayVisible(false);
+          setPageView(isDemo ? 'demoDashboard' : 'dashboard');
+        }, 1000);
+      } else {
+        // Login verification.
+        const verifyResult = await verifyOTP(targetEmail, otpCode);
+        if (!verifyResult.success) {
+          setOverlayStatus('error');
+          setErrorMessage(verifyResult.error || 'Invalid or expired OTP');
+          return;
+        }
+
+        const sessionUserId = verifyResult.userId || userId;
+        if (!sessionUserId) {
+          setOverlayStatus('error');
+          setErrorMessage('Session could not be established');
+          return;
+        }
+
+        const sessionResult = await createSession(sessionUserId);
+        if (!sessionResult.success || !sessionResult.session) {
+          setOverlayStatus('error');
+          setErrorMessage(sessionResult.error || 'Failed to create session');
+          return;
+        }
+
+        setOverlayStatus('success');
+        setOverlayMessage('Verified Successfully!');
+
+        const userResult = await createUserOrGet(targetEmail);
+        if (userResult.success && userResult.user) {
+          setUser({ id: userResult.user.id, email: userResult.user.email, name: userResult.user.name });
+          setSession(sessionResult.session.token);
+        }
+
+        setTimeout(() => {
+          setOverlayVisible(false);
+          setPageView(isDemo ? 'demoDashboard' : 'dashboard');
+        }, 1000);
       }
-
-      // Create session
-      const sessionResult = await createSession(userId);
-      if (!sessionResult.success || !sessionResult.session) {
-        setOverlayStatus('error');
-        setErrorMessage(sessionResult.error || 'Failed to create session');
-        return;
-      }
-
-      setOverlayStatus('success');
-      setOverlayMessage('Verified Successfully!');
-
-      // Get user info
-      const userResult = await createUserOrGet(email);
-      if (userResult.success && userResult.user) {
-        setUser({ id: userResult.user.id, email: userResult.user.email, name: userResult.user.name });
-        setSession(sessionResult.session.token);
-      }
-
-      setTimeout(() => {
-        setOverlayVisible(false);
-        setPageView(isDemo ? 'demoDashboard' : 'dashboard');
-      }, 1000);
-    } catch (error) {
+    } catch {
       setOverlayStatus('error');
-      setErrorMessage(error instanceof Error ? error.message : 'An unexpected error occurred');
+      setErrorMessage('An unexpected error occurred');
     }
   };
 
@@ -149,7 +233,6 @@ export function OTPAuthForm() {
             if (step === 'otp-input') {
               setStep('email');
               setOtpCode('');
-              setReceivedOtpCode('');
             } else {
               setAuthMethod('default');
             }
@@ -165,7 +248,9 @@ export function OTPAuthForm() {
           <div className="w-8 h-8 rounded-lg bg-warning/10 flex items-center justify-center">
             <Mail className="w-4 h-4 text-warning" />
           </div>
-          <span className="font-semibold text-foreground">OTP Login</span>
+          <span className="font-semibold text-foreground">
+            {isSignup ? 'Email Verification' : 'OTP Login'}
+          </span>
         </div>
 
         {step === 'email' && (
@@ -178,8 +263,10 @@ export function OTPAuthForm() {
                 placeholder="you@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                disabled={isSignup}
+                readOnly={isSignup}
                 className="h-12 rounded-xl"
-                onKeyDown={(e) => e.key === 'Enter' && handleGenerateOTP()}
+                onKeyDown={(e) => e.key === 'Enter' && handleSendOtp()}
               />
             </div>
 
@@ -202,8 +289,8 @@ export function OTPAuthForm() {
 
             <Button
               className="w-full h-12 rounded-xl text-base shadow-card hover:shadow-card-hover transition-smooth"
-              disabled={!email.trim()}
-              onClick={handleGenerateOTP}
+              disabled={!email.trim() || sending}
+              onClick={handleSendOtp}
             >
               Send OTP Code
               <Mail className="w-4 h-4 ml-2" />
@@ -213,29 +300,17 @@ export function OTPAuthForm() {
 
         {step === 'otp-input' && (
           <>
-            {/* Show received OTP code (dev mode display since we can't send real emails) */}
-            {receivedOtpCode && (
-              <div className="p-4 rounded-xl bg-success/5 border border-success/20">
-                <div className="flex items-center gap-2 mb-2">
-                  <CheckCircle2 className="w-4 h-4 text-success" />
-                  <p className="text-sm font-semibold text-foreground">Your Verification Code</p>
-                </div>
-                <p className="text-3xl font-bold text-foreground tracking-widest font-mono">{receivedOtpCode}</p>
-                <p className="text-xs text-muted-foreground mt-1">Enter this code below to verify your identity</p>
-              </div>
-            )}
-
             {/* OTP input */}
             <div className="space-y-2">
               <Label className="text-sm font-medium">Enter 6-Digit Code</Label>
               <p className="text-xs text-muted-foreground">
-                Code sent to <span className="font-medium text-foreground">{email}</span>
+                Code sent to <span className="font-medium text-foreground">{email || signupDraft?.email}</span>
               </p>
               <InputOTP
                 maxLength={6}
                 value={otpCode}
                 onChange={setOtpCode}
-                onComplete={handleVerifyOTP}
+                onComplete={handleVerifyOtp}
               >
                 <InputOTPGroup>
                   <InputOTPSlot index={0} />
@@ -251,22 +326,23 @@ export function OTPAuthForm() {
               </InputOTP>
             </div>
 
-            {/* Resend OTP */}
+            {/* Resend OTP with cooldown */}
             <div className="text-center">
               <Button
                 variant="ghost"
                 size="sm"
                 className="text-xs text-muted-foreground"
-                onClick={handleGenerateOTP}
+                disabled={resendIn > 0 || sending}
+                onClick={handleResendOtp}
               >
-                Resend OTP
+                {resendIn > 0 ? `Resend code in ${resendIn}s` : 'Resend OTP'}
               </Button>
             </div>
 
             <Button
               className="w-full h-12 rounded-xl text-base shadow-card hover:shadow-card-hover transition-smooth"
-              disabled={otpCode.length !== 6}
-              onClick={handleVerifyOTP}
+              disabled={otpCode.length !== 6 || sending}
+              onClick={handleVerifyOtp}
             >
               Verify Code
               <Lock className="w-4 h-4 ml-2" />

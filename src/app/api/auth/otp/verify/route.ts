@@ -1,64 +1,82 @@
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
+import { rateLimit } from '@/lib/rate-limit';
+import { verifyOtpHash } from '@/lib/otp';
+import { getClientIp, errorResponse, successResponse, rateLimitedResponse } from '@/lib/auth-api';
 
+const MAX_ATTEMPTS = 3;
+
+/**
+ * POST /api/auth/otp/verify
+ *
+ * Body: { email, code }
+ *
+ * Verifies the 6-digit login OTP against the latest unverified, non-expired
+ * record for the email. Enforces expiry (5 min) and a maximum of 3 attempts.
+ * Never returns the OTP.
+ */
 export async function POST(request: NextRequest) {
+  let body: unknown;
   try {
-    const body = await request.json();
-    const { email, code } = body as { email: string; code: string };
+    body = await request.json();
+  } catch {
+    return errorResponse('Invalid request.', 400);
+  }
 
-    if (!email || !code) {
-      return NextResponse.json(
-        { success: false, error: 'Email and code are required' },
-        { status: 400 }
-      );
+  const { email, code } = (body ?? {}) as { email?: string; code?: string };
+  if (!email || typeof email !== 'string') {
+    return errorResponse('Email is required.', 400);
+  }
+  if (!code || !/^\d{6}$/.test(code)) {
+    return errorResponse('A valid 6-digit code is required.', 400);
+  }
+  const normalizedEmail = email.trim().toLowerCase();
+
+  const ip = getClientIp(request);
+  const ipRl = rateLimit(`login:verify:ip:${ip}`, 20, 10 * 60 * 1000);
+  if (!ipRl.allowed) return rateLimitedResponse(ipRl.resetAt);
+
+  try {
+    const otp = await db.oTPCode.findFirst({
+      where: { email: normalizedEmail, verified: false, expiresAt: { gt: new Date() } },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!otp) {
+      await db.oTPCode.deleteMany({
+        where: { email: normalizedEmail, expiresAt: { lt: new Date() } },
+      }).catch(() => {});
+      return errorResponse('Your verification code has expired or no code was requested. Please request a new one.', 410, 'OTP_EXPIRED');
     }
 
-    // Find OTP code for email that's not verified and not expired
-    const otpCode = await db.oTPCode.findFirst({
-      where: {
-        email,
-        code,
-        verified: false,
-        expiresAt: {
-          gt: new Date(),
-        },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
-
-    if (!otpCode) {
-      return NextResponse.json({
-        success: false,
-        error: 'Invalid or expired OTP',
-      });
+    if (otp.attempts >= MAX_ATTEMPTS) {
+      await db.oTPCode.deleteMany({ where: { id: otp.id } }).catch(() => {});
+      return errorResponse('Too many incorrect attempts. Please request a new code.', 429, 'OTP_MAX_ATTEMPTS');
     }
 
-    // Mark as verified
-    await db.oTPCode.update({
-      where: { id: otpCode.id },
-      data: { verified: true },
-    });
+    const matched = verifyOtpHash(code, otp.codeHash);
 
-    return NextResponse.json({
-      success: true,
-      verified: true,
-    });
-  } catch (error) {
-    console.error('Error verifying OTP:', error);
-    return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500 }
-    );
+    if (!matched) {
+      const nextAttempts = otp.attempts + 1;
+      const remaining = Math.max(0, MAX_ATTEMPTS - nextAttempts);
+      await db.oTPCode.update({ where: { id: otp.id }, data: { attempts: nextAttempts } });
+      if (remaining <= 0) {
+        return errorResponse('Too many incorrect attempts. Please request a new code.', 429, 'OTP_MAX_ATTEMPTS');
+      }
+      return errorResponse(`Incorrect code. ${remaining} attempt${remaining === 1 ? '' : 's'} remaining.`, 400, 'OTP_INVALID');
+    }
+
+    await db.oTPCode.update({ where: { id: otp.id }, data: { verified: true } });
+
+    return successResponse({ verified: true, userId: otp.userId });
+  } catch {
+    return errorResponse('Something went wrong. Please try again.', 500);
   }
 }
 
 export async function GET() {
-  return NextResponse.json(
-    { success: false, error: 'Method not allowed' },
-    { status: 405 }
-  );
+  return errorResponse('Method not allowed.', 405);
 }

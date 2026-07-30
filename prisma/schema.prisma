@@ -11,12 +11,14 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  isDemo    Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String?
+  phone         String?
+  emailVerified Boolean  @default(false)
+  isDemo        Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   sessions        Session[]
   passkeys        PasskeyCredential[]
@@ -52,10 +54,32 @@ model OTPCode {
   id        String   @id @default(cuid())
   userId    String?
   email     String
-  code      String
+  codeHash  String
+  attempts  Int      @default(0)
   verified  Boolean  @default(false)
   expiresAt DateTime
   createdAt DateTime @default(now())
 
   user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([email])
+  @@index([expiresAt])
+}
+
+/// Pending sign-up verification: stores the sign-up intent (name/email/phone)
+/// together with a hashed OTP until the user verifies the code. The account is
+/// only created after a successful verification.
+model SignupVerification {
+  id        String   @id @default(cuid())
+  email     String
+  fullName  String
+  phone     String
+  otpHash   String
+  attempts  Int      @default(0)
+  verified  Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@index([expiresAt])
 }

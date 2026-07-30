@@ -79,15 +79,45 @@ export async function verifyPasskeyAuth(
   });
 }
 
-export async function generateOTP(email: string): Promise<ApiResult & { otpId?: string }> {
+export async function generateOTP(email: string): Promise<ApiResult & { userId?: string }> {
   return apiCall('/api/auth/otp/generate', {
     method: 'POST',
     body: JSON.stringify({ email }),
   });
 }
 
-export async function verifyOTP(email: string, code: string): Promise<ApiResult> {
+export async function verifyOTP(email: string, code: string): Promise<ApiResult & { userId?: string }> {
   return apiCall('/api/auth/otp/verify', {
+    method: 'POST',
+    body: JSON.stringify({ email, code }),
+  });
+}
+
+/* ── Sign Up (Email OTP) APIs ── */
+
+export async function signupCheck(email: string): Promise<ApiResult & { exists?: boolean }> {
+  return apiCall('/api/auth/signup/check', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+}
+
+export async function signupInit(fullName: string, email: string, phone: string): Promise<ApiResult & { expiresAt?: string }> {
+  return apiCall('/api/auth/signup/init', {
+    method: 'POST',
+    body: JSON.stringify({ fullName, email, phone }),
+  });
+}
+
+export async function signupResend(email: string): Promise<ApiResult & { expiresAt?: string }> {
+  return apiCall('/api/auth/signup/resend', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+}
+
+export async function signupVerify(email: string, code: string): Promise<ApiResult & { user?: UserResult; session?: SessionResult }> {
+  return apiCall('/api/auth/signup/verify', {
     method: 'POST',
     body: JSON.stringify({ email, code }),
   });

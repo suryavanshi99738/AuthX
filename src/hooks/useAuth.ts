@@ -13,6 +13,13 @@ export interface AuthUser {
   name: string | null;
 }
 
+/** Carries the collected sign-up details from the form into the OTP step. */
+export interface SignupDraft {
+  fullName: string;
+  email: string;
+  phone: string;
+}
+
 interface AuthState {
   pageView: PageView;
   authTab: AuthTab;
@@ -22,6 +29,7 @@ interface AuthState {
   isDemo: boolean;
   isLoading: boolean;
   loadingMessage: string;
+  signupDraft: SignupDraft | null;
   // Actions
   setPageView: (view: PageView) => void;
   setAuthTab: (tab: AuthTab) => void;
@@ -30,6 +38,7 @@ interface AuthState {
   setSession: (token: string | null) => void;
   setIsDemo: (isDemo: boolean) => void;
   setLoading: (loading: boolean, message?: string) => void;
+  setSignupDraft: (draft: SignupDraft | null) => void;
   logout: () => void;
   cleanupDemo: () => Promise<void>;
   hydrateFromStorage: () => void;
@@ -72,9 +81,10 @@ export const useAuth = create<AuthState>((set, get) => ({
   isDemo: false,
   isLoading: false,
   loadingMessage: '',
+  signupDraft: null,
 
   setPageView: (view) => set({ pageView: view }),
-  setAuthTab: (tab) => set({ authTab: tab, authMethod: 'default' }),
+  setAuthTab: (tab) => set({ authTab: tab, authMethod: 'default', signupDraft: null }),
   setAuthMethod: (method) => set({ authMethod: method }),
   setUser: (user) => {
     set({ user });
@@ -92,6 +102,7 @@ export const useAuth = create<AuthState>((set, get) => ({
     saveToStorage({ sessionToken: state.sessionToken, user: state.user, isDemo });
   },
   setLoading: (loading, message = '') => set({ isLoading: loading, loadingMessage: message }),
+  setSignupDraft: (draft) => set({ signupDraft: draft }),
 
   logout: () => {
     clearStorage();
@@ -104,6 +115,7 @@ export const useAuth = create<AuthState>((set, get) => ({
       authMethod: 'default',
       isLoading: false,
       loadingMessage: '',
+      signupDraft: null,
     });
   },
 
@@ -123,6 +135,7 @@ export const useAuth = create<AuthState>((set, get) => ({
       authMethod: 'default',
       isLoading: false,
       loadingMessage: '',
+      signupDraft: null,
     });
   },
 

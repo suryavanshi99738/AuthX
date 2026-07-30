@@ -17,6 +17,7 @@ import {
   Phone,
   ArrowLeft,
   Sparkles,
+  Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -27,6 +28,7 @@ import { PasskeyAuthForm } from './PasskeyAuthForm';
 import { OTPAuthForm } from './OTPAuthForm';
 import { UnderDevelopmentModal } from './UnderDevelopmentModal';
 import { fadeInUp, staggerContainer, scaleIn } from '@/lib/animations';
+import { signupCheck } from '@/services/auth-client';
 
 /* ── Auth Method Icons (for login selector) ── */
 const AUTH_METHODS = [
@@ -99,13 +101,16 @@ function AuthInteractiveShield() {
 
 /* ── Auth Page Component ── */
 export function AuthPage() {
-  const { setPageView, authTab, setAuthTab, authMethod, setAuthMethod } = useAuth();
+  const { setPageView, authTab, setAuthTab, authMethod, setAuthMethod, setSignupDraft } = useAuth();
   const [loginEmail, setLoginEmail] = useState('');
   const [signupName, setSignupName] = useState('');
   const [signupEmail, setSignupEmail] = useState('');
   const [signupPhone, setSignupPhone] = useState('');
   const [underDevOpen, setUnderDevOpen] = useState(false);
   const [underDevFeature, setUnderDevFeature] = useState('');
+  const [signupStep, setSignupStep] = useState<'form' | 'methods'>('form');
+  const [signupError, setSignupError] = useState('');
+  const [signupChecking, setSignupChecking] = useState(false);
 
   const handleMethodClick = (methodId: string) => {
     if (methodId === 'passkey' || methodId === 'otp') {
@@ -116,6 +121,63 @@ export function AuthPage() {
         methodId === 'biometric' ? 'Biometric' : 'QR Code'
       );
       setUnderDevOpen(true);
+    }
+  };
+
+  // In the Sign Up flow, ONLY Email OTP is functional. Every other method
+  // surfaces the Under Development modal.
+  const handleSignupMethodClick = (methodId: string) => {
+    if (methodId === 'otp') {
+      setAuthMethod('otp');
+    } else {
+      setUnderDevFeature(
+        methodId === 'passkey' ? 'Passkey'
+        : methodId === 'biometric' ? 'Biometric'
+        : 'QR Code'
+      );
+      setUnderDevOpen(true);
+    }
+  };
+
+  const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+  const isValidPhone = (value: string) => /^\+?[0-9][0-9\s\-()]{6,19}$/.test(value.trim());
+
+  const handleSignupContinue = async () => {
+    setSignupError('');
+    const name = signupName.trim();
+    const email = signupEmail.trim().toLowerCase();
+    const phone = signupPhone.trim();
+
+    if (name.length < 2) {
+      setSignupError('Please enter your full name.');
+      return;
+    }
+    if (!isValidEmail(email)) {
+      setSignupError('Please enter a valid email address.');
+      return;
+    }
+    if (!isValidPhone(phone)) {
+      setSignupError('Please enter a valid phone number.');
+      return;
+    }
+
+    setSignupChecking(true);
+    try {
+      const result = await signupCheck(email);
+      if (!result.success) {
+        setSignupError(result.error || 'Could not verify email. Please try again.');
+        return;
+      }
+      if (result.exists) {
+        setSignupError('An account with this email already exists. Please log in instead.');
+        return;
+      }
+      setSignupDraft({ fullName: name, email, phone });
+      setSignupStep('methods');
+    } catch {
+      setSignupError('Something went wrong. Please try again.');
+    } finally {
+      setSignupChecking(false);
     }
   };
 
@@ -241,7 +303,7 @@ export function AuthPage() {
               Login
             </button>
             <button
-              onClick={() => setAuthTab('signup')}
+              onClick={() => { setAuthTab('signup'); setSignupStep('form'); setSignupError(''); }}
               className={`relative z-10 flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-colors ${authTab === 'signup' ? 'text-foreground' : 'text-muted-foreground'}`}
             >
               <User className="w-4 h-4" />
@@ -323,51 +385,121 @@ export function AuthPage() {
                 exit={{ opacity: 0, x: -10 }}
                 transition={{ duration: 0.3 }}
               >
-                <div className="space-y-5">
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-name" className="text-sm font-medium">Full Name</Label>
-                    <div className="relative">
-                      <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input id="signup-name" type="text" placeholder="John Doe" value={signupName} onChange={(e) => setSignupName(e.target.value)} className="h-12 rounded-xl pl-10" />
-                    </div>
-                  </div>
+                <AnimatePresence mode="wait">
+                  {authMethod === 'default' ? (
+                    <motion.div key="signup-default" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+                      {signupStep === 'form' ? (
+                        <div className="space-y-5">
+                          <div className="space-y-2">
+                            <Label htmlFor="signup-name" className="text-sm font-medium">Full Name</Label>
+                            <div className="relative">
+                              <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                              <Input id="signup-name" type="text" placeholder="John Doe" value={signupName} onChange={(e) => { setSignupName(e.target.value); setSignupError(''); }} className="h-12 rounded-xl pl-10" />
+                            </div>
+                          </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-email" className="text-sm font-medium">Email Address</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input id="signup-email" type="email" placeholder="you@example.com" value={signupEmail} onChange={(e) => setSignupEmail(e.target.value)} className="h-12 rounded-xl pl-10" />
-                    </div>
-                  </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="signup-email" className="text-sm font-medium">Email Address</Label>
+                            <div className="relative">
+                              <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                              <Input id="signup-email" type="email" placeholder="you@example.com" value={signupEmail} onChange={(e) => { setSignupEmail(e.target.value); setSignupError(''); }} className="h-12 rounded-xl pl-10" />
+                            </div>
+                          </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-phone" className="text-sm font-medium">Phone Number</Label>
-                    <div className="relative">
-                      <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input id="signup-phone" type="tel" placeholder="+1 (555) 000-0000" value={signupPhone} onChange={(e) => setSignupPhone(e.target.value)} className="h-12 rounded-xl pl-10" />
-                    </div>
-                  </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="signup-phone" className="text-sm font-medium">Phone Number</Label>
+                            <div className="relative">
+                              <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                              <Input id="signup-phone" type="tel" placeholder="+1 (555) 000-0000" value={signupPhone} onChange={(e) => { setSignupPhone(e.target.value); setSignupError(''); }} className="h-12 rounded-xl pl-10" />
+                            </div>
+                          </div>
 
-                  <Button className="w-full h-12 rounded-xl text-base shadow-card hover:shadow-card-hover transition-smooth" disabled={!signupName.trim() || !signupEmail.trim()}>
-                    Continue
-                    <ArrowRight className="w-4 h-4 ml-2" />
-                  </Button>
+                          {signupError && (
+                            <p className="text-xs text-danger" role="alert">{signupError}</p>
+                          )}
 
-                  {/* Security benefits */}
-                  <div className="space-y-3 pt-4">
-                    {SIGNUP_BENEFITS.map((b) => (
-                      <div key={b.label} className="flex items-start gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                          <b.icon className="w-4 h-4 text-primary" />
+                          <Button
+                            className="w-full h-12 rounded-xl text-base shadow-card hover:shadow-card-hover transition-smooth"
+                            disabled={!signupName.trim() || !signupEmail.trim() || !signupPhone.trim() || signupChecking}
+                            onClick={handleSignupContinue}
+                          >
+                            {signupChecking ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Checking…
+                              </>
+                            ) : (
+                              <>
+                                Continue
+                                <ArrowRight className="w-4 h-4 ml-2" />
+                              </>
+                            )}
+                          </Button>
+
+                          {/* Security benefits */}
+                          <div className="space-y-3 pt-4">
+                            {SIGNUP_BENEFITS.map((b) => (
+                              <div key={b.label} className="flex items-start gap-3">
+                                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                                  <b.icon className="w-4 h-4 text-primary" />
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium text-foreground">{b.label}</p>
+                                  <p className="text-xs text-muted-foreground">{b.desc}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-sm font-medium text-foreground">{b.label}</p>
-                          <p className="text-xs text-muted-foreground">{b.desc}</p>
+                      ) : (
+                        <div className="space-y-5">
+                          <button
+                            onClick={() => { setSignupStep('form'); setAuthMethod('default'); }}
+                            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-smooth mb-2"
+                          >
+                            <ArrowLeft className="w-4 h-4" />
+                            Back to details
+                          </button>
+
+                          <div className="flex items-center gap-3 mb-2">
+                            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                              <CheckCircle2 className="w-4 h-4 text-primary" />
+                            </div>
+                            <span className="font-semibold text-foreground">Verify your email</span>
+                          </div>
+
+                          <p className="text-sm text-muted-foreground leading-relaxed">
+                            Choose an authentication method to continue. We&apos;ll verify your email to create your account.
+                          </p>
+
+                          {/* Auth Method Icons */}
+                          <div className="grid grid-cols-4 gap-3 pt-2">
+                            {AUTH_METHODS.map((method) => (
+                              <button
+                                key={method.id}
+                                onClick={() => handleSignupMethodClick(method.id)}
+                                className="flex flex-col items-center gap-2 p-3 rounded-xl border border-border hover:border-primary/30 hover:bg-primary/5 transition-smooth group"
+                              >
+                                <method.icon className={`w-5 h-5 ${method.color} group-hover:scale-110 transition-smooth`} />
+                                <span className="text-[10px] text-muted-foreground font-medium">{method.label}</span>
+                              </button>
+                            ))}
+                          </div>
+
+                          {/* Hint */}
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground justify-center pt-1">
+                            <Lock className="w-3 h-3" />
+                            <span>Email OTP is available. Other methods are coming soon.</span>
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                      )}
+                    </motion.div>
+                  ) : (
+                    <motion.div key={`${authMethod}-form`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+                      {authMethod === 'otp' && <OTPAuthForm />}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </motion.div>
             )}
           </AnimatePresence>
