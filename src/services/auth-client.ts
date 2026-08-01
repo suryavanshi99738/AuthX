@@ -288,3 +288,60 @@ export async function performPasskeySignup(fullName: string, email: string, phon
     session: verifyResult.session,
   };
 }
+
+/* ── QR Authentication APIs ── */
+
+export async function generateQRRequest(deviceInfo?: string): Promise<ApiResult & { requestId?: string; expiresAt?: string; qrUrl?: string }> {
+  return apiCall('/api/auth/qr/generate', {
+    method: 'POST',
+    body: JSON.stringify({ deviceInfo }),
+  });
+}
+
+export async function checkQRStatus(requestId: string): Promise<ApiResult & { status?: string; sessionToken?: string; user?: UserResult }> {
+  return apiCall(`/api/auth/qr/status?requestId=${encodeURIComponent(requestId)}`);
+}
+
+export async function getQRRequestInfo(requestId: string): Promise<ApiResult & { status?: string; deviceInfo?: string; ipAddress?: string; expiresAt?: string }> {
+  return apiCall(`/api/auth/qr/request-info?requestId=${encodeURIComponent(requestId)}`);
+}
+
+export async function approveQRRequest(
+  requestId: string,
+  email: string,
+  action: 'approve' | 'reject',
+  mobileDeviceInfo?: string
+): Promise<ApiResult & { status?: string; sessionToken?: string; user?: UserResult }> {
+  return apiCall('/api/auth/qr/approve', {
+    method: 'POST',
+    body: JSON.stringify({ requestId, email, action, mobileDeviceInfo }),
+  });
+}
+
+/* ── Trusted Devices & History APIs ── */
+
+export async function getTrustedDevices(userId: string): Promise<ApiResult & { devices?: Array<{ id: string; deviceName: string; browser: string; lastActive: string; createdAt: string }> }> {
+  return apiCall(`/api/auth/devices?userId=${encodeURIComponent(userId)}`);
+}
+
+export async function trustDevice(
+  userId: string,
+  deviceName: string,
+  browser?: string,
+  deviceFingerprint?: string
+): Promise<ApiResult> {
+  return apiCall('/api/auth/devices/trust', {
+    method: 'POST',
+    body: JSON.stringify({ userId, deviceName, browser, deviceFingerprint }),
+  });
+}
+
+export async function removeTrustedDevice(deviceId: string): Promise<ApiResult> {
+  return apiCall(`/api/auth/devices?deviceId=${encodeURIComponent(deviceId)}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function getLoginHistory(userId: string): Promise<ApiResult & { history?: Array<{ id: string; method: string; device: string; browser: string; status: string; ipAddress: string; createdAt: string }> }> {
+  return apiCall(`/api/auth/history?userId=${encodeURIComponent(userId)}`);
+}

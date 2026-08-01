@@ -27,9 +27,12 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
 import { PasskeyAuthForm } from './PasskeyAuthForm';
 import { OTPAuthForm } from './OTPAuthForm';
+import { QRAuthForm } from './QRAuthForm';
+import { MobileQRScannerModal } from './MobileQRScannerModal';
 import { UnderDevelopmentModal } from './UnderDevelopmentModal';
 import { fadeInUp, staggerContainer, scaleIn } from '@/lib/animations';
 import { signupCheck } from '@/services/auth-client';
+import { useRouter } from 'next/navigation';
 
 /* ── Auth Method Icons (for login selector) ── */
 const AUTH_METHODS = [
@@ -128,28 +131,27 @@ export function AuthPage() {
     qr: false,
   });
 
+  const router = useRouter();
+  const [scannerModalOpen, setScannerModalOpen] = useState(false);
+
   const handleMethodClick = (methodId: string) => {
-    if (methodId === 'passkey' || methodId === 'otp') {
-      setAuthMethod(methodId as 'passkey' | 'otp');
+    if (methodId === 'passkey' || methodId === 'otp' || methodId === 'qr') {
+      setAuthMethod(methodId as 'passkey' | 'otp' | 'qr');
     } else {
-      // Show under development modal for biometric/qr
-      setUnderDevFeature(
-        methodId === 'biometric' ? 'Biometric' : 'QR Code'
-      );
+      // Show under development modal for biometric
+      setUnderDevFeature('Biometric');
       setUnderDevOpen(true);
     }
   };
 
   const handleSignupMethodClick = (methodId: string, fromExists = false) => {
-    if (methodId === 'otp' || methodId === 'passkey') {
+    if (methodId === 'otp' || methodId === 'passkey' || methodId === 'qr') {
       if (fromExists) {
         setLoginEmailDraft(existingEmail);
       }
-      setAuthMethod(methodId as 'otp' | 'passkey');
+      setAuthMethod(methodId as 'otp' | 'passkey' | 'qr');
     } else {
-      setUnderDevFeature(
-        methodId === 'biometric' ? 'Biometric' : 'QR Code'
-      );
+      setUnderDevFeature('Biometric');
       setUnderDevOpen(true);
     }
   };
@@ -434,6 +436,17 @@ export function AuthPage() {
                           ))}
                         </div>
 
+                        {/* Mobile-only Scan QR option */}
+                        <div className="block md:hidden pt-2">
+                          <button
+                            onClick={() => setScannerModalOpen(true)}
+                            className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl border border-primary/30 bg-primary/5 text-primary text-xs font-semibold hover:bg-primary/10 transition-smooth"
+                          >
+                            <QrCode className="w-4 h-4" />
+                            <span>Scan QR Code (Mobile Scanner)</span>
+                          </button>
+                        </div>
+
                         {/* Security notice */}
                         <div className="flex items-center gap-2 text-xs text-muted-foreground justify-center pt-2">
                           <Lock className="w-3 h-3" />
@@ -445,6 +458,7 @@ export function AuthPage() {
                     <motion.div key={`${authMethod}-form`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
                       {authMethod === 'passkey' && <PasskeyAuthForm />}
                       {authMethod === 'otp' && <OTPAuthForm />}
+                      {authMethod === 'qr' && <QRAuthForm />}
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -676,6 +690,7 @@ export function AuthPage() {
                     <motion.div key={`${authMethod}-form`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
                       {authMethod === 'otp' && <OTPAuthForm />}
                       {authMethod === 'passkey' && <PasskeyAuthForm />}
+                      {authMethod === 'qr' && <QRAuthForm />}
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -690,6 +705,16 @@ export function AuthPage() {
         open={underDevOpen}
         onClose={() => setUnderDevOpen(false)}
         featureName={underDevFeature}
+      />
+
+      {/* Mobile-Only Camera Scanner Modal */}
+      <MobileQRScannerModal
+        isOpen={scannerModalOpen}
+        onClose={() => setScannerModalOpen(false)}
+        onScanSuccess={(reqId) => {
+          setScannerModalOpen(false);
+          router.push(`/qr-approve?requestId=${reqId}`);
+        }}
       />
     </div>
   );

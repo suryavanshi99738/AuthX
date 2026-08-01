@@ -19,7 +19,12 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useAuth } from '@/hooks/useAuth';
-import { performPasskeyRegistration } from '@/services/auth-client';
+import {
+  performPasskeyRegistration,
+  getTrustedDevices,
+  removeTrustedDevice,
+  getLoginHistory,
+} from '@/services/auth-client';
 import { fadeInUp, staggerContainer } from '@/lib/animations';
 
 interface DashboardContentProps {
@@ -61,11 +66,30 @@ export function DashboardContent({ dashboardData }: DashboardContentProps) {
   const recentLogins = (dashboardData?.recentLogins as Array<{ id: string; device: string; method: string; timestamp: string; status: string }>) || [];
   const trustedDevices = (dashboardData?.trustedDevices as Array<{ id: string; name: string; type: string; lastUsed: string; passkeyRegistered: boolean }>) || [];
 
+  const [realTrustedDevices, setRealTrustedDevices] = useState<Array<{ id: string; deviceName: string; browser: string; lastActive: string; createdAt: string }>>([]);
+  const [realHistory, setRealHistory] = useState<Array<{ id: string; method: string; device: string; browser: string; status: string; ipAddress: string; createdAt: string }>>([]);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+    if (user?.id) {
+      getTrustedDevices(user.id).then((res) => {
+        if (res.success && res.devices) setRealTrustedDevices(res.devices);
+      });
+      getLoginHistory(user.id).then((res) => {
+        if (res.success && res.history) setRealHistory(res.history);
+      });
+    }
+  }, [user?.id]);
+
+  const handleRemoveDevice = async (deviceId: string) => {
+    try {
+      await removeTrustedDevice(deviceId);
+      setRealTrustedDevices((prev) => prev.filter((d) => d.id !== deviceId));
+    } catch {
+      // ignore
+    }
+  };
 
   const getGreeting = () => {
     if (!mounted) return 'Welcome';
@@ -277,35 +301,40 @@ export function DashboardContent({ dashboardData }: DashboardContentProps) {
                   <p className="text-xs text-muted-foreground">Your registered devices</p>
                 </div>
               </div>
-              {trustedDevices.length > 0 ? (
-                <div className="space-y-3 max-h-40 overflow-y-auto">
-                  {trustedDevices.map((device) => (
-                    <div key={device.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/50">
-                      <div className="flex items-center gap-2">
-                        <Smartphone className="w-4 h-4 text-muted-foreground" />
+              {realTrustedDevices.length > 0 ? (
+                <div className="space-y-3 max-h-52 overflow-y-auto">
+                  {realTrustedDevices.map((device) => (
+                    <div key={device.id} className="flex items-center justify-between p-2.5 rounded-xl bg-muted/50 border border-border/50">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                          <Smartphone className="w-4 h-4 text-primary" />
+                        </div>
                         <div>
-                          <p className="text-sm text-foreground">{device.name}</p>
-                          <p className="text-xs text-muted-foreground">{formatTimeAgo(device.lastUsed)}</p>
+                          <p className="text-sm font-medium text-foreground">{device.deviceName}</p>
+                          <p className="text-[11px] text-muted-foreground">{device.browser} • {formatTimeAgo(device.lastActive)}</p>
                         </div>
                       </div>
-                      {device.passkeyRegistered && (
-                        <Badge variant="secondary" className="text-xs text-success">Passkey</Badge>
-                      )}
+                      <button
+                        onClick={() => handleRemoveDevice(device.id)}
+                        className="text-xs text-danger hover:underline font-medium px-2 py-1 rounded-md hover:bg-danger/10 transition-smooth"
+                      >
+                        Remove Trust
+                      </button>
                     </div>
                   ))}
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center py-6 text-center">
                   <Smartphone className="w-8 h-8 text-muted-foreground/30 mb-2" />
-                  <p className="text-sm text-muted-foreground">No devices registered yet</p>
-                  <Badge variant="outline" className="mt-2 text-xs">Coming Soon</Badge>
+                  <p className="text-sm text-muted-foreground">No trusted devices registered yet</p>
+                  <p className="text-xs text-muted-foreground/70 mt-1">Scan QR from mobile & trust for 1-tap logins</p>
                 </div>
               )}
             </CardContent>
           </Card>
         </motion.div>
 
-        {/* Recent Activity */}
+        {/* Recent Activity / Login History */}
         <motion.div variants={fadeInUp}>
           <Card className="shadow-card h-full">
             <CardContent className="p-6">
@@ -314,27 +343,27 @@ export function DashboardContent({ dashboardData }: DashboardContentProps) {
                   <Activity className="w-5 h-5 text-info" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-foreground">Recent Activity</p>
-                  <p className="text-xs text-muted-foreground">Security events</p>
+                  <p className="text-sm font-medium text-foreground">Login History & Activity</p>
+                  <p className="text-xs text-muted-foreground font-normal">Audit log of login events</p>
                 </div>
               </div>
-              {recentLogins.length > 0 ? (
-                <div className="space-y-3 max-h-40 overflow-y-auto">
-                  {recentLogins.slice(0, 4).map((login) => (
-                    <div key={login.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/50">
-                      <div className="flex items-center gap-2">
-                        {login.status === 'success' ? (
-                          <CheckCircle2 className="w-4 h-4 text-success" />
+              {realHistory.length > 0 ? (
+                <div className="space-y-3 max-h-52 overflow-y-auto">
+                  {realHistory.map((log) => (
+                    <div key={log.id} className="flex items-center justify-between p-2.5 rounded-xl bg-muted/50 border border-border/50">
+                      <div className="flex items-center gap-2.5">
+                        {log.status === 'success' ? (
+                          <CheckCircle2 className="w-4 h-4 text-success shrink-0" />
                         ) : (
-                          <AlertCircle className="w-4 h-4 text-danger" />
+                          <AlertCircle className="w-4 h-4 text-danger shrink-0" />
                         )}
                         <div>
-                          <p className="text-sm text-foreground">{login.device}</p>
-                          <p className="text-xs text-muted-foreground">{formatTimeAgo(login.timestamp)}</p>
+                          <p className="text-sm font-medium text-foreground">{log.device}</p>
+                          <p className="text-[11px] text-muted-foreground">{log.method} • {formatTimeAgo(log.createdAt)}</p>
                         </div>
                       </div>
-                      <Badge variant={login.status === 'success' ? 'secondary' : 'destructive'} className="text-xs">
-                        {login.method}
+                      <Badge variant={log.status === 'success' ? 'secondary' : 'destructive'} className="text-[10px]">
+                        {log.status}
                       </Badge>
                     </div>
                   ))}
@@ -342,8 +371,7 @@ export function DashboardContent({ dashboardData }: DashboardContentProps) {
               ) : (
                 <div className="flex flex-col items-center justify-center py-6 text-center">
                   <Activity className="w-8 h-8 text-muted-foreground/30 mb-2" />
-                  <p className="text-sm text-muted-foreground">No recent activity</p>
-                  <Badge variant="outline" className="mt-2 text-xs">Coming Soon</Badge>
+                  <p className="text-sm text-muted-foreground">No login history recorded yet</p>
                 </div>
               )}
             </CardContent>

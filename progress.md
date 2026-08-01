@@ -5,7 +5,7 @@ This file serves as the project memory tracking features, authentication flows, 
 ---
 
 ## 📌 Status Summary
-- **Current Sprint**: Existing Account Recovery, Passkey Authentication, & Next.js Hydration Resolution
+- **Current Sprint**: QR Code Authentication, Mobile Approval Workflow, Trusted Devices & Audit Login History
 - **Last Updated**: August 1, 2026
 
 ---
@@ -18,26 +18,25 @@ This file serves as the project memory tracking features, authentication flows, 
    * Single-use 6-digit codes with 5-minute TTL and 3-attempt limit.
 
 2. **Existing Account Authentication Flow**
-   * When an existing user attempts to sign up or log in with an email already in the system:
-     - Detects account existence via `/api/auth/signup/check`.
-     - Displays explicit warning: `"Account already exists. Authenticate using available methods."`
-     - Displays dedicated **Existing Account Auth Page** with status indicators (`Available`, `Not registered`, `Under Development`).
-     - Prevents clicking on unregistered or unreleased methods.
+   * Detects existing accounts via `/api/auth/signup/check`.
+   * Displays explicit warning: `"Account already exists. Authenticate using available methods."`
+   * Dedicated Existing Account Auth Page with method availability badges (`Available`, `Not registered`, `Under Development`).
 
 3. **WebAuthn / Passkey Registration & Hybrid QR Support**
    * Passwordless WebAuthn registration in Dashboard Security Settings (`DashboardContent.tsx`).
-   * Configured `origins` array (`http://localhost:3000`, `http://127.0.0.1:3000`) and set `requireUserVerification: false` to ensure seamless QR / Bluetooth cross-device authentication from mobile phones.
-   * Safely extracted credential attributes supporting `@simplewebauthn/server` v13 structure.
-   * Verifies registration and stores public key credentials (`credentialId`, `publicKey`, `counter`) in SQLite linked to `userId`.
+   * Configured `origins` array (`http://localhost:3000`, `http://127.0.0.1:3000`) and set `requireUserVerification: false`.
+   * Multi-version safe extraction for `@simplewebauthn/server` v13 `registrationInfo` attributes.
 
-4. **WebAuthn / Passkey Login & Session Creation**
-   * Authenticates registered passkeys via `/api/auth/passkey/authenticate` and `/api/auth/passkey/auth-verify`.
-   * Replay protection via credential counter verification.
-   * Generates secure 24-hour session token upon successful authentication and redirects to Dashboard.
+4. **QR Code Cross-Device Authentication (New)**
+   * **Desktop Generation**: Select QR Login -> Generates one-time 60s expiring QR code containing target URL `http://10.17.87.25:3000/qr-approve?requestId=<id>` (zero sensitive tokens or credentials inside QR).
+   * **Desktop Polling**: Polls `/api/auth/qr/status` every 2 seconds with automatic 60s countdown timer. Automatically redirects Desktop to Dashboard upon mobile approval.
+   * **Responsive Mobile Scanner**: Camera scanner option visible strictly on mobile layouts (`md:hidden`). Asks for camera permission only after user clicks "Scan QR".
+   * **Mobile Approval Flow (`/qr-approve`)**: Displays request details (Windows Laptop, Browser, Time, Local Network) and `[Approve]` / `[Reject]` actions. Requires identity verification (Passkey if registered, else Email OTP).
+   * **Device Trust Prompt**: Displays `"Trust this device for future approvals?"` popup after successful mobile approval. Saves fingerprint to database.
 
-5. **Next.js 16 & Hydration Warning Fixes**
-   * Added `suppressHydrationWarning` to `<body suppressHydrationWarning>` in `src/app/layout.tsx` to neutralize browser extension DOM mutations (`bis_register`, Bitwarden/password manager script injections).
-   * Wrapped dynamic dates in `DashboardContent.tsx` with a mounted state check to guarantee identical server and client rendering.
+5. **Trusted Devices & Login History Dashboard Integration**
+   * **Trusted Devices**: Fetches real trusted devices from SQLite via `/api/auth/devices` with `Remove Trust` functionality.
+   * **Login History**: Real-time audit logs of laptop QR logins, mobile approvals, passkeys, timestamps, IP addresses, and statuses via `/api/auth/history`.
 
 ---
 
@@ -46,43 +45,37 @@ This file serves as the project memory tracking features, authentication flows, 
 ```
 User Enters Email
     │
-    ├─► New Email: Sign Up Flow (Name, Email, Phone) -> Email OTP Verification -> Account Created -> Dashboard Security Settings -> 'Create Passkey' -> Passkey Stored
+    ├─► New Email: Sign Up Flow (Name, Email, Phone) -> Email OTP / Passkey Verification -> Account Created -> Dashboard
     │
-    └─► Existing Email: Existing Account Auth Page -> Warning: 'Account already exists. Authenticate using available methods.' -> Select Available Method (Email OTP / Passkey) -> Session Created -> Dashboard
+    └─► Existing Email: Existing Account Auth Page -> Warning: 'Account already exists. Authenticate using available methods.'
+            │
+            ├─► Email OTP
+            ├─► Passkey (Biometrics / Security Key)
+            └─► QR Login (Generate QR on Laptop -> Scan on Mobile -> Approve on Mobile -> Desktop Logged In)
 ```
 
 ---
 
 ## 📁 Files Changed
 
-- `src/app/layout.tsx` - Added `suppressHydrationWarning` to `<body>` to ignore browser extension attributes.
-- `src/components/dashboard/DashboardContent.tsx` - Added `mounted` state for client-side date formatting and added Passkey Security management card.
-- `src/lib/webauthn-config.ts` - Added `origins` array (`http://localhost:3000`, `http://127.0.0.1:3000`).
-- `src/app/api/auth/passkey/verify/route.ts` - Fixed `@simplewebauthn` v13 credential attribute extraction and added multi-origin support.
-- `src/app/api/auth/passkey/signup/verify/route.ts` - Fixed `@simplewebauthn` v13 credential attribute extraction and added multi-origin support.
-- `src/app/api/auth/passkey/auth-verify/route.ts` - Updated verification options and added multi-origin support.
-- `src/app/api/auth/signup/check/route.ts` - Returns `userId` and `methods` availability map (`{ otp, passkey, biometric, qr }`).
-- `src/services/auth-client.ts` - Typed `UserMethods` interface and updated `signupCheck()`.
-- `src/components/auth/AuthPage.tsx` - Connected login email check, implemented Existing Account Auth Page UI with status badges (`Available`, `Not registered`, `Under Development`).
-- `progress.md` - Updated project memory file.
+- `prisma/schema.prisma` - Added `QRLoginRequest`, `TrustedDevice`, and `LoginHistory` models & relations.
+- `src/app/api/auth/qr/generate/route.ts` - Generates 60s one-time QR login request.
+- `src/app/api/auth/qr/status/route.ts` - Status polling for desktop auto-login.
+- `src/app/api/auth/qr/request-info/route.ts` - Request metadata endpoint for mobile approval page.
+- `src/app/api/auth/qr/approve/route.ts` - Mobile approval/rejection endpoint with session generation & audit logging.
+- `src/app/api/auth/devices/route.ts` & `trust/route.ts` - Trusted device management APIs.
+- `src/app/api/auth/history/route.ts` - Audit login history API.
+- `src/services/auth-client.ts` - Client API helpers for QR authentication, trusted devices, and history.
+- `src/components/auth/QRAuthForm.tsx` - Desktop QR generation, 60s countdown, and status polling component.
+- `src/components/auth/MobileQRScannerModal.tsx` - Mobile-only camera QR scanner modal.
+- `src/app/qr-approve/page.tsx` - Mobile Approval Page with laptop metadata, verification, and Trust Device prompt.
+- `src/components/auth/AuthPage.tsx` - Integrated QRAuthForm and mobile scanner button.
+- `src/components/dashboard/DashboardContent.tsx` - Connected Trusted Devices with `Remove Trust` and Login History tabs.
+- `progress.md` - Updated project memory.
 
 ---
 
-## 📋 Pending Tasks & Future Roadmap
+## ➡️ Next Steps
 
-1. **Biometric Authentication** (Planned for future phase)
-2. **QR Code Authentication** (Planned for future phase)
-3. **Audit & Event Logging** (Enhanced security audit logs)
-
----
-
-## 🐛 Known Issues & Considerations
-
-- **Windows Build Script Note**: `npm run build` executes `next build` successfully (compiled in Turbopack in ~4s). The post-build `cp` command in `package.json` prints a harmless command error on Windows shells (`cp not recognized`), but Next.js static pages and bundle generation pass cleanly.
-
----
-
-## ➡️ Next Implementation Step
-
-- Verify end-to-end user flows in dev server (`npx next dev -p 3000`).
-- Commit and push changes to Git repository.
+- Test end-to-end local network flows with `npx next dev -p 3000`.
+- Sync and push changes to GitHub repository.

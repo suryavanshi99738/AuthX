@@ -23,6 +23,9 @@ model User {
   sessions        Session[]
   passkeys        PasskeyCredential[]
   otpCodes        OTPCode[]
+  trustedDevices  TrustedDevice[]
+  loginHistory    LoginHistory[]
+  qrRequests      QRLoginRequest[]
 }
 
 model Session {
@@ -64,6 +67,55 @@ model OTPCode {
 
   @@index([email])
   @@index([expiresAt])
+}
+
+/// One-time QR Login Request for cross-device authentication
+model QRLoginRequest {
+  id           String   @id @default(cuid())
+  requestId    String   @unique
+  status       String   @default("pending") // pending, approved, rejected, expired
+  deviceInfo   String?  // e.g., Windows Laptop - Chrome
+  ipAddress    String?  // e.g., 10.17.87.25
+  userId       String?
+  sessionToken String?
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([requestId])
+  @@index([expiresAt])
+}
+
+/// Trusted mobile/browser devices saved for user
+model TrustedDevice {
+  id                String   @id @default(cuid())
+  userId            String
+  deviceName        String   // e.g. iPhone 15, Windows PC
+  browser           String?  // e.g. Safari 17.0, Chrome 124
+  deviceFingerprint String
+  lastActive        DateTime @default(now())
+  createdAt         DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// Audit trail of user login events
+model LoginHistory {
+  id        String   @id @default(cuid())
+  userId    String
+  method    String   // e.g. QR Login, Passkey, Email OTP
+  device    String   // e.g. Windows Laptop, iPhone 15
+  browser   String?  // e.g. Chrome, Safari
+  status    String   // success, rejected, failed
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 /// Pending sign-up verification: stores the sign-up intent (name/email/phone)
