@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Shield, PanelLeft } from 'lucide-react';
+import { Shield, PanelLeft, ShieldCheck } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { getDemoDashboard, verifySession } from '@/services/auth-client';
 import { Sidebar } from './Sidebar';
@@ -13,7 +13,6 @@ export function Dashboard() {
   const { user, sessionToken, isDemo, setPageView, logout } = useAuth();
   const [activeItem, setActiveItem] = useState('home');
   const [dashboardData, setDashboardData] = useState<Record<string, unknown> | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   // Fetch dashboard data
   useEffect(() => {
@@ -32,8 +31,6 @@ export function Dashboard() {
           logout();
           return;
         }
-        // For real auth, we could fetch from a real dashboard endpoint
-        // For now, use minimal data
         setDashboardData(null);
       }
     }
@@ -85,24 +82,24 @@ export function Dashboard() {
             >
               <PanelLeft className="w-5 h-5 text-muted-foreground" />
             </button>
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Shield className="w-4 h-4 text-primary" />
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20">
+                <ShieldCheck className="w-4 h-4 text-primary" />
               </div>
-              <span className="font-heading text-sm font-semibold">BankShield Auth</span>
+              <span className="font-heading text-base font-bold tracking-tight text-foreground">AuthX</span>
               {isDemo && (
                 <Badge className="bg-warning/10 text-warning text-xs hover:bg-warning/10">Demo Mode</Badge>
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground font-medium">
             <span>{user?.email}</span>
           </div>
         </header>
 
         {/* Dashboard content */}
         <main className="flex-1 overflow-y-auto">
-          <DashboardContent dashboardData={dashboardData || undefined} />
+          <DashboardContent activeSection={activeItem} dashboardData={dashboardData || undefined} />
         </main>
       </div>
     </div>

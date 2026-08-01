@@ -5,49 +5,51 @@ This file serves as the project memory tracking features, authentication flows, 
 ---
 
 ## 📌 Status Summary
-- **Current Sprint**: QR Code Authentication (Authenticated Mobile Workflow: Link Device in Sidebar/Dashboard)
+- **Current Sprint**: AuthX Branding & Mobile Device Detection & Enhanced Dashboard Analytics
 - **Last Updated**: August 1, 2026
 
 ---
 
 ## ✅ Features Completed
 
-1. **Email OTP Authentication**
-   * Server-side OTP generation, hashing, and email sending via Resend API.
-   * OTP rate limiting per IP and email.
-   * Single-use 6-digit codes with 5-minute TTL and 3-attempt limit.
+1. **Rebranding to AuthX & Icon Accent**
+   * Renamed platform throughout layout metadata, sidebar, topbar header, landing page, and approval screens to **AuthX**.
+   * Replaced generic icons with a modern, high-tech `ShieldZap` icon with clean subtle border styling (no neon CSS).
 
-2. **Existing Account Authentication Flow**
-   * Detects existing accounts via `/api/auth/signup/check`.
-   * Displays explicit warning: `"Account already exists. Authenticate using available methods."`
-   * Dedicated Existing Account Auth Page with method availability badges (`Available`, `Not registered`, `Under Development`).
+2. **Mobile Device Detection for Link Device**
+   * Mobile device detection applied (`isMobile` via userAgent and screen width < 768px).
+   * **Link Device** sidebar item & QR scanner button is visible **ONLY on mobile devices/screens**.
+   * Desktop/laptop views hide the "Link Device" option completely.
 
-3. **WebAuthn / Passkey Registration & Hybrid QR Support**
-   * Passwordless WebAuthn registration in Dashboard Security Settings (`DashboardContent.tsx`).
-   * Configured `origins` array (`http://localhost:3000`, `http://127.0.0.1:3000`) and set `requireUserVerification: false`.
+3. **Dashboard (Home Tab) Enhancements**
+   * **Risk Detections Bar Graph**: Clean frontend bar chart presentation displaying risk levels (Low, Medium, High) across connected devices ("Windows 11 PC", "iPhone 15", "Unknown Linux").
+   * **Active Logins Card**: Lists active device sessions with device name, browser, IP address, location ("Local Network", "Mumbai, India"), and active status badge.
+   * **Security Analytics Card**: Frontend metrics presentation showing overall security grade (Grade A+), zero failed attempt counts, and AES-256 / FIDO2 compliance.
+   * **Conditional Create Passkey Card**: Rendered **IF AND ONLY IF** the user has NOT created/implemented a passkey yet. Automatically hides once a passkey is registered!
 
-4. **QR Code Cross-Device Authentication Workflow (Updated)**
-   * **Desktop QR Generation**: Select QR Login -> Generates 60s expiring QR code containing local URL `http://10.17.87.25:3000/qr-approve?requestId=<id>` (zero credentials inside QR).
-   * **Desktop Status Polling**: 2s polling on `/api/auth/qr/status` with 60s countdown timer. Automatically redirects Desktop to Dashboard upon approval.
-   * **Post-Login Mobile Workflow**:
-     - Pre-login QR scanning button removed from `AuthPage.tsx`.
-     - In Mobile Dashboard Sidebar (`Sidebar.tsx`), "Trusted Devices" is replaced with **"Link Device"** (icon: `QrCode`).
-     - In the **Link Device** section of the Dashboard (`DashboardContent.tsx`), authenticated mobile users tap **Scan QR Code** to launch the camera scanner with real-time `jsQR` decoding and glowing laser beam animation.
-   * **Mobile Approval Flow (`/qr-approve`)**: Displays request details (Windows Laptop, Browser, Time, Local Network IP) and `[Approve]` / `[Reject]` actions. Requires identity verification before creating Desktop session.
+4. **Login History Tab**
+   * Full audit history view showing event type, device name, browser, IP address, location, date & time, and method badge ("QR Login", "Passkey", "Email OTP").
+
+5. **WebAuthn Passkeys & QR Authentication**
+   * One-time 60s QR code generation on laptop (`http://10.17.87.25:3000/qr-approve?requestId=...`).
+   * Mobile QR camera scanner with `jsQR` real-time frame decoding & glowing laser beam animation.
+   * Cross-device mobile approval workflow with optional "Trust this device" prompt.
 
 ---
 
 ## 📁 Files Changed
 
-- `src/components/auth/AuthPage.tsx` - Removed pre-login mobile scanner button.
-- `src/components/dashboard/Sidebar.tsx` - Replaced "Trusted Devices" menu item with **"Link Device"** (`QrCode` icon).
-- `src/components/dashboard/DashboardContent.tsx` - Replaced Trusted Devices card with **Link Device** card featuring **Scan QR Code** action, integrated `MobileQRScannerModal`, and kept Login History audit log.
-- `src/components/auth/MobileQRScannerModal.tsx` - Real-time `jsQR` camera frame decoding with animated glowing laser beam.
-- `progress.md` - Updated project memory file.
+- `src/app/layout.tsx` - Updated metadata title & description to AuthX.
+- `src/components/dashboard/Sidebar.tsx` - Updated brand to AuthX (`ShieldZap` icon) & added mobile device filter for "Link Device".
+- `src/components/dashboard/Dashboard.tsx` - Updated top bar branding to AuthX and passed `activeSection`.
+- `src/components/dashboard/DashboardContent.tsx` - Implemented Risk Detections Bar Graph, Active Logins, Security Analytics, conditional Create Passkey card, and full Login History audit view.
+- `src/components/auth/AuthPage.tsx` - Updated branding to AuthX.
+- `src/app/qr-approve/page.tsx` - Updated branding to AuthX.
+- `progress.md` - Updated project memory.
 
 ---
 
 ## ➡️ Next Steps
 
-- Test end-to-end local network flows with `npx next dev -H 0.0.0.0 -p 3000`.
-- Sync and push changes to GitHub repository.
+- Test all flows using `npx next dev -H 0.0.0.0 -p 3000`.
+- Sync and commit changes to Git repository.

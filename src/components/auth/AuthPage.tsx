@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Shield,
+  ShieldCheck,
   KeyRound,
   Fingerprint,
   QrCode,
@@ -329,15 +330,15 @@ export function AuthPage() {
 
           {/* Logo */}
           <div className="flex items-center gap-3 mb-8">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-              <Shield className="w-5 h-5 text-primary" />
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20">
+              <ShieldCheck className="w-5 h-5 text-primary" />
             </div>
-            <span className="font-heading text-lg font-semibold">BankShield</span>
+            <span className="font-heading text-xl font-bold tracking-tight text-foreground">AuthX</span>
           </div>
 
           {/* Heading */}
-          <h1 className="font-heading text-2xl md:text-3xl font-semibold text-foreground mb-2">
-            Welcome to BankShield Auth
+          <h1 className="font-heading text-2xl md:text-3xl font-bold text-foreground mb-2">
+            Welcome to AuthX
           </h1>
           <p className="text-sm text-muted-foreground mb-8">
             Choose your preferred method to continue — no passwords required.

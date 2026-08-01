@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   Home,
   Shield,
+  ShieldCheck,
   QrCode,
   Clock,
   User,
@@ -20,6 +21,7 @@ interface SidebarItem {
   id: string;
   icon: React.ElementType;
   label: string;
+  mobileOnly?: boolean;
   onClick?: () => void;
   danger?: boolean;
 }
@@ -33,7 +35,7 @@ interface SidebarProps {
 const sidebarItems: SidebarItem[] = [
   { id: 'home', icon: Home, label: 'Home' },
   { id: 'security', icon: Shield, label: 'Security Center' },
-  { id: 'link_device', icon: QrCode, label: 'Link Device' },
+  { id: 'link_device', icon: QrCode, label: 'Link Device', mobileOnly: true },
   { id: 'history', icon: Clock, label: 'Login History' },
   { id: 'profile', icon: User, label: 'Profile' },
   { id: 'settings', icon: Settings, label: 'Settings' },
@@ -42,6 +44,18 @@ const sidebarItems: SidebarItem[] = [
 export function Sidebar({ activeItem, onItemClick, isDemo }: SidebarProps) {
   const { logout, cleanupDemo } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      const userAgentMobile = /iphone|ipad|ipod|android/i.test(navigator.userAgent);
+      const screenMobile = window.innerWidth < 768;
+      setIsMobile(userAgentMobile || screenMobile);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const handleLogout = () => {
     if (isDemo) {
@@ -64,11 +78,11 @@ export function Sidebar({ activeItem, onItemClick, isDemo }: SidebarProps) {
       {/* Brand header */}
       <div className={cn('p-4 border-b border-border', collapsed && 'p-3')}>
         {!collapsed ? (
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Shield className="w-4 h-4 text-primary" />
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20">
+              <ShieldCheck className="w-4 h-4 text-primary" />
             </div>
-            <span className="font-heading text-sm font-semibold">BankShield</span>
+            <span className="font-heading text-base font-bold tracking-tight text-foreground">AuthX</span>
             {isDemo && (
               <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-warning/10 text-warning">
                 Demo
@@ -76,13 +90,13 @@ export function Sidebar({ activeItem, onItemClick, isDemo }: SidebarProps) {
             )}
           </div>
         ) : (
-          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center mx-auto">
-            <Shield className="w-4 h-4 text-primary" />
+          <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center mx-auto border border-primary/20">
+            <ShieldCheck className="w-4 h-4 text-primary" />
           </div>
         )}
       </div>
 
-      {/* Toggle icon — at left upper side, below brand header (not topmost level) */}
+      {/* Toggle icon */}
       <div className={cn('px-2 pt-2 pb-1', collapsed ? 'flex justify-center' : 'flex items-center justify-end')}>
         <motion.button
           onClick={() => setCollapsed(!collapsed)}
@@ -102,6 +116,7 @@ export function Sidebar({ activeItem, onItemClick, isDemo }: SidebarProps) {
       {/* Navigation items */}
       <nav className="flex-1 py-2 px-2 space-y-1">
         {sidebarItems.map((item) => {
+          if (item.mobileOnly && !isMobile) return null;
           const isActive = activeItem === item.id;
           return (
             <motion.button
@@ -111,7 +126,7 @@ export function Sidebar({ activeItem, onItemClick, isDemo }: SidebarProps) {
                 'w-full flex items-center gap-3 rounded-xl transition-smooth group',
                 collapsed ? 'justify-center p-3' : 'px-3 py-2.5',
                 isActive
-                  ? 'bg-primary/10 text-primary'
+                  ? 'bg-primary/10 text-primary font-semibold'
                   : 'text-muted-foreground hover:bg-muted hover:text-foreground'
               )}
               whileHover={{ x: collapsed ? 0 : 2 }}

@@ -26,15 +26,15 @@ const plusJakarta = Plus_Jakarta_Sans({
   weight: ["400", "500", "600", "700", "800"],
 });
 
-/* ── BankShield Auth Metadata ── */
+/* ── AuthX Metadata ── */
 export const metadata: Metadata = {
-  title: "BankShield Auth — Passwordless Banking Authentication",
+  title: "AuthX — Passwordless Authentication Platform",
   description:
-    "Modern passwordless authentication platform for banking systems. Secure login with passkeys, biometrics, QR codes, and trusted devices.",
+    "Modern passwordless authentication platform. Secure login with passkeys, biometrics, QR codes, and trusted devices.",
   keywords: [
-    "BankShield",
+    "AuthX",
     "passwordless",
-    "banking authentication",
+    "authentication",
     "passkeys",
     "WebAuthn",
     "biometrics",
@@ -43,20 +43,20 @@ export const metadata: Metadata = {
     "Next.js",
     "TypeScript",
   ],
-  authors: [{ name: "BankShield Auth Team" }],
+  authors: [{ name: "AuthX Team" }],
   icons: {
     icon: "/logo.svg",
   },
   openGraph: {
-    title: "BankShield Auth",
-    description: "Passwordless banking authentication platform",
-    siteName: "BankShield Auth",
+    title: "AuthX",
+    description: "Passwordless authentication platform",
+    siteName: "AuthX",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "BankShield Auth",
-    description: "Passwordless banking authentication platform",
+    title: "AuthX",
+    description: "Passwordless authentication platform",
   },
 };
 
