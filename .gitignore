@@ -81,6 +81,10 @@ dev.log
 dev.out.log
 server.log
 
+# --- Runtime process files (regenerated on every dev start) ---
+.zscripts/
+*.pid
+
 # --- Verification / debug screenshots (scratch) ---
 /*.png
 verify-*.png
