@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import {
   Home,
   Shield,
-  Smartphone,
+  QrCode,
   Clock,
   User,
   Settings,
@@ -33,7 +33,7 @@ interface SidebarProps {
 const sidebarItems: SidebarItem[] = [
   { id: 'home', icon: Home, label: 'Home' },
   { id: 'security', icon: Shield, label: 'Security Center' },
-  { id: 'devices', icon: Smartphone, label: 'Trusted Devices' },
+  { id: 'link_device', icon: QrCode, label: 'Link Device' },
   { id: 'history', icon: Clock, label: 'Login History' },
   { id: 'profile', icon: User, label: 'Profile' },
   { id: 'settings', icon: Settings, label: 'Settings' },

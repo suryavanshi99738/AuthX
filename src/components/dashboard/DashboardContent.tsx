@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
   Shield,
@@ -13,6 +14,9 @@ import {
   BarChart3,
   TrendingUp,
   Loader2,
+  QrCode,
+  Camera,
+  Laptop,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -25,6 +29,7 @@ import {
   removeTrustedDevice,
   getLoginHistory,
 } from '@/services/auth-client';
+import { MobileQRScannerModal } from '@/components/auth/MobileQRScannerModal';
 import { fadeInUp, staggerContainer } from '@/lib/animations';
 
 interface DashboardContentProps {
@@ -32,7 +37,9 @@ interface DashboardContentProps {
 }
 
 export function DashboardContent({ dashboardData }: DashboardContentProps) {
+  const router = useRouter();
   const { user } = useAuth();
+  const [scannerModalOpen, setScannerModalOpen] = useState(false);
   const [passkeyRegistering, setPasskeyRegistering] = useState(false);
   const [passkeyError, setPasskeyError] = useState('');
   const [passkeySuccess, setPasskeySuccess] = useState(false);
@@ -288,46 +295,60 @@ export function DashboardContent({ dashboardData }: DashboardContentProps) {
 
       {/* Trusted Devices + Recent Activity Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Trusted Devices */}
+        {/* Link Device (Scan QR) */}
         <motion.div variants={fadeInUp}>
           <Card className="shadow-card h-full">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3 mb-4">
+            <CardContent className="p-6 space-y-4">
+              <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <Smartphone className="w-5 h-5 text-primary" />
+                  <QrCode className="w-5 h-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-foreground">Trusted Devices</p>
-                  <p className="text-xs text-muted-foreground">Your registered devices</p>
+                  <p className="text-sm font-medium text-foreground">Link Laptop / Desktop Device</p>
+                  <p className="text-xs text-muted-foreground">Scan QR code to approve desktop login</p>
                 </div>
               </div>
-              {realTrustedDevices.length > 0 ? (
-                <div className="space-y-3 max-h-52 overflow-y-auto">
-                  {realTrustedDevices.map((device) => (
-                    <div key={device.id} className="flex items-center justify-between p-2.5 rounded-xl bg-muted/50 border border-border/50">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                          <Smartphone className="w-4 h-4 text-primary" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-foreground">{device.deviceName}</p>
-                          <p className="text-[11px] text-muted-foreground">{device.browser} • {formatTimeAgo(device.lastActive)}</p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => handleRemoveDevice(device.id)}
-                        className="text-xs text-danger hover:underline font-medium px-2 py-1 rounded-md hover:bg-danger/10 transition-smooth"
-                      >
-                        Remove Trust
-                      </button>
-                    </div>
-                  ))}
+
+              {/* Scan QR Button */}
+              <div className="p-4 rounded-2xl bg-primary/5 border border-primary/20 flex flex-col items-center justify-center text-center space-y-3">
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Camera className="w-5 h-5 text-primary" />
                 </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center py-6 text-center">
-                  <Smartphone className="w-8 h-8 text-muted-foreground/30 mb-2" />
-                  <p className="text-sm text-muted-foreground">No trusted devices registered yet</p>
-                  <p className="text-xs text-muted-foreground/70 mt-1">Scan QR from mobile & trust for 1-tap logins</p>
+                <div>
+                  <p className="text-xs font-semibold text-foreground">Approve Desktop Logins</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Scan the QR code displayed on your laptop screen to verify & log in.
+                  </p>
+                </div>
+                <Button
+                  onClick={() => setScannerModalOpen(true)}
+                  className="w-full rounded-xl h-10 text-xs font-semibold gap-2 shadow-card hover:shadow-card-hover"
+                >
+                  <QrCode className="w-4 h-4" />
+                  Scan QR Code
+                </Button>
+              </div>
+
+              {/* Linked Devices List if any */}
+              {realTrustedDevices.length > 0 && (
+                <div className="space-y-2 pt-2 border-t border-border">
+                  <p className="text-xs font-medium text-muted-foreground">Linked Devices</p>
+                  <div className="space-y-2 max-h-32 overflow-y-auto">
+                    {realTrustedDevices.map((device) => (
+                      <div key={device.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/40 text-xs">
+                        <div className="flex items-center gap-2">
+                          <Laptop className="w-3.5 h-3.5 text-muted-foreground" />
+                          <span className="text-foreground font-medium">{device.deviceName}</span>
+                        </div>
+                        <button
+                          onClick={() => handleRemoveDevice(device.id)}
+                          className="text-[11px] text-danger hover:underline font-medium"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </CardContent>
@@ -403,6 +424,16 @@ export function DashboardContent({ dashboardData }: DashboardContentProps) {
           </Card>
         </motion.div>
       </div>
+
+      {/* Mobile-Only Camera Scanner Modal */}
+      <MobileQRScannerModal
+        isOpen={scannerModalOpen}
+        onClose={() => setScannerModalOpen(false)}
+        onScanSuccess={(reqId) => {
+          setScannerModalOpen(false);
+          router.push(`/qr-approve?requestId=${reqId}`);
+        }}
+      />
     </motion.div>
   );
 }

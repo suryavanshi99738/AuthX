@@ -436,17 +436,6 @@ export function AuthPage() {
                           ))}
                         </div>
 
-                        {/* Mobile-only Scan QR option */}
-                        <div className="block md:hidden pt-2">
-                          <button
-                            onClick={() => setScannerModalOpen(true)}
-                            className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl border border-primary/30 bg-primary/5 text-primary text-xs font-semibold hover:bg-primary/10 transition-smooth"
-                          >
-                            <QrCode className="w-4 h-4" />
-                            <span>Scan QR Code (Mobile Scanner)</span>
-                          </button>
-                        </div>
-
                         {/* Security notice */}
                         <div className="flex items-center gap-2 text-xs text-muted-foreground justify-center pt-2">
                           <Lock className="w-3 h-3" />
@@ -705,16 +694,6 @@ export function AuthPage() {
         open={underDevOpen}
         onClose={() => setUnderDevOpen(false)}
         featureName={underDevFeature}
-      />
-
-      {/* Mobile-Only Camera Scanner Modal */}
-      <MobileQRScannerModal
-        isOpen={scannerModalOpen}
-        onClose={() => setScannerModalOpen(false)}
-        onScanSuccess={(reqId) => {
-          setScannerModalOpen(false);
-          router.push(`/qr-approve?requestId=${reqId}`);
-        }}
       />
     </div>
   );
