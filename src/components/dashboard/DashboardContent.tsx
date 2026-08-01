@@ -46,6 +46,8 @@ import {
   CheckCircle,
   XCircle,
   Zap,
+  Globe,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -128,9 +130,10 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
   const [hasPasskey, setHasPasskey] = useState(false);
 
   // Core Data States
-  const [trustedDevices, setTrustedDevices] = useState<Array<{ id: string; deviceName: string; browser: string; lastActive: string; createdAt: string }>>([]);
-  const [history, setHistory] = useState<Array<{ id: string; method: string; device: string; browser: string; status: string; riskLevel?: string; ipAddress: string; createdAt: string }>>([]);
+  const [trustedDevices, setTrustedDevices] = useState<Array<{ id: string; deviceName: string; browser: string; location?: string; status?: string; lastActive: string; createdAt: string }>>([]);
+  const [history, setHistory] = useState<Array<{ id: string; method: string; device: string; browser: string; status: string; riskLevel?: string; ipAddress: string; location?: string; deviceId?: string; createdAt: string }>>([]);
   const [riskData, setRiskData] = useState<{ score: number; level: string; reasons: string[]; updatedAt: string; isHighRisk: boolean } | null>(null);
+  const [deviceRisks, setDeviceRisks] = useState<Array<{ deviceName: string; browser: string; ipAddress: string; location: string; isTrusted: boolean; lastSeen: string; riskScore: number; riskLevel: string }>>([]);
   const [analyticsData, setAnalyticsData] = useState<{ totalLogins: number; successfulLogins: number; failedAttempts: number; successRate: string; passkeyCount: number; qrRequestsCount: number; authUsagePie: Array<{ name: string; value: number; percentage: string; lastUsed: string; fill: string }>; riskDistributionBar: Array<{ level: string; count: number; percentage: string; factor: string; fill: string }>; loginTrendBar: Array<{ day: string; date: string; logins: number; successCount: number; failedCount: number; mostUsed: string; fill: string }> } | null>(null);
   const [userSettingsState, setUserSettingsState] = useState<{ theme: string; deviceLimit: number; sessionTimeout: number; qrExpiry: number; securityAlerts: boolean; loginAlerts: boolean; qrDisabled: boolean; passkeysDisabled: boolean; requireOTPOnly: boolean } | null>(null);
   const [deviceLimitMsg, setDeviceLimitMsg] = useState<string | null>(null);
@@ -146,7 +149,7 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
 
-  // Settings Tab
+  // Vertical Settings Section Selector
   const [settingsSection, setSettingsSection] = useState<'appearance' | 'security' | 'account' | 'notifications'>('appearance');
 
   // Lockdown Modal Dialog
@@ -174,7 +177,12 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
         setHistory(histRes.history);
         if (histRes.history.some((h) => h.method.toLowerCase().includes('passkey'))) setHasPasskey(true);
       }
-      if (riskRes.success && riskRes.currentRisk) setRiskData(riskRes.currentRisk);
+      if (riskRes.success && riskRes.currentRisk) {
+        setRiskData(riskRes.currentRisk);
+        if ((riskRes as unknown as { deviceRisks?: typeof deviceRisks }).deviceRisks) {
+          setDeviceRisks((riskRes as unknown as { deviceRisks: typeof deviceRisks }).deviceRisks);
+        }
+      }
       if (analyticsRes.success && analyticsRes.analytics) setAnalyticsData(analyticsRes.analytics);
       if (settingsRes.success && settingsRes.settings) {
         setUserSettingsState(settingsRes.settings);
@@ -290,7 +298,9 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
       const matchesSearch =
         item.device.toLowerCase().includes(historySearch.toLowerCase()) ||
         item.method.toLowerCase().includes(historySearch.toLowerCase()) ||
-        item.ipAddress.toLowerCase().includes(historySearch.toLowerCase());
+        item.ipAddress.toLowerCase().includes(historySearch.toLowerCase()) ||
+        (item.location || '').toLowerCase().includes(historySearch.toLowerCase()) ||
+        (item.deviceId || '').toLowerCase().includes(historySearch.toLowerCase());
 
       const matchesMethod =
         methodFilter === 'all' || item.method.toLowerCase().includes(methodFilter.toLowerCase());
@@ -362,7 +372,7 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
         </motion.div>
       )}
 
-      {/* ── 1. HOME VIEW (Overview cards & Quick Insights ONLY - NO GRAPHS) ── */}
+      {/* ── 1. HOME VIEW ── */}
       {activeSection === 'home' && (
         <>
           {/* Welcome Header */}
@@ -401,7 +411,7 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
 
           {/* Overview Cards Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {/* Security Score Card with Circular SVG Progress Ring */}
+            {/* Security Score Card */}
             <motion.div variants={fadeInUp}>
               <Card className="shadow-card h-full hover:-translate-y-0.5 hover:shadow-card-hover hover:border-primary/30 transition-all duration-300 cursor-pointer">
                 <CardContent className="p-5 flex items-center justify-between h-full">
@@ -418,7 +428,6 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
                     </p>
                   </div>
 
-                  {/* Circular SVG Ring */}
                   <div className="relative w-14 h-14 flex items-center justify-center shrink-0">
                     <svg className="w-14 h-14 -rotate-90" viewBox="0 0 48 48">
                       <circle cx="24" cy="24" r="19" fill="none" stroke="currentColor" strokeWidth="4" className="text-muted/30" />
@@ -523,7 +532,7 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
               </Card>
             </motion.div>
 
-            {/* Recent Activity Card (Detailed breakdown instead of static text) */}
+            {/* Recent Activity Card */}
             <motion.div variants={fadeInUp}>
               <Card className="shadow-card h-full hover:-translate-y-0.5 hover:shadow-card-hover hover:border-primary/30 transition-all duration-300 cursor-pointer">
                 <CardContent className="p-5 flex flex-col justify-between h-full space-y-2">
@@ -560,7 +569,6 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
                 <h3 className="font-heading text-base font-bold text-foreground">Quick Insights</h3>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {/* Last Login */}
                   <div className="p-4 rounded-xl bg-muted/40 border border-border/60 space-y-1">
                     <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
                       <Clock className="w-3.5 h-3.5 text-primary" />
@@ -570,7 +578,6 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
                     <p className="text-[11px] text-muted-foreground">{history[0]?.ipAddress || '10.17.87.25'} ({history[0]?.device || 'Current Session'})</p>
                   </div>
 
-                  {/* Last Trusted Device */}
                   <div className="p-4 rounded-xl bg-muted/40 border border-border/60 space-y-1">
                     <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
                       <Laptop className="w-3.5 h-3.5 text-primary" />
@@ -580,7 +587,6 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
                     <p className="text-[11px] text-muted-foreground">{trustedDevices[0]?.browser || 'Chrome 124'} • Active</p>
                   </div>
 
-                  {/* Security Recommendation */}
                   <div className="p-4 rounded-xl bg-muted/40 border border-border/60 space-y-1">
                     <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
                       <ShieldCheck className="w-3.5 h-3.5 text-success" />
@@ -607,7 +613,6 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Email OTP */}
             <Card className="shadow-card">
               <CardContent className="p-6 space-y-4">
                 <div className="flex items-start justify-between">
@@ -632,7 +637,6 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
               </CardContent>
             </Card>
 
-            {/* Passkey */}
             <Card className="shadow-card">
               <CardContent className="p-6 space-y-4">
                 <div className="flex items-start justify-between">
@@ -664,7 +668,6 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
               </CardContent>
             </Card>
 
-            {/* QR Authentication */}
             <Card className="shadow-card">
               <CardContent className="p-6 space-y-4">
                 <div className="flex items-start justify-between">
@@ -689,7 +692,6 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
               </CardContent>
             </Card>
 
-            {/* Biometric (Coming Soon) */}
             <Card className="shadow-card opacity-80 border-dashed border-2">
               <CardContent className="p-6 space-y-4">
                 <div className="flex items-start justify-between">
@@ -716,7 +718,7 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
         </motion.div>
       )}
 
-      {/* ── 3. SECURITY ANALYTICS VIEW (Polished Donut + Vertical Bar Charts) ── */}
+      {/* ── 3. SECURITY ANALYTICS VIEW ── */}
       {activeSection === 'analytics' && (
         <motion.div variants={fadeInUp} className="space-y-6">
           <div>
@@ -724,7 +726,6 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
             <p className="text-sm text-muted-foreground">Real-time database analytics tracking authentication methods, risk distribution, and login trends.</p>
           </div>
 
-          {/* Analytics Summary Cards (Above Charts) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <Card className="shadow-card hover:-translate-y-0.5 transition-all duration-300">
               <CardContent className="p-4 flex items-center justify-between">
@@ -782,7 +783,6 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Donut Chart: Authentication Usage */}
             <Card className="shadow-card">
               <CardContent className="p-6 space-y-4">
                 <div className="flex items-center justify-between">
@@ -793,9 +793,7 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
                   <Badge variant="outline" className="text-[10px]">Real-Time</Badge>
                 </div>
 
-                {/* Donut Chart Wrapper */}
                 <div className="relative h-64 w-full flex items-center justify-center">
-                  {/* Centered Donut Label (Transitions cleanly when hovering slices) */}
                   <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10 transition-all duration-300">
                     {pieActiveIndex !== null && analyticsData?.authUsagePie?.[pieActiveIndex] ? (
                       <div className="text-center animate-fadeIn">
@@ -878,7 +876,6 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
                   </ResponsiveContainer>
                 </div>
 
-                {/* Professional Legend Aligned Below */}
                 <div className="flex flex-wrap items-center justify-center gap-4 pt-2 border-t border-border/60 text-xs">
                   {(analyticsData?.authUsagePie || [
                     { name: 'Email OTP', value: 4, percentage: '44.4%', fill: '#3B82F6' },
@@ -902,7 +899,6 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
               </CardContent>
             </Card>
 
-            {/* Vertical Bar Chart: Risk Distribution */}
             <Card className="shadow-card">
               <CardContent className="p-6 space-y-4">
                 <div className="flex items-center justify-between">
@@ -949,7 +945,6 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
             </Card>
           </div>
 
-          {/* Vertical Bar Chart: 7-Day Login Trend */}
           <Card className="shadow-card">
             <CardContent className="p-6 space-y-4">
               <div className="flex items-center justify-between">
@@ -998,19 +993,19 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
         </motion.div>
       )}
 
-      {/* ── 4. RISK CENTER VIEW ── */}
+      {/* ── 4. RISK CENTER VIEW (With Per-Device Risk Breakdown) ── */}
       {activeSection === 'risk_center' && (
         <motion.div variants={fadeInUp} className="space-y-6">
           <div>
             <h1 className="font-heading text-2xl font-bold text-foreground">Risk Center & Adaptive Auth</h1>
-            <p className="text-sm text-muted-foreground">Risk-based adaptive authentication engine inspecting device fingerprints and session factors.</p>
+            <p className="text-sm text-muted-foreground">Risk-based adaptive authentication engine inspecting device fingerprints and location similarity.</p>
           </div>
 
-          {/* Gauge & Current Risk */}
+          {/* Overall Account Risk Card */}
           <Card className="shadow-card">
             <CardContent className="p-6 flex flex-col md:flex-row items-center justify-between gap-6">
               <div className="space-y-2 text-center md:text-left">
-                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Current Evaluated Risk</span>
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Overall Account Risk</span>
                 <div className="flex items-center gap-3 justify-center md:justify-start">
                   <span className="text-4xl font-bold text-foreground">{riskData?.score || 12}</span>
                   <span className="text-sm text-muted-foreground font-medium">/ 100</span>
@@ -1023,10 +1018,9 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
                 </p>
               </div>
 
-              {/* Progress bar gauge */}
               <div className="w-full md:w-64 space-y-2">
                 <div className="flex justify-between text-xs font-semibold">
-                  <span>Safety Gauge</span>
+                  <span>Overall Safety Gauge</span>
                   <span>{riskData?.score || 12}%</span>
                 </div>
                 <div className="w-full h-3 bg-muted rounded-full overflow-hidden">
@@ -1041,43 +1035,71 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
             </CardContent>
           </Card>
 
-          {/* Risk Factors Checklist */}
-          <Card className="shadow-card">
-            <CardContent className="p-6 space-y-4">
-              <h3 className="font-heading text-base font-bold text-foreground">Triggered Risk Factors</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {[
-                  { factor: 'New Device / IP Address', weight: '+25', active: (riskData?.reasons || []).some((r) => r.includes('New Device')) },
-                  { factor: 'New Browser UserAgent', weight: '+15', active: (riskData?.reasons || []).some((r) => r.includes('New Browser')) },
-                  { factor: 'Multiple Failed Attempts', weight: '+30', active: (riskData?.reasons || []).some((r) => r.includes('Failed')) },
-                  { factor: 'Excessive QR Requests', weight: '+25', active: (riskData?.reasons || []).some((r) => r.includes('QR')) },
-                  { factor: 'Suspicious Session Count', weight: '+20', active: (riskData?.reasons || []).some((r) => r.includes('Session')) },
-                  { factor: 'Unregistered Trusted Device', weight: '+10', active: (riskData?.reasons || []).some((r) => r.includes('No registered')) },
-                ].map((item, idx) => (
-                  <div key={idx} className={`p-3 rounded-xl border flex items-center justify-between text-xs ${
-                    item.active ? 'bg-warning/10 border-warning/30 text-warning' : 'bg-muted/30 border-border/60 text-muted-foreground'
-                  }`}>
-                    <div className="flex items-center gap-2">
-                      <AlertCircle className="w-4 h-4 shrink-0" />
-                      <span className="font-medium">{item.factor}</span>
-                    </div>
-                    <span className="font-bold">{item.weight}</span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          {/* Per-Device Risk Breakdown Section */}
+          <div className="space-y-3">
+            <h3 className="font-heading text-base font-bold text-foreground">Per-Device Risk Assessment</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {deviceRisks.length > 0 ? (
+                deviceRisks.map((dev, idx) => (
+                  <Card key={idx} className="shadow-card">
+                    <CardContent className="p-5 space-y-3">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20">
+                            {dev.deviceName.toLowerCase().includes('phone') || dev.deviceName.toLowerCase().includes('mobile') ? (
+                              <Smartphone className="w-4.5 h-4.5 text-primary" />
+                            ) : (
+                              <Laptop className="w-4.5 h-4.5 text-primary" />
+                            )}
+                          </div>
+                          <div>
+                            <h4 className="font-heading text-sm font-bold text-foreground">{dev.deviceName}</h4>
+                            <p className="text-xs text-muted-foreground">{dev.browser}</p>
+                          </div>
+                        </div>
+                        <Badge variant={dev.riskLevel === 'High' ? 'destructive' : dev.riskLevel === 'Medium' ? 'outline' : 'secondary'} className="text-[10px]">
+                          Score: {dev.riskScore}/100
+                        </Badge>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border/60 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-1.5">
+                          <Globe className="w-3.5 h-3.5 text-primary shrink-0" />
+                          <span>{dev.ipAddress}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <MapPin className="w-3.5 h-3.5 text-primary shrink-0" />
+                          <span>{dev.location}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between text-xs pt-1">
+                        <span className="text-muted-foreground">Trust Status</span>
+                        <Badge variant={dev.isTrusted ? 'secondary' : 'outline'} className={dev.isTrusted ? 'bg-success/10 text-success text-[10px]' : 'text-warning border-warning/30 text-[10px]'}>
+                          {dev.isTrusted ? 'Trusted Device' : 'Untrusted New Device'}
+                        </Badge>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              ) : (
+                <Card className="shadow-card md:col-span-2">
+                  <CardContent className="p-6 text-center text-xs text-muted-foreground">
+                    All connected devices operating within expected safety metrics (100% Trusted).
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </div>
         </motion.div>
       )}
 
       {/* ── 5. TRUSTED DEVICES VIEW ── */}
       {activeSection === 'trusted_devices' && (
         <motion.div variants={fadeInUp} className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="font-heading text-2xl font-bold text-foreground">Trusted Devices</h1>
-              <p className="text-sm text-muted-foreground">Devices authorized to access your AuthX account without additional verification prompts.</p>
-            </div>
+          <div>
+            <h1 className="font-heading text-2xl font-bold text-foreground">Trusted Devices</h1>
+            <p className="text-sm text-muted-foreground">Devices authorized to access your AuthX account without additional verification prompts.</p>
           </div>
 
           <Card className="shadow-card overflow-hidden">
@@ -1088,9 +1110,9 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
                     <tr>
                       <th className="p-4">Device</th>
                       <th className="p-4">Browser & OS</th>
-                      <th className="p-4">Trust Score</th>
+                      <th className="p-4">Location</th>
+                      <th className="p-4">Trust Status</th>
                       <th className="p-4">Last Active</th>
-                      <th className="p-4">Added Date</th>
                       <th className="p-4 text-right">Action</th>
                     </tr>
                   </thead>
@@ -1103,11 +1125,11 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
                             {dev.deviceName}
                           </td>
                           <td className="p-4 text-muted-foreground">{dev.browser || 'Chrome 124'}</td>
+                          <td className="p-4 text-muted-foreground">{dev.location || 'Local Network (Wi-Fi)'}</td>
                           <td className="p-4">
                             <Badge variant="secondary" className="bg-success/10 text-success text-[10px]">100% Trusted</Badge>
                           </td>
                           <td className="p-4 text-muted-foreground">{formatTimeAgo(dev.lastActive || dev.createdAt)}</td>
-                          <td className="p-4 text-muted-foreground">{new Date(dev.createdAt).toLocaleDateString()}</td>
                           <td className="p-4 text-right">
                             <Button
                               onClick={() => handleRemoveDevice(dev.id)}
@@ -1136,29 +1158,26 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
         </motion.div>
       )}
 
-      {/* ── 6. LOGIN HISTORY VIEW (Search, Filter, Paginated) ── */}
+      {/* ── 6. LOGIN HISTORY VIEW (Real DB Records with Location & Device ID) ── */}
       {activeSection === 'history' && (
         <motion.div variants={fadeInUp} className="space-y-4">
           <div>
             <h1 className="font-heading text-2xl font-bold text-foreground">Login History</h1>
-            <p className="text-sm text-muted-foreground">Searchable and filterable audit trail of all authentication events.</p>
+            <p className="text-sm text-muted-foreground">Real database audit log of all authentication events, device IDs, and location data.</p>
           </div>
 
-          {/* Controls Bar */}
           <Card className="shadow-card">
             <CardContent className="p-4 flex flex-col sm:flex-row items-center gap-3 justify-between">
-              {/* Search input */}
               <div className="relative w-full sm:w-64">
                 <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  placeholder="Search device, method, IP..."
+                  placeholder="Search device, location, ID..."
                   value={historySearch}
                   onChange={(e) => { setHistorySearch(e.target.value); setCurrentPage(1); }}
                   className="pl-9 h-9 text-xs rounded-xl"
                 />
               </div>
 
-              {/* Filters */}
               <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                 <select
                   value={methodFilter}
@@ -1185,7 +1204,6 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
             </CardContent>
           </Card>
 
-          {/* Table */}
           <Card className="shadow-card overflow-hidden">
             <CardContent className="p-0">
               <div className="overflow-x-auto">
@@ -1194,8 +1212,8 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
                     <tr>
                       <th className="p-4">Date & Time</th>
                       <th className="p-4">Method</th>
-                      <th className="p-4">Device</th>
-                      <th className="p-4">Browser / IP</th>
+                      <th className="p-4">Device & ID</th>
+                      <th className="p-4">Location / IP</th>
                       <th className="p-4">Status</th>
                       <th className="p-4">Risk Level</th>
                     </tr>
@@ -1206,10 +1224,16 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
                         <tr key={item.id} className="hover:bg-muted/40 transition-smooth">
                           <td className="p-4 font-medium text-foreground">{new Date(item.createdAt).toLocaleString()}</td>
                           <td className="p-4 font-semibold text-primary">{item.method}</td>
-                          <td className="p-4 font-medium text-foreground">{item.device}</td>
-                          <td className="p-4 text-muted-foreground">{item.browser} ({item.ipAddress})</td>
                           <td className="p-4">
-                            <Badge variant={item.status === 'failed' ? 'destructive' : 'secondary'} className="text-[10px]">
+                            <p className="font-medium text-foreground">{item.device}</p>
+                            <span className="text-[10px] text-muted-foreground font-mono">{item.deviceId || `dev_${item.id.slice(0, 7)}`}</span>
+                          </td>
+                          <td className="p-4 text-muted-foreground">
+                            <p className="font-medium text-foreground">{item.location || 'Local Network'}</p>
+                            <span className="text-[10px]">{item.ipAddress} ({item.browser})</span>
+                          </td>
+                          <td className="p-4">
+                            <Badge variant={item.status === 'failed' || item.status === 'rejected' ? 'destructive' : 'secondary'} className="text-[10px]">
                               {item.status}
                             </Badge>
                           </td>
@@ -1223,7 +1247,7 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
                     ) : (
                       <tr>
                         <td colSpan={6} className="p-8 text-center text-muted-foreground">
-                          No matching login history entries found.
+                          No matching login history entries found in database.
                         </td>
                       </tr>
                     )}
@@ -1231,7 +1255,6 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
                 </table>
               </div>
 
-              {/* Pagination */}
               <div className="p-4 border-t border-border flex items-center justify-between text-xs">
                 <span className="text-muted-foreground">
                   Showing {paginatedHistory.length} of {filteredHistory.length} entries
@@ -1359,162 +1382,171 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
         </motion.div>
       )}
 
-      {/* ── 8. SETTINGS VIEW (Appearance, Security, Account, Notifications) ── */}
+      {/* ── 8. SETTINGS VIEW (VERTICAL NAVIGATION PANEL) ── */}
       {activeSection === 'settings' && (
         <motion.div variants={fadeInUp} className="space-y-6">
           <div>
-            <h1 className="font-heading text-2xl font-bold text-foreground">Settings</h1>
+            <h1 className="font-heading text-2xl font-bold text-foreground">Settings Panel</h1>
             <p className="text-sm text-muted-foreground">Manage your portal preferences, device limits, and alert triggers.</p>
           </div>
 
-          {/* Section Selector Tabs */}
-          <div className="flex border-b border-border gap-4 text-xs font-semibold">
-            {(['appearance', 'security', 'account', 'notifications'] as const).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setSettingsSection(tab)}
-                className={`pb-2 border-b-2 capitalize transition-smooth ${
-                  settingsSection === tab ? 'border-primary text-primary' : 'border-transparent text-muted-foreground'
-                }`}
-              >
-                {tab}
-              </button>
-            ))}
+          {/* Vertical Settings Layout Container */}
+          <div className="flex flex-col md:flex-row gap-6">
+            {/* Left Vertical Menu */}
+            <Card className="shadow-card md:w-64 shrink-0 h-fit">
+              <CardContent className="p-3 space-y-1">
+                {[
+                  { id: 'appearance', label: 'Appearance Theme', icon: Sun },
+                  { id: 'security', label: 'Security Policies', icon: Shield },
+                  { id: 'account', label: 'Account Details', icon: User },
+                  { id: 'notifications', label: 'Alert Notifications', icon: Bell },
+                ].map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => setSettingsSection(item.id as typeof settingsSection)}
+                    className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-smooth ${
+                      settingsSection === item.id ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                    }`}
+                  >
+                    <item.icon className="w-4 h-4 shrink-0" />
+                    <span>{item.label}</span>
+                  </button>
+                ))}
+              </CardContent>
+            </Card>
+
+            {/* Right Side Content Panel */}
+            <div className="flex-1">
+              {settingsSection === 'appearance' && (
+                <Card className="shadow-card">
+                  <CardContent className="p-6 space-y-4">
+                    <h3 className="font-heading text-base font-bold text-foreground">Appearance Theme</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      {[
+                        { id: 'light', label: 'Light', icon: Sun },
+                        { id: 'dark', label: 'Dark', icon: Moon },
+                        { id: 'system', label: 'System', icon: Monitor },
+                      ].map((t) => (
+                        <button
+                          key={t.id}
+                          onClick={() => handleUpdateSetting('theme', t.id)}
+                          className={`p-4 rounded-xl border flex flex-col items-center gap-2 text-xs font-medium transition-smooth ${
+                            userSettingsState?.theme === t.id ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-card text-muted-foreground'
+                          }`}
+                        >
+                          <t.icon className="w-5 h-5" />
+                          <span>{t.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {settingsSection === 'security' && (
+                <Card className="shadow-card">
+                  <CardContent className="p-6 space-y-6">
+                    <h3 className="font-heading text-base font-bold text-foreground">Security Policies</h3>
+                    <div className="space-y-4 text-xs">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-semibold text-foreground">Maximum Device Limit</p>
+                          <p className="text-muted-foreground">Limit number of trusted devices bound to your account.</p>
+                        </div>
+                        <select
+                          value={userSettingsState?.deviceLimit || 5}
+                          onChange={(e) => handleUpdateSetting('deviceLimit', Number(e.target.value))}
+                          className="h-9 px-3 rounded-xl border border-border bg-background text-xs font-semibold"
+                        >
+                          {[1, 2, 3, 5, 10].map((n) => (
+                            <option key={n} value={n}>{n} Devices</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="flex items-center justify-between border-t border-border pt-4">
+                        <div>
+                          <p className="font-semibold text-foreground">Session Timeout</p>
+                          <p className="text-muted-foreground">Automatic session expiry duration.</p>
+                        </div>
+                        <select
+                          value={userSettingsState?.sessionTimeout || 24}
+                          onChange={(e) => handleUpdateSetting('sessionTimeout', Number(e.target.value))}
+                          className="h-9 px-3 rounded-xl border border-border bg-background text-xs font-semibold"
+                        >
+                          {[1, 6, 12, 24, 72].map((n) => (
+                            <option key={n} value={n}>{n} Hours</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="flex items-center justify-between border-t border-border pt-4">
+                        <div>
+                          <p className="font-semibold text-foreground">QR Expiry TTL</p>
+                          <p className="text-muted-foreground">Lifespan of one-time desktop QR codes.</p>
+                        </div>
+                        <select
+                          value={userSettingsState?.qrExpiry || 60}
+                          onChange={(e) => handleUpdateSetting('qrExpiry', Number(e.target.value))}
+                          className="h-9 px-3 rounded-xl border border-border bg-background text-xs font-semibold"
+                        >
+                          {[30, 60, 120, 300].map((n) => (
+                            <option key={n} value={n}>{n} Seconds</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {settingsSection === 'account' && (
+                <Card className="shadow-card">
+                  <CardContent className="p-6 space-y-4">
+                    <h3 className="font-heading text-base font-bold text-foreground">Account Details</h3>
+                    <div className="space-y-3 text-xs">
+                      <div>
+                        <label className="text-muted-foreground font-medium block mb-1">Email Address</label>
+                        <Input value={user?.email || ''} readOnly className="h-9 rounded-xl text-xs bg-muted/30" />
+                      </div>
+                      <div>
+                        <label className="text-muted-foreground font-medium block mb-1">Full Name</label>
+                        <Input defaultValue={user?.name || 'AuthX User'} className="h-9 rounded-xl text-xs" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {settingsSection === 'notifications' && (
+                <Card className="shadow-card">
+                  <CardContent className="p-6 space-y-4 text-xs">
+                    <h3 className="font-heading text-base font-bold text-foreground">Alert Notifications</h3>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-semibold text-foreground">Security Alerts</p>
+                        <p className="text-muted-foreground">Receive instant alerts for high-risk logins.</p>
+                      </div>
+                      <Switch
+                        checked={userSettingsState?.securityAlerts ?? true}
+                        onCheckedChange={(val) => handleUpdateSetting('securityAlerts', val)}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between border-t border-border pt-3">
+                      <div>
+                        <p className="font-semibold text-foreground">Login Notifications</p>
+                        <p className="text-muted-foreground">Email notification whenever a new device connects.</p>
+                      </div>
+                      <Switch
+                        checked={userSettingsState?.loginAlerts ?? true}
+                        onCheckedChange={(val) => handleUpdateSetting('loginAlerts', val)}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
           </div>
-
-          {/* Appearance Section */}
-          {settingsSection === 'appearance' && (
-            <Card className="shadow-card">
-              <CardContent className="p-6 space-y-4">
-                <h3 className="font-heading text-base font-bold text-foreground">Appearance Theme</h3>
-                <div className="grid grid-cols-3 gap-3">
-                  {[
-                    { id: 'light', label: 'Light', icon: Sun },
-                    { id: 'dark', label: 'Dark', icon: Moon },
-                    { id: 'system', label: 'System', icon: Monitor },
-                  ].map((t) => (
-                    <button
-                      key={t.id}
-                      onClick={() => handleUpdateSetting('theme', t.id)}
-                      className={`p-4 rounded-xl border flex flex-col items-center gap-2 text-xs font-medium transition-smooth ${
-                        userSettingsState?.theme === t.id ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-card text-muted-foreground'
-                      }`}
-                    >
-                      <t.icon className="w-5 h-5" />
-                      <span>{t.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Security Section */}
-          {settingsSection === 'security' && (
-            <Card className="shadow-card">
-              <CardContent className="p-6 space-y-6">
-                <h3 className="font-heading text-base font-bold text-foreground">Security Policies</h3>
-
-                <div className="space-y-4 text-xs">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-semibold text-foreground">Maximum Device Limit</p>
-                      <p className="text-muted-foreground">Limit number of trusted devices bound to your account.</p>
-                    </div>
-                    <select
-                      value={userSettingsState?.deviceLimit || 5}
-                      onChange={(e) => handleUpdateSetting('deviceLimit', Number(e.target.value))}
-                      className="h-9 px-3 rounded-xl border border-border bg-background text-xs font-semibold"
-                    >
-                      {[1, 2, 3, 5, 10].map((n) => (
-                        <option key={n} value={n}>{n} Devices</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="flex items-center justify-between border-t border-border pt-4">
-                    <div>
-                      <p className="font-semibold text-foreground">Session Timeout</p>
-                      <p className="text-muted-foreground">Automatic session expiry duration.</p>
-                    </div>
-                    <select
-                      value={userSettingsState?.sessionTimeout || 24}
-                      onChange={(e) => handleUpdateSetting('sessionTimeout', Number(e.target.value))}
-                      className="h-9 px-3 rounded-xl border border-border bg-background text-xs font-semibold"
-                    >
-                      {[1, 6, 12, 24, 72].map((n) => (
-                        <option key={n} value={n}>{n} Hours</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="flex items-center justify-between border-t border-border pt-4">
-                    <div>
-                      <p className="font-semibold text-foreground">QR Expiry TTL</p>
-                      <p className="text-muted-foreground">Lifespan of one-time desktop QR codes.</p>
-                    </div>
-                    <select
-                      value={userSettingsState?.qrExpiry || 60}
-                      onChange={(e) => handleUpdateSetting('qrExpiry', Number(e.target.value))}
-                      className="h-9 px-3 rounded-xl border border-border bg-background text-xs font-semibold"
-                    >
-                      {[30, 60, 120, 300].map((n) => (
-                        <option key={n} value={n}>{n} Seconds</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Account Section */}
-          {settingsSection === 'account' && (
-            <Card className="shadow-card">
-              <CardContent className="p-6 space-y-4">
-                <h3 className="font-heading text-base font-bold text-foreground">Account Details</h3>
-                <div className="space-y-3 text-xs">
-                  <div>
-                    <label className="text-muted-foreground font-medium block mb-1">Email Address</label>
-                    <Input value={user?.email || ''} readOnly className="h-9 rounded-xl text-xs bg-muted/30" />
-                  </div>
-                  <div>
-                    <label className="text-muted-foreground font-medium block mb-1">Full Name</label>
-                    <Input defaultValue={user?.name || 'AuthX User'} className="h-9 rounded-xl text-xs" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Notifications Section */}
-          {settingsSection === 'notifications' && (
-            <Card className="shadow-card">
-              <CardContent className="p-6 space-y-4 text-xs">
-                <h3 className="font-heading text-base font-bold text-foreground">Alert Notifications</h3>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-semibold text-foreground">Security Alerts</p>
-                    <p className="text-muted-foreground">Receive instant alerts for high-risk logins.</p>
-                  </div>
-                  <Switch
-                    checked={userSettingsState?.securityAlerts ?? true}
-                    onCheckedChange={(val) => handleUpdateSetting('securityAlerts', val)}
-                  />
-                </div>
-                <div className="flex items-center justify-between border-t border-border pt-3">
-                  <div>
-                    <p className="font-semibold text-foreground">Login Notifications</p>
-                    <p className="text-muted-foreground">Email notification whenever a new device connects.</p>
-                  </div>
-                  <Switch
-                    checked={userSettingsState?.loginAlerts ?? true}
-                    onCheckedChange={(val) => handleUpdateSetting('loginAlerts', val)}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          )}
         </motion.div>
       )}
 

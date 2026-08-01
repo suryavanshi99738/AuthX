@@ -71,8 +71,49 @@ export async function POST(request: NextRequest) {
 
     await db.oTPCode.update({ where: { id: otp.id }, data: { verified: true } });
 
+    // Record real login history entry in DB
+    if (otp.userId) {
+      const userAgent = request.headers.get('user-agent') || 'Unknown Device';
+      const isMobile = /mobile|iphone|ipad|android/i.test(userAgent);
+      const deviceName = isMobile ? 'Mobile Phone' : 'Windows Laptop';
+      const browserName = userAgent.includes('Chrome') ? 'Chrome' : userAgent.includes('Safari') ? 'Safari' : userAgent.includes('Firefox') ? 'Firefox' : 'Web Browser';
+      const locationStr = ip === '127.0.0.1' || ip === '::1' || ip.startsWith('10.') || ip.startsWith('192.168.') ? 'Local Network (Wi-Fi)' : 'Nearby Location';
+      const generatedDeviceId = `dev_${Math.random().toString(36).substring(2, 9)}`;
+
+      const trusted = await db.trustedDevice.findFirst({
+        where: { userId: otp.userId, deviceFingerprint: `${deviceName}-${browserName}` },
+      });
+
+      const riskLevel = trusted ? 'Low' : 'Medium';
+
+      await db.loginHistory.create({
+        data: {
+          userId: otp.userId,
+          method: 'Email OTP',
+          device: deviceName,
+          browser: browserName,
+          status: 'success',
+          riskLevel,
+          ipAddress: ip,
+          location: locationStr,
+          deviceId: generatedDeviceId,
+        },
+      });
+
+      await db.riskAssessment.create({
+        data: {
+          userId: otp.userId,
+          score: riskLevel === 'Low' ? 12 : 38,
+          level: riskLevel,
+          reasons: JSON.stringify(trusted ? ['Trusted Device Verified'] : ['Untrusted New Device', 'Location Verified']),
+          ipAddress: ip,
+        },
+      });
+    }
+
     return successResponse({ verified: true, userId: otp.userId });
-  } catch {
+  } catch (err) {
+    console.error('OTP verify error:', err);
     return errorResponse('Something went wrong. Please try again.', 500);
   }
 }

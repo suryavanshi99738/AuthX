@@ -96,6 +96,8 @@ model TrustedDevice {
   deviceName        String   // e.g. iPhone 15, Windows PC
   browser           String?  // e.g. Safari 17.0, Chrome 124
   deviceFingerprint String
+  location          String?  @default("Local Network")
+  status            String   @default("trusted") // trusted, pending_verification, revoked
   lastActive        DateTime @default(now())
   createdAt         DateTime @default(now())
 
@@ -114,6 +116,8 @@ model LoginHistory {
   status    String   // success, rejected, failed
   riskLevel String?  @default("Low") // Low, Medium, High
   ipAddress String?
+  location  String?  @default("Local Network")
+  deviceId  String?
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

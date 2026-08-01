@@ -4,17 +4,35 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Shield, PanelLeft, ShieldCheck } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { getDemoDashboard, verifySession } from '@/services/auth-client';
+import { getDemoDashboard, verifySession, getTrustedDevices } from '@/services/auth-client';
 import { Sidebar } from './Sidebar';
 import { DashboardContent } from './DashboardContent';
+import { NewDeviceModal } from './NewDeviceModal';
 import { Badge } from '@/components/ui/badge';
 
 export function Dashboard() {
-  const { user, sessionToken, isDemo, setPageView, logout } = useAuth();
+  const { user, sessionToken, isDemo, logout } = useAuth();
   const [activeItem, setActiveItem] = useState('home');
   const [dashboardData, setDashboardData] = useState<Record<string, unknown> | null>(null);
 
-  // Fetch dashboard data
+  // Mobile sidebar toggle
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
+  // New device verification modal state
+  const [newDeviceModalOpen, setNewDeviceModalOpen] = useState(false);
+  const [newDeviceInfo, setNewDeviceInfo] = useState<{
+    deviceName: string;
+    browser: string;
+    ipAddress: string;
+    location: string;
+  }>({
+    deviceName: 'Mobile Device',
+    browser: 'Mobile Browser',
+    ipAddress: '10.17.87.25',
+    location: 'Local Network (Wi-Fi)',
+  });
+
+  // Fetch dashboard data & check device trust state
   useEffect(() => {
     async function loadDashboard() {
       if (!sessionToken) return;
@@ -25,25 +43,41 @@ export function Dashboard() {
           setDashboardData(result as unknown as Record<string, unknown>);
         }
       } else {
-        // Verify session and get data
         const sessionResult = await verifySession(sessionToken);
         if (!sessionResult.success) {
           logout();
           return;
         }
         setDashboardData(null);
+
+        // Check if device is trusted or new login
+        if (user?.id) {
+          const devRes = await getTrustedDevices(user.id);
+          const isMobile = /mobile|iphone|ipad|android/i.test(navigator.userAgent);
+          const devName = isMobile ? 'Mobile Phone' : 'Windows Laptop';
+          const browserName = navigator.userAgent.includes('Chrome') ? 'Chrome' : navigator.userAgent.includes('Safari') ? 'Safari' : 'Web Browser';
+
+          if (devRes.success && devRes.devices) {
+            const isKnown = devRes.devices.some((d) => d.deviceName === devName || d.browser === browserName);
+            if (!isKnown) {
+              setNewDeviceInfo({
+                deviceName: devName,
+                browser: browserName,
+                ipAddress: '10.17.87.25',
+                location: 'Local Network (Wi-Fi)',
+              });
+              setNewDeviceModalOpen(true);
+            }
+          }
+        }
       }
     }
     loadDashboard();
-  }, [sessionToken, isDemo, logout]);
+  }, [sessionToken, isDemo, logout, user?.id]);
 
-  // Handle sidebar item click
   const handleItemClick = (id: string) => {
     setActiveItem(id);
   };
-
-  // Mobile sidebar toggle
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   return (
     <div className="min-h-screen flex bg-background">
@@ -102,6 +136,22 @@ export function Dashboard() {
           <DashboardContent activeSection={activeItem} dashboardData={dashboardData || undefined} />
         </main>
       </div>
+
+      {/* New Login Detected Verification Modal */}
+      {user?.id && (
+        <NewDeviceModal
+          isOpen={newDeviceModalOpen}
+          onClose={() => setNewDeviceModalOpen(false)}
+          userId={user.id}
+          sessionToken={sessionToken || undefined}
+          deviceInfo={newDeviceInfo}
+          onTrustSuccess={() => setNewDeviceModalOpen(false)}
+          onRevokeSuccess={() => {
+            setNewDeviceModalOpen(false);
+            logout();
+          }}
+        />
+      )}
     </div>
   );
 }

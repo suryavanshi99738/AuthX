@@ -77,8 +77,7 @@ export async function POST(req: Request) {
       reasons.push('Excessive QR authentication requests');
     }
 
-    // Factor 6: Suspicious Session Activity (multiple active sessions from different IPs)
-    const sessionIPs = new Set(user.sessions.map((s) => s.token));
+    // Factor 6: Suspicious Session Activity
     if (user.sessions.length >= 3) {
       score += 20;
       reasons.push('High concurrent active sessions count');
@@ -139,6 +138,40 @@ export async function GET(req: Request) {
       orderBy: { createdAt: 'desc' },
     });
 
+    const loginLogs = await db.loginHistory.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+    });
+
+    const trustedDevs = await db.trustedDevice.findMany({
+      where: { userId },
+    });
+
+    // Per-device risk breakdown
+    const uniqueDevicesMap = new Map<string, { deviceName: string; browser: string; ipAddress: string; location: string; isTrusted: boolean; lastSeen: string; riskScore: number; riskLevel: string }>();
+
+    loginLogs.forEach((log) => {
+      const key = `${log.device}-${log.browser}`;
+      if (!uniqueDevicesMap.has(key)) {
+        const isTrusted = trustedDevs.some((td) => td.deviceName === log.device || td.deviceFingerprint?.includes(log.device));
+        const deviceScore = isTrusted ? 10 : log.status === 'failed' ? 85 : 35;
+        const riskLevel = deviceScore >= 66 ? 'High' : deviceScore >= 31 ? 'Medium' : 'Low';
+        uniqueDevicesMap.set(key, {
+          deviceName: log.device,
+          browser: log.browser || 'Web Browser',
+          ipAddress: log.ipAddress || '10.17.87.25',
+          location: log.location || 'Local Network (Wi-Fi)',
+          isTrusted,
+          lastSeen: log.createdAt.toISOString(),
+          riskScore: deviceScore,
+          riskLevel,
+        });
+      }
+    });
+
+    const deviceRisks = Array.from(uniqueDevicesMap.values());
+
     const score = latestAssessment?.score ?? 12;
     const level = latestAssessment?.level ?? 'Low';
     const reasons = latestAssessment ? JSON.parse(latestAssessment.reasons) : ['Trusted Device Verified', 'Clean IP Reputational Score'];
@@ -152,6 +185,7 @@ export async function GET(req: Request) {
         updatedAt: latestAssessment?.createdAt || new Date().toISOString(),
         isHighRisk: level === 'High',
       },
+      deviceRisks,
       history: history.map((h) => ({
         id: h.id,
         score: h.score,
