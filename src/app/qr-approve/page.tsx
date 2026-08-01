@@ -43,6 +43,7 @@ function QRApproveContent() {
   const requestId = searchParams.get('requestId');
   const { user: currentUser } = useAuth();
 
+  const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [requestInfo, setRequestInfo] = useState<{
     status: string;
@@ -53,9 +54,16 @@ function QRApproveContent() {
   const [errorMsg, setErrorMsg] = useState('');
 
   // Authentication & Approval State
-  const [email, setEmail] = useState(currentUser?.email || '');
+  const [email, setEmail] = useState('');
   const [userMethods, setUserMethods] = useState<UserMethods | null>(null);
   const [step, setStep] = useState<'info' | 'auth_method' | 'otp_verify' | 'approved' | 'rejected' | 'expired'>('info');
+
+  useEffect(() => {
+    setMounted(true);
+    if (currentUser?.email) {
+      setEmail(currentUser.email);
+    }
+  }, [currentUser]);
   const [authMethodSelected, setAuthMethodSelected] = useState<'passkey' | 'otp' | null>(null);
 
   // OTP State
@@ -236,7 +244,7 @@ function QRApproveContent() {
     }
   };
 
-  if (loading) {
+  if (!mounted || loading) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 text-center">
         <Loader2 className="w-8 h-8 text-primary animate-spin mb-3" />
