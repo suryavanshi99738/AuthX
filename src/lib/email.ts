@@ -96,6 +96,9 @@ function resolveFrom(): string {
 export async function sendVerificationEmail(params: VerificationEmailParams): Promise<SendEmailResult> {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
+    // Visible server-side diagnostic so a missing .env.local is instantly
+    // identifiable in dev.log. No secrets are logged.
+    console.warn('[email] RESEND_API_KEY is not set. Email sending is disabled. Check that .env.local exists and contains RESEND_API_KEY.');
     return { success: false, error: 'Email service is not configured.' };
   }
 
