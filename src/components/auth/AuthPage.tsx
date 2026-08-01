@@ -112,9 +112,21 @@ export function AuthPage() {
   const [signupStep, setSignupStep] = useState<'form' | 'methods' | 'exists'>('form');
   const [signupError, setSignupError] = useState('');
   const [signupChecking, setSignupChecking] = useState(false);
+  const [loginError, setLoginError] = useState('');
   // Email that was found to already exist — carried into the login-style
   // method forms (Passkey/OTP) so the user can sign in to their account.
   const [existingEmail, setExistingEmail] = useState('');
+  const [existingUserMethods, setExistingUserMethods] = useState<{
+    otp: boolean;
+    passkey: boolean;
+    biometric: boolean;
+    qr: boolean;
+  }>({
+    otp: true,
+    passkey: false,
+    biometric: false,
+    qr: false,
+  });
 
   const handleMethodClick = (methodId: string) => {
     if (methodId === 'passkey' || methodId === 'otp') {
@@ -128,13 +140,6 @@ export function AuthPage() {
     }
   };
 
-  // In the Sign Up flow, Email OTP and Passkey are functional. Other methods
-  // surface the Under Development modal.
-  //
-  // When `fromExists` is true (user tried to sign up with an email that
-  // already exists), Passkey/OTP run in LOGIN mode with the existing email
-  // pre-filled (read-only), so the user signs in to their account instead of
-  // creating a new one.
   const handleSignupMethodClick = (methodId: string, fromExists = false) => {
     if (methodId === 'otp' || methodId === 'passkey') {
       if (fromExists) {
@@ -151,6 +156,41 @@ export function AuthPage() {
 
   const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
   const isValidPhone = (value: string) => /^\+?[0-9][0-9\s\-()]{6,19}$/.test(value.trim());
+
+  const handleLoginContinue = async () => {
+    setLoginError('');
+    const email = loginEmail.trim().toLowerCase();
+    if (!isValidEmail(email)) {
+      setLoginError('Please enter a valid email address.');
+      return;
+    }
+
+    setSignupChecking(true);
+    try {
+      const result = await signupCheck(email);
+      if (!result.success) {
+        setLoginError(result.error || 'Could not verify email. Please try again.');
+        return;
+      }
+      if (result.exists) {
+        setExistingEmail(email);
+        if (result.methods) {
+          setExistingUserMethods(result.methods);
+        }
+        setAuthTab('signup');
+        setSignupStep('exists');
+        return;
+      }
+      // If account does not exist, route user to sign up form with email prefilled
+      setSignupEmail(email);
+      setAuthTab('signup');
+      setSignupStep('form');
+    } catch {
+      setLoginError('Something went wrong. Please try again.');
+    } finally {
+      setSignupChecking(false);
+    }
+  };
 
   const handleSignupContinue = async () => {
     setSignupError('');
@@ -179,11 +219,10 @@ export function AuthPage() {
         return;
       }
       if (result.exists) {
-        // Don't just show an inline error — route the user to a dedicated
-        // panel where they can choose how to sign in to their existing
-        // account (Passkey, OTP, …). The email is carried forward so the
-        // method forms prefill it as read-only.
         setExistingEmail(email);
+        if (result.methods) {
+          setExistingUserMethods(result.methods);
+        }
         setSignupStep('exists');
         return;
       }
@@ -347,14 +386,32 @@ export function AuthPage() {
                             type="email"
                             placeholder="you@example.com"
                             value={loginEmail}
-                            onChange={(e) => setLoginEmail(e.target.value)}
+                            onChange={(e) => { setLoginEmail(e.target.value); setLoginError(''); }}
                             className="h-12 rounded-xl"
+                            onKeyDown={(e) => e.key === 'Enter' && handleLoginContinue()}
                           />
                         </div>
 
-                        <Button className="w-full h-12 rounded-xl text-base shadow-card hover:shadow-card-hover transition-smooth" disabled={!loginEmail.trim()}>
-                          Continue
-                          <ArrowRight className="w-4 h-4 ml-2" />
+                        {loginError && (
+                          <p className="text-xs text-danger" role="alert">{loginError}</p>
+                        )}
+
+                        <Button
+                          className="w-full h-12 rounded-xl text-base shadow-card hover:shadow-card-hover transition-smooth"
+                          disabled={!loginEmail.trim() || signupChecking}
+                          onClick={handleLoginContinue}
+                        >
+                          {signupChecking ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Checking…
+                            </>
+                          ) : (
+                            <>
+                              Continue
+                              <ArrowRight className="w-4 h-4 ml-2" />
+                            </>
+                          )}
                         </Button>
 
                         {/* Divider */}
@@ -485,9 +542,8 @@ export function AuthPage() {
                             <div className="flex-1 min-w-0">
                               <p className="font-semibold text-foreground text-sm">Account already exists</p>
                               <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                                An account is already registered with{' '}
+                                Account already exists. Authenticate using available methods for{' '}
                                 <span className="font-medium text-foreground break-all">{existingEmail}</span>.
-                                Choose a method below to sign in to your existing account.
                               </p>
                             </div>
                           </div>
@@ -497,27 +553,72 @@ export function AuthPage() {
                             <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
                               <Lock className="w-4 h-4 text-primary" />
                             </div>
-                            <span className="font-semibold text-foreground">Sign in with</span>
+                            <span className="font-semibold text-foreground">Available Authentication Methods</span>
                           </div>
 
-                          {/* Auth Method Icons */}
-                          <div className="grid grid-cols-4 gap-3 pt-1">
-                            {AUTH_METHODS.map((method) => (
-                              <button
-                                key={method.id}
-                                onClick={() => handleSignupMethodClick(method.id, true)}
-                                className="flex flex-col items-center gap-2 p-3 rounded-xl border border-border hover:border-primary/30 hover:bg-primary/5 transition-smooth group"
-                              >
-                                <method.icon className={`w-5 h-5 ${method.color} group-hover:scale-110 transition-smooth`} />
-                                <span className="text-[10px] text-muted-foreground font-medium">{method.label}</span>
-                              </button>
-                            ))}
+                          {/* Method list with status badges */}
+                          <div className="space-y-2 pt-1">
+                            {AUTH_METHODS.map((method) => {
+                              let status: 'available' | 'not_registered' | 'under_dev' = 'under_dev';
+                              let badgeLabel = 'Under Development';
+                              let badgeClass = 'bg-muted text-muted-foreground border-transparent';
+
+                              if (method.id === 'otp') {
+                                status = 'available';
+                                badgeLabel = 'Available';
+                                badgeClass = 'bg-success/10 text-success border-success/20';
+                              } else if (method.id === 'passkey') {
+                                if (existingUserMethods.passkey) {
+                                  status = 'available';
+                                  badgeLabel = 'Available';
+                                  badgeClass = 'bg-success/10 text-success border-success/20';
+                                } else {
+                                  status = 'not_registered';
+                                  badgeLabel = 'Not registered';
+                                  badgeClass = 'bg-muted/80 text-muted-foreground border-border';
+                                }
+                              }
+
+                              const isClickable = status === 'available';
+
+                              return (
+                                <button
+                                  key={method.id}
+                                  disabled={!isClickable}
+                                  onClick={() => handleSignupMethodClick(method.id, true)}
+                                  className={`w-full flex items-center justify-between p-3.5 rounded-xl border transition-smooth text-left ${
+                                    isClickable
+                                      ? 'border-border hover:border-primary/40 hover:bg-primary/5 cursor-pointer shadow-sm'
+                                      : 'border-border/50 bg-muted/30 opacity-65 cursor-not-allowed'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${isClickable ? 'bg-primary/10' : 'bg-muted'}`}>
+                                      <method.icon className={`w-4 h-4 ${isClickable ? method.color : 'text-muted-foreground'}`} />
+                                    </div>
+                                    <div>
+                                      <p className="text-sm font-medium text-foreground">{method.label}</p>
+                                      <p className="text-[11px] text-muted-foreground">
+                                        {status === 'available'
+                                          ? 'Ready for authentication'
+                                          : status === 'not_registered'
+                                          ? 'Setup required after login'
+                                          : 'Feature coming soon'}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <span className={`px-2.5 py-1 rounded-full text-[10px] font-semibold border ${badgeClass}`}>
+                                    {badgeLabel}
+                                  </span>
+                                </button>
+                              );
+                            })}
                           </div>
 
                           {/* Hint */}
                           <div className="flex items-center gap-2 text-xs text-muted-foreground justify-center pt-1">
                             <Lock className="w-3 h-3" />
-                            <span>Passkey and Email OTP are available. Other methods are coming soon.</span>
+                            <span>Select an available method to access your account securely.</span>
                           </div>
 
                           {/* Use a different email */}

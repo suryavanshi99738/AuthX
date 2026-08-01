@@ -95,7 +95,16 @@ export async function verifyOTP(email: string, code: string): Promise<ApiResult 
 
 /* ── Sign Up (Email OTP) APIs ── */
 
-export async function signupCheck(email: string): Promise<ApiResult & { exists?: boolean }> {
+export interface UserMethods {
+  otp: boolean;
+  passkey: boolean;
+  biometric: boolean;
+  qr: boolean;
+}
+
+export async function signupCheck(
+  email: string
+): Promise<ApiResult & { exists?: boolean; userId?: string; methods?: UserMethods }> {
   return apiCall('/api/auth/signup/check', {
     method: 'POST',
     body: JSON.stringify({ email }),

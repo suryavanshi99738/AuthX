@@ -1,5 +1,4 @@
-'use client';
-
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   Shield,
@@ -13,11 +12,14 @@ import {
   AlertCircle,
   BarChart3,
   TrendingUp,
+  Loader2,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useAuth } from '@/hooks/useAuth';
+import { performPasskeyRegistration } from '@/services/auth-client';
 import { fadeInUp, staggerContainer } from '@/lib/animations';
 
 interface DashboardContentProps {
@@ -26,6 +28,29 @@ interface DashboardContentProps {
 
 export function DashboardContent({ dashboardData }: DashboardContentProps) {
   const { user } = useAuth();
+  const [passkeyRegistering, setPasskeyRegistering] = useState(false);
+  const [passkeyError, setPasskeyError] = useState('');
+  const [passkeySuccess, setPasskeySuccess] = useState(false);
+
+  const handleRegisterPasskey = async () => {
+    if (!user?.id || !user?.email) return;
+    setPasskeyRegistering(true);
+    setPasskeyError('');
+    setPasskeySuccess(false);
+
+    try {
+      const res = await performPasskeyRegistration(user.id, user.email);
+      if (!res.success) {
+        setPasskeyError(res.error || 'Failed to register passkey.');
+      } else {
+        setPasskeySuccess(true);
+      }
+    } catch (err) {
+      setPasskeyError(err instanceof Error ? err.message : 'Passkey creation failed.');
+    } finally {
+      setPasskeyRegistering(false);
+    }
+  };
 
   // Extract data from dashboard API response or use defaults
   const securityStatus = (dashboardData?.securityStatus as { score: number; passkeyEnabled: boolean; twoFactorEnabled: boolean }) || {
@@ -85,6 +110,66 @@ export function DashboardContent({ dashboardData }: DashboardContentProps) {
                 <Shield className="w-6 h-6 text-primary" />
               </div>
             </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Passkey Management Card */}
+      <motion.div variants={fadeInUp}>
+        <Card className="shadow-card overflow-hidden border-primary/20 bg-card">
+          <CardContent className="p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                  <KeyRound className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-heading text-base font-semibold text-foreground">Passkey & WebAuthn Security</h3>
+                    {passkeySuccess && (
+                      <Badge variant="secondary" className="bg-success/10 text-success text-xs">
+                        Passkey Active
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1 max-w-md">
+                    Secure your banking account with passwordless WebAuthn passkeys using Touch ID, Face ID, or Windows Hello.
+                  </p>
+                </div>
+              </div>
+
+              <Button
+                onClick={handleRegisterPasskey}
+                disabled={passkeyRegistering}
+                className="rounded-xl h-11 px-5 shadow-card hover:shadow-card-hover transition-smooth shrink-0"
+              >
+                {passkeyRegistering ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Registering…
+                  </>
+                ) : (
+                  <>
+                    <KeyRound className="w-4 h-4 mr-2" />
+                    {passkeySuccess ? 'Add Another Passkey' : 'Create Passkey'}
+                  </>
+                )}
+              </Button>
+            </div>
+
+            {passkeyError && (
+              <div className="mt-4 p-3 rounded-lg bg-danger/10 border border-danger/20 text-danger text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{passkeyError}</span>
+              </div>
+            )}
+
+            {passkeySuccess && (
+              <div className="mt-4 p-3 rounded-lg bg-success/10 border border-success/20 text-success text-xs flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                <span>Passkey registered successfully! You can now sign in with your device passkey.</span>
+              </div>
+            )}
           </CardContent>
         </Card>
       </motion.div>

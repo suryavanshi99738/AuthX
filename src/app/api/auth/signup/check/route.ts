@@ -35,9 +35,26 @@ export async function POST(request: NextRequest) {
   try {
     const existing = await db.user.findUnique({
       where: { email },
-      select: { id: true },
+      select: {
+        id: true,
+        passkeys: { select: { id: true } },
+      },
     });
-    return successResponse({ exists: Boolean(existing) });
+
+    if (!existing) {
+      return successResponse({ exists: false });
+    }
+
+    return successResponse({
+      exists: true,
+      userId: existing.id,
+      methods: {
+        otp: true,
+        passkey: existing.passkeys.length > 0,
+        biometric: false,
+        qr: false,
+      },
+    });
   } catch {
     return errorResponse('Something went wrong. Please try again.', 500);
   }
