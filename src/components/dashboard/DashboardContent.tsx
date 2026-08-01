@@ -795,12 +795,33 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
 
                 {/* Donut Chart Wrapper */}
                 <div className="relative h-64 w-full flex items-center justify-center">
-                  {/* Centered Donut Label */}
-                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10">
-                    <span className="text-2xl font-bold text-foreground">
-                      <AnimatedCounter value={analyticsData?.totalLogins || 8} />
-                    </span>
-                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Total Logins</span>
+                  {/* Centered Donut Label (Transitions cleanly when hovering slices) */}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10 transition-all duration-300">
+                    {pieActiveIndex !== null && analyticsData?.authUsagePie?.[pieActiveIndex] ? (
+                      <div className="text-center animate-fadeIn">
+                        <p className="text-xs font-bold text-primary truncate max-w-[110px]">
+                          {analyticsData.authUsagePie[pieActiveIndex].name}
+                        </p>
+                        <p className="text-xl font-bold text-foreground">
+                          {analyticsData.authUsagePie[pieActiveIndex].value}{' '}
+                          <span className="text-[10px] text-muted-foreground font-normal">
+                            ({analyticsData.authUsagePie[pieActiveIndex].percentage})
+                          </span>
+                        </p>
+                        <p className="text-[9px] text-muted-foreground font-medium">
+                          Last: {analyticsData.authUsagePie[pieActiveIndex].lastUsed}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="text-center">
+                        <span className="text-2xl font-bold text-foreground">
+                          <AnimatedCounter value={analyticsData?.totalLogins || 8} />
+                        </span>
+                        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block">
+                          Total Logins
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   <ResponsiveContainer width="100%" height="100%">
@@ -828,20 +849,24 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
                             stroke="hsl(var(--card))"
                             strokeWidth={3}
                             style={{
-                              transform: pieActiveIndex === index ? 'scale(1.04)' : 'scale(1)',
+                              transform: pieActiveIndex === index ? 'scale(1.05)' : 'scale(1)',
                               transformOrigin: 'center center',
                             }}
                           />
                         ))}
                       </Pie>
                       <Tooltip
+                        position={{ x: 10, y: 10 }}
                         content={({ active, payload }) => {
                           if (active && payload && payload.length) {
                             const data = payload[0].payload;
                             return (
-                              <div className="p-3 bg-card border border-border/80 rounded-xl shadow-card text-xs space-y-1">
-                                <p className="font-bold text-foreground">{data.name}</p>
-                                <p className="text-muted-foreground">Count: <strong className="text-foreground">{data.value}</strong> ({data.percentage})</p>
+                              <div className="p-2.5 bg-card/95 border border-border/80 rounded-xl shadow-card text-[11px] space-y-0.5 backdrop-blur-xs z-30">
+                                <p className="font-bold text-foreground flex items-center gap-1.5">
+                                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: data.fill }} />
+                                  {data.name}
+                                </p>
+                                <p className="text-muted-foreground">Logins: <strong className="text-foreground">{data.value}</strong> ({data.percentage})</p>
                                 <p className="text-muted-foreground">Last Used: <span className="text-primary font-medium">{data.lastUsed}</span></p>
                               </div>
                             );
@@ -851,6 +876,28 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
                       />
                     </PieChart>
                   </ResponsiveContainer>
+                </div>
+
+                {/* Professional Legend Aligned Below */}
+                <div className="flex flex-wrap items-center justify-center gap-4 pt-2 border-t border-border/60 text-xs">
+                  {(analyticsData?.authUsagePie || [
+                    { name: 'Email OTP', value: 4, percentage: '44.4%', fill: '#3B82F6' },
+                    { name: 'Passkey WebAuthn', value: 2, percentage: '22.2%', fill: '#10B981' },
+                    { name: 'QR Cross-Device', value: 3, percentage: '33.3%', fill: '#6366F1' },
+                  ]).map((item, idx) => (
+                    <div
+                      key={idx}
+                      className={`flex items-center gap-1.5 cursor-pointer transition-smooth ${
+                        pieActiveIndex === idx ? 'font-bold text-foreground' : 'text-muted-foreground'
+                      }`}
+                      onMouseEnter={() => setPieActiveIndex(idx)}
+                      onMouseLeave={() => setPieActiveIndex(null)}
+                    >
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.fill }} />
+                      <span>{item.name}</span>
+                      <span className="text-[11px] font-semibold text-foreground">({item.percentage})</span>
+                    </div>
+                  ))}
                 </div>
               </CardContent>
             </Card>
