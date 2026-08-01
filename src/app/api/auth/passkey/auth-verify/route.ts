@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { rpID, origin } = getWebAuthnConfig();
+    const { rpID, origins } = getWebAuthnConfig();
 
     // Convert the stored base64url public key back to Uint8Array for verification.
     const publicKeyUint8Array = base64urlToUint8Array(passkey.publicKey);
@@ -83,20 +83,19 @@ export async function POST(request: NextRequest) {
       verification = await verifyAuthenticationResponse({
         response: credential,
         expectedChallenge,
-        expectedOrigin: origin,
+        expectedOrigin: origins,
         expectedRPID: rpID,
         credential: {
           id: passkey.credentialId,
           publicKey: publicKeyUint8Array,
           counter: passkey.counter,
         },
+        requireUserVerification: false,
       });
-    } catch {
-      return errorResponse(
-        'Passkey verification failed. Please try again.',
-        400,
-        'VERIFICATION_FAILED'
-      );
+    } catch (err) {
+      console.error('Passkey authentication verification error:', err);
+      const message = err instanceof Error ? err.message : 'Passkey verification failed. Please try again.';
+      return errorResponse(message, 400, 'VERIFICATION_FAILED');
     }
 
     if (!verification.verified) {
@@ -124,8 +123,10 @@ export async function POST(request: NextRequest) {
       verified: true,
       session: { token, expiresAt: expiresAt.toISOString() },
     });
-  } catch {
-    return errorResponse('Something went wrong. Please try again.', 500);
+  } catch (err) {
+    console.error('Passkey auth-verify route error:', err);
+    const message = err instanceof Error ? err.message : 'Something went wrong. Please try again.';
+    return errorResponse(message, 500);
   }
 }
 

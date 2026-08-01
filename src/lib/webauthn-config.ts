@@ -18,6 +18,7 @@ export interface WebAuthnConfig {
   rpName: string;
   rpID: string;
   origin: string;
+  origins: string[];
 }
 
 function readEnv(name: string): string | undefined {
@@ -46,9 +47,6 @@ export function getWebAuthnConfig(): WebAuthnConfig {
     );
   }
 
-  // rpID should be derivable from the origin host (no port). If the user set a
-  // mismatched rpID we trust their explicit value, but derive a sensible default
-  // from the origin when only the origin is configured.
   const derivedRpID = (() => {
     try {
       return new URL(origin).hostname;
@@ -57,10 +55,15 @@ export function getWebAuthnConfig(): WebAuthnConfig {
     }
   })();
 
+  const origins = Array.from(
+    new Set([origin, 'http://localhost:3000', 'http://127.0.0.1:3000'])
+  );
+
   cachedConfig = {
     rpName,
     rpID: readEnv('WEBAUTHN_RP_ID') ?? derivedRpID,
     origin,
+    origins,
   };
 
   return cachedConfig;

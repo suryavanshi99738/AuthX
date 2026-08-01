@@ -5,7 +5,7 @@ This file serves as the project memory tracking features, authentication flows, 
 ---
 
 ## 📌 Status Summary
-- **Current Sprint**: Existing Account Recovery & Passkey Authentication
+- **Current Sprint**: Existing Account Recovery & Passkey Authentication (Hybrid WebAuthn Fix)
 - **Last Updated**: August 1, 2026
 
 ---
@@ -24,16 +24,16 @@ This file serves as the project memory tracking features, authentication flows, 
      - Displays dedicated **Existing Account Auth Page** with status indicators (`Available`, `Not registered`, `Under Development`).
      - Prevents clicking on unregistered or unreleased methods.
 
-3. **WebAuthn / Passkey Registration**
+3. **WebAuthn / Passkey Registration & Hybrid QR Support**
    * Passwordless WebAuthn registration in Dashboard Security Settings (`DashboardContent.tsx`).
-   * Generates server challenge via `@simplewebauthn/server` and triggers native browser ceremony via `@simplewebauthn/browser`.
+   * Configured `origins` array (`http://localhost:3000`, `http://127.0.0.1:3000`) and set `requireUserVerification: false` to ensure seamless QR / Bluetooth cross-device authentication from mobile phones.
    * Verifies registration and stores public key credentials (`credentialId`, `publicKey`, `counter`) in SQLite linked to `userId`.
 
 4. **WebAuthn / Passkey Login & Session Creation**
    * Authenticates registered passkeys via `/api/auth/passkey/authenticate` and `/api/auth/passkey/auth-verify`.
    * Replay protection via credential counter verification.
-   * Generates secure 24-hour session token upon successful authentication.
-   * Automatic redirection to Dashboard.
+   * Detailed server log reporting for troubleshooting ceremony errors.
+   * Generates secure 24-hour session token upon successful authentication and redirects to Dashboard.
 
 ---
 
@@ -51,11 +51,14 @@ User Enters Email
 
 ## 📁 Files Changed
 
+- `src/lib/webauthn-config.ts` - Added `origins` array (`http://localhost:3000`, `http://127.0.0.1:3000`) for development hybrid QR matching.
+- `src/app/api/auth/passkey/verify/route.ts` - Updated to use `origins`, `requireUserVerification: false`, and detailed error logging.
+- `src/app/api/auth/passkey/auth-verify/route.ts` - Updated to use `origins`, `requireUserVerification: false`, and detailed error logging.
 - `src/app/api/auth/signup/check/route.ts` - Returns `userId` and `methods` availability map (`{ otp, passkey, biometric, qr }`).
 - `src/services/auth-client.ts` - Typed `UserMethods` interface and updated `signupCheck()`.
 - `src/components/auth/AuthPage.tsx` - Connected login email check, implemented Existing Account Auth Page UI with status badges (`Available`, `Not registered`, `Under Development`).
 - `src/components/dashboard/DashboardContent.tsx` - Added Passkey & WebAuthn Security section in Dashboard to allow registered users to create/add passkeys directly.
-- `progress.md` - Created project memory file.
+- `progress.md` - Updated project memory file.
 
 ---
 
@@ -75,5 +78,5 @@ User Enters Email
 
 ## ➡️ Next Implementation Step
 
-- Verify end-to-end user flows in dev server (`npx next dev -p 3000`).
-- Perform Git sync and commit completed work if git workflow is active.
+- Verify end-to-end QR cross-device authentication flow in dev server (`npx next dev -p 3000`).
+- Sync & commit changes to Git repository.
