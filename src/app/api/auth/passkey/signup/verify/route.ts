@@ -100,22 +100,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { rpID, origin } = getWebAuthnConfig();
+    const { rpID, origins } = getWebAuthnConfig();
 
     let verification: Awaited<ReturnType<typeof verifyRegistrationResponse>>;
     try {
       verification = await verifyRegistrationResponse({
         response: credential,
         expectedChallenge,
-        expectedOrigin: origin,
+        expectedOrigin: origins,
         expectedRPID: rpID,
+        requireUserVerification: false,
       });
-    } catch {
-      return errorResponse(
-        'Passkey verification failed. Please try again.',
-        400,
-        'VERIFICATION_FAILED'
-      );
+    } catch (err) {
+      console.error('Passkey signup verification error:', err);
+      const message = err instanceof Error ? err.message : 'Passkey verification failed. Please try again.';
+      return errorResponse(message, 400, 'VERIFICATION_FAILED');
     }
 
     if (!verification.verified || !verification.registrationInfo) {
@@ -128,14 +127,37 @@ export async function POST(request: NextRequest) {
 
     const { registrationInfo } = verification;
 
-    // Convert Uint8Array fields to base64url strings for SQLite storage.
-    const credentialId = isUint8Array(registrationInfo.credentialID)
-      ? uint8ArrayToBase64url(registrationInfo.credentialID as Uint8Array)
-      : (registrationInfo.credentialID as string);
+    // Safely extract fields supporting @simplewebauthn/server v13 schema
+    const rawCredentialId =
+      (registrationInfo as Record<string, unknown>)?.credential
+        ? (registrationInfo as { credential: { id: string } }).credential.id
+        : (registrationInfo as Record<string, unknown>)?.credentialID ?? credential.id;
 
-    const publicKey = isUint8Array(registrationInfo.credentialPublicKey)
-      ? uint8ArrayToBase64url(registrationInfo.credentialPublicKey as Uint8Array)
-      : (registrationInfo.credentialPublicKey as string);
+    if (!rawCredentialId) {
+      return errorResponse('Invalid credential ID generated.', 400, 'INVALID_CREDENTIAL');
+    }
+
+    const credentialId = isUint8Array(rawCredentialId)
+      ? uint8ArrayToBase64url(rawCredentialId as Uint8Array)
+      : String(rawCredentialId);
+
+    const rawPublicKey =
+      (registrationInfo as Record<string, unknown>)?.credential
+        ? (registrationInfo as { credential: { publicKey: Uint8Array } }).credential.publicKey
+        : (registrationInfo as Record<string, unknown>)?.credentialPublicKey;
+
+    if (!rawPublicKey) {
+      return errorResponse('Invalid public key generated.', 400, 'INVALID_PUBLIC_KEY');
+    }
+
+    const publicKey = isUint8Array(rawPublicKey)
+      ? uint8ArrayToBase64url(rawPublicKey as Uint8Array)
+      : String(rawPublicKey);
+
+    const counter =
+      (registrationInfo as Record<string, unknown>)?.credential
+        ? (registrationInfo as { credential: { counter: number } }).credential.counter
+        : (registrationInfo as Record<string, unknown>)?.counter ?? 0;
 
     // Guard against a duplicate credential id (should be extremely rare).
     const dup = await db.passkeyCredential.findUnique({
@@ -164,7 +186,7 @@ export async function POST(request: NextRequest) {
         userId: pending.prospectiveUserId,
         credentialId,
         publicKey,
-        counter: registrationInfo.counter,
+        counter: Number(counter),
         deviceType: registrationInfo.credentialDeviceType,
         backedUp: registrationInfo.credentialBackedUp,
         transports: JSON.stringify(registrationInfo.credentialTransports ?? ['internal']),
@@ -194,8 +216,10 @@ export async function POST(request: NextRequest) {
       },
       session: { token, expiresAt: expiresAt.toISOString() },
     });
-  } catch {
-    return errorResponse('Something went wrong. Please try again.', 500);
+  } catch (err) {
+    console.error('Passkey signup verify route error:', err);
+    const message = err instanceof Error ? err.message : 'Something went wrong. Please try again.';
+    return errorResponse(message, 500);
   }
 }
 

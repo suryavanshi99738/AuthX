@@ -84,14 +84,37 @@ export async function POST(request: NextRequest) {
 
     const { registrationInfo } = verification;
 
-    // Convert Uint8Array fields to base64url strings for SQLite storage.
-    const credentialId = isUint8Array(registrationInfo.credentialID)
-      ? uint8ArrayToBase64url(registrationInfo.credentialID as Uint8Array)
-      : (registrationInfo.credentialID as string);
+    // Safely extract fields supporting @simplewebauthn/server v13 schema
+    const rawCredentialId =
+      (registrationInfo as Record<string, unknown>)?.credential
+        ? (registrationInfo as { credential: { id: string } }).credential.id
+        : (registrationInfo as Record<string, unknown>)?.credentialID ?? credential.id;
 
-    const publicKey = isUint8Array(registrationInfo.credentialPublicKey)
-      ? uint8ArrayToBase64url(registrationInfo.credentialPublicKey as Uint8Array)
-      : (registrationInfo.credentialPublicKey as string);
+    if (!rawCredentialId) {
+      return errorResponse('Invalid credential ID generated.', 400, 'INVALID_CREDENTIAL');
+    }
+
+    const credentialId = isUint8Array(rawCredentialId)
+      ? uint8ArrayToBase64url(rawCredentialId as Uint8Array)
+      : String(rawCredentialId);
+
+    const rawPublicKey =
+      (registrationInfo as Record<string, unknown>)?.credential
+        ? (registrationInfo as { credential: { publicKey: Uint8Array } }).credential.publicKey
+        : (registrationInfo as Record<string, unknown>)?.credentialPublicKey;
+
+    if (!rawPublicKey) {
+      return errorResponse('Invalid public key generated.', 400, 'INVALID_PUBLIC_KEY');
+    }
+
+    const publicKey = isUint8Array(rawPublicKey)
+      ? uint8ArrayToBase64url(rawPublicKey as Uint8Array)
+      : String(rawPublicKey);
+
+    const counter =
+      (registrationInfo as Record<string, unknown>)?.credential
+        ? (registrationInfo as { credential: { counter: number } }).credential.counter
+        : (registrationInfo as Record<string, unknown>)?.counter ?? 0;
 
     // Store the credential. The credentialId is unique; guard against duplicates.
     const existing = await db.passkeyCredential.findUnique({
@@ -107,7 +130,7 @@ export async function POST(request: NextRequest) {
         userId,
         credentialId,
         publicKey,
-        counter: registrationInfo.counter,
+        counter: Number(counter),
         deviceType: registrationInfo.credentialDeviceType,
         backedUp: registrationInfo.credentialBackedUp,
         transports: JSON.stringify(registrationInfo.credentialTransports ?? ['internal']),
