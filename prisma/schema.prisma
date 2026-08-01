@@ -26,6 +26,8 @@ model User {
   trustedDevices  TrustedDevice[]
   loginHistory    LoginHistory[]
   qrRequests      QRLoginRequest[]
+  riskAssessments RiskAssessment[]
+  settings        UserSettings?
 }
 
 model Session {
@@ -110,6 +112,7 @@ model LoginHistory {
   device    String   // e.g. Windows Laptop, iPhone 15
   browser   String?  // e.g. Chrome, Safari
   status    String   // success, rejected, failed
+  riskLevel String?  @default("Low") // Low, Medium, High
   ipAddress String?
   createdAt DateTime @default(now())
 
@@ -153,4 +156,37 @@ model PasskeySignup {
   @@index([email])
   @@index([prospectiveUserId])
   @@index([expiresAt])
+}
+
+/// Adaptive risk assessment logs per authentication event
+model RiskAssessment {
+  id        String   @id @default(cuid())
+  userId    String
+  score     Int      @default(0) // 0-100
+  level     String   @default("Low") // Low, Medium, High
+  reasons   String   @default("[]") // JSON string of factors triggered
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// Customizable user preferences and emergency lockdown states
+model UserSettings {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  theme            String   @default("system")
+  deviceLimit      Int      @default(5)
+  sessionTimeout   Int      @default(24) // hours
+  qrExpiry         Int      @default(60) // seconds
+  securityAlerts   Boolean  @default(true)
+  loginAlerts      Boolean  @default(true)
+  qrDisabled       Boolean  @default(false)
+  passkeysDisabled Boolean  @default(false)
+  requireOTPOnly   Boolean  @default(false)
+  updatedAt        DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

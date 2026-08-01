@@ -342,6 +342,41 @@ export async function removeTrustedDevice(deviceId: string): Promise<ApiResult> 
   });
 }
 
-export async function getLoginHistory(userId: string): Promise<ApiResult & { history?: Array<{ id: string; method: string; device: string; browser: string; status: string; ipAddress: string; createdAt: string }> }> {
+export async function getLoginHistory(userId: string): Promise<ApiResult & { history?: Array<{ id: string; method: string; device: string; browser: string; status: string; riskLevel?: string; ipAddress: string; createdAt: string }> }> {
   return apiCall(`/api/auth/history?userId=${encodeURIComponent(userId)}`);
+}
+
+/* ── Analytics, Risk, Settings & Lockdown APIs ── */
+
+export async function getRiskAssessment(userId: string): Promise<ApiResult & { currentRisk?: { score: number; level: string; reasons: string[]; updatedAt: string; isHighRisk: boolean }; history?: Array<{ id: string; score: number; level: string; reasons: string[]; createdAt: string }> }> {
+  return apiCall(`/api/auth/risk?userId=${encodeURIComponent(userId)}`);
+}
+
+export async function evaluateRisk(userId: string, ipAddress?: string, userAgent?: string): Promise<ApiResult> {
+  return apiCall('/api/auth/risk', {
+    method: 'POST',
+    body: JSON.stringify({ userId, ipAddress, userAgent }),
+  });
+}
+
+export async function getSecurityAnalytics(userId: string): Promise<ApiResult & { analytics?: { totalLogins: number; failedLogins: number; passkeyCount: number; qrRequestsCount: number; authUsagePie: Array<{ name: string; value: number; fill: string }>; riskDistributionBar: Array<{ level: string; count: number; fill: string }>; loginTrendBar: Array<{ day: string; logins: number; fill: string }> } }> {
+  return apiCall(`/api/auth/analytics?userId=${encodeURIComponent(userId)}`);
+}
+
+export async function getUserSettings(userId: string): Promise<ApiResult & { settings?: { theme: string; deviceLimit: number; sessionTimeout: number; qrExpiry: number; securityAlerts: boolean; loginAlerts: boolean; qrDisabled: boolean; passkeysDisabled: boolean; requireOTPOnly: boolean }; trustedDeviceCount?: number; isDeviceLimitReached?: boolean; deviceLimitMessage?: string }> {
+  return apiCall(`/api/auth/settings?userId=${encodeURIComponent(userId)}`);
+}
+
+export async function updateUserSettings(userId: string, payload: Record<string, unknown>): Promise<ApiResult> {
+  return apiCall('/api/auth/settings', {
+    method: 'POST',
+    body: JSON.stringify({ userId, ...payload }),
+  });
+}
+
+export async function executeEmergencyLockdown(userId: string, action: string, currentToken?: string): Promise<ApiResult> {
+  return apiCall('/api/auth/lockdown', {
+    method: 'POST',
+    body: JSON.stringify({ userId, action, currentToken }),
+  });
 }

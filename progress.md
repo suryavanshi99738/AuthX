@@ -1,55 +1,63 @@
 # AuthX Implementation Progress
 
-This file serves as the project memory tracking features, authentication flows, modified files, and next implementation steps for **AuthX**.
+This file serves as the project memory tracking features, authentication flows, modified files, and implementation status for **AuthX**.
 
 ---
 
 ## 📌 Status Summary
-- **Current Sprint**: AuthX Branding & Mobile Device Detection & Enhanced Dashboard Analytics
+- **Current Sprint**: Dashboard Redesign & Core Security Modules (Completed)
 - **Last Updated**: August 1, 2026
 
 ---
 
-## ✅ Features Completed
+## ✅ Completed Modules & Features
 
-1. **Rebranding to AuthX & Icon Accent**
-   * Renamed platform throughout layout metadata, sidebar, topbar header, landing page, and approval screens to **AuthX**.
-   * Replaced generic icons with a modern, high-tech `ShieldZap` icon with clean subtle border styling (no neon CSS).
+1. **Prisma Database Schema Extensions**
+   - Added `RiskAssessment` model to store risk evaluation metrics (0-100 score, Low/Medium/High level, factors JSON).
+   - Added `UserSettings` model to store customizable device limits, session timeouts, QR expiry, theme preferences, and emergency lockdown toggles.
+   - Updated `LoginHistory` model with `riskLevel`.
+   - Executed `npx prisma db push` and `npx prisma generate` successfully.
 
-2. **Mobile Device Detection for Link Device**
-   * Mobile device detection applied (`isMobile` via userAgent and screen width < 768px).
-   * **Link Device** sidebar item & QR scanner button is visible **ONLY on mobile devices/screens**.
-   * Desktop/laptop views hide the "Link Device" option completely.
+2. **Backend API Endpoints**
+   - `POST/GET /api/auth/risk` — Calculates adaptive risk score (0-100) across 6 factors (New Device, New Browser, Failed Attempts, Unknown Device, QR Requests, Suspicious Session Count).
+   - `GET /api/auth/analytics` — Reads directly from DB to calculate Authentication Usage (Pie), Risk Level Distribution (Bar), and 7-Day Login Trends (Bar). Zero dummy data.
+   - `GET/POST /api/auth/settings` — Manages user preferences and enforces device limits (`"Device limit reached. Remove a trusted device before adding another."`).
+   - `POST /api/auth/lockdown` — Handles Emergency Lockdown directives (`Logout All Devices`, `Disable QR`, `Disable Passkeys`, `Require OTP`).
 
-3. **Dashboard (Home Tab) Enhancements**
-   * **Risk Detections Bar Graph**: Clean frontend bar chart presentation displaying risk levels (Low, Medium, High) across connected devices ("Windows 11 PC", "iPhone 15", "Unknown Linux").
-   * **Active Logins Card**: Lists active device sessions with device name, browser, IP address, location ("Local Network", "Mumbai, India"), and active status badge.
-   * **Security Analytics Card**: Frontend metrics presentation showing overall security grade (Grade A+), zero failed attempt counts, and AES-256 / FIDO2 compliance.
-   * **Conditional Create Passkey Card**: Rendered **IF AND ONLY IF** the user has NOT created/implemented a passkey yet. Automatically hides once a passkey is registered!
+3. **Sidebar Layout Redesign (`Sidebar.tsx`)**
+   - Fixed, non-scrollable, collapsible navigation with smooth animation.
+   - Structure:
+     - Top: Home, Authentication, Security Analytics, Trusted Devices, Login History, Risk Center, Emergency Lockdown.
+     - Bottom: Settings, Profile, Logout.
 
-4. **Login History Tab**
-   * Full audit history view showing event type, device name, browser, IP address, location, date & time, and method badge ("QR Login", "Passkey", "Email OTP").
-
-5. **WebAuthn Passkeys & QR Authentication**
-   * One-time 60s QR code generation on laptop (`http://10.17.87.25:3000/qr-approve?requestId=...`).
-   * Mobile QR camera scanner with `jsQR` real-time frame decoding & glowing laser beam animation.
-   * Cross-device mobile approval workflow with optional "Trust this device" prompt.
+4. **Modular Dashboard Views (`DashboardContent.tsx`)**
+   - **Home**: Overview cards ONLY (Security Score, Current Risk Level, Active Sessions, Trusted Devices Count, Auth Method Used Today, Recent Activity Summary) + Quick Insights. No graphs here.
+   - **Authentication**: Enable/Disable controls for OTP, Passkey, QR Code, and Biometrics ("Coming Soon" badge).
+   - **Security Analytics**: Recharts Pie Chart (Auth Usage), Vertical Bar Chart (Risk Distribution), and Vertical Bar Chart (7-Day Login Trend). Powered by backend database analytics.
+   - **Risk Center**: Current Risk gauge (0-100, Low/Medium/High), Risk Factors breakdown, Risk History, Recommended Actions, High Risk warning banner.
+   - **Trusted Devices**: Table (Device, Browser, OS, Trust Score, Last Active, Added Date) with "Remove Trust" action.
+   - **Login History**: Searchable, filterable (Method, Risk Level, Status), and paginated audit log table.
+   - **Emergency Lockdown**: Action toggles with confirmation modal dialog.
+   - **Settings**: Tabbed layout (Appearance, Security with device limit selector, Account, Notifications).
+   - **Profile**: Account details, email, member since date, security score badge, and authentication summary.
 
 ---
 
-## 📁 Files Changed
+## 📁 Files Modified / Created
 
-- `src/app/layout.tsx` - Updated metadata title & description to AuthX.
-- `src/components/dashboard/Sidebar.tsx` - Updated brand to AuthX (`ShieldZap` icon) & added mobile device filter for "Link Device".
-- `src/components/dashboard/Dashboard.tsx` - Updated top bar branding to AuthX and passed `activeSection`.
-- `src/components/dashboard/DashboardContent.tsx` - Implemented Risk Detections Bar Graph, Active Logins, Security Analytics, conditional Create Passkey card, and full Login History audit view.
-- `src/components/auth/AuthPage.tsx` - Updated branding to AuthX.
-- `src/app/qr-approve/page.tsx` - Updated branding to AuthX.
-- `progress.md` - Updated project memory.
+- `prisma/schema.prisma` — Added `RiskAssessment`, `UserSettings`, and updated `LoginHistory`.
+- `src/app/api/auth/risk/route.ts` — Risk evaluation engine API.
+- `src/app/api/auth/analytics/route.ts` — DB-driven Security Analytics API.
+- `src/app/api/auth/settings/route.ts` — UserSettings API with device limit enforcement.
+- `src/app/api/auth/lockdown/route.ts` — Emergency Lockdown API.
+- `src/services/auth-client.ts` — Added risk, analytics, settings, and lockdown helpers.
+- `src/components/dashboard/Sidebar.tsx` — Fixed collapsible sidebar with top/bottom sections.
+- `src/components/dashboard/DashboardContent.tsx` — Implemented all 9 modular dashboard views.
+- `progress.md` — Project memory tracker.
 
 ---
 
 ## ➡️ Next Steps
 
-- Test all flows using `npx next dev -H 0.0.0.0 -p 3000`.
-- Sync and commit changes to Git repository.
+- Test all dashboard sections using `npx next dev -H 0.0.0.0 -p 3000`.
+- Sync and push changes to GitHub repository.

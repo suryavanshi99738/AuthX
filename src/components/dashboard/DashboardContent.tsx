@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Shield,
+  ShieldCheck,
   KeyRound,
   Mail,
   Clock,
@@ -23,22 +24,57 @@ import {
   MapPin,
   Server,
   Wifi,
-  Globe,
   Radio,
+  Search,
+  Filter,
+  ChevronLeft,
+  ChevronRight,
+  Flame,
+  AlertTriangle,
+  User,
+  Settings as SettingsIcon,
+  Moon,
+  Sun,
+  Monitor,
+  Trash2,
+  RefreshCw,
+  Bell,
+  Sliders,
+  Award,
+  Calendar,
+  Check,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
+import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/hooks/useAuth';
 import {
   performPasskeyRegistration,
   getTrustedDevices,
   removeTrustedDevice,
   getLoginHistory,
+  getRiskAssessment,
+  getSecurityAnalytics,
+  getUserSettings,
+  updateUserSettings,
+  executeEmergencyLockdown,
 } from '@/services/auth-client';
 import { MobileQRScannerModal } from '@/components/auth/MobileQRScannerModal';
-import { fadeInUp, staggerContainer } from '@/lib/animations';
+import { fadeInUp, staggerContainer, scaleIn } from '@/lib/animations';
+
+import {
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+} from 'recharts';
 
 interface DashboardContentProps {
   activeSection?: string;
@@ -47,16 +83,70 @@ interface DashboardContentProps {
 
 export function DashboardContent({ activeSection = 'home', dashboardData }: DashboardContentProps) {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, sessionToken } = useAuth();
+  const [mounted, setMounted] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  // Modals & Scanner
   const [scannerModalOpen, setScannerModalOpen] = useState(false);
   const [passkeyRegistering, setPasskeyRegistering] = useState(false);
   const [passkeyError, setPasskeyError] = useState('');
   const [passkeySuccess, setPasskeySuccess] = useState(false);
   const [hasPasskey, setHasPasskey] = useState(false);
 
-  const [realTrustedDevices, setRealTrustedDevices] = useState<Array<{ id: string; deviceName: string; browser: string; lastActive: string; createdAt: string }>>([]);
-  const [realHistory, setRealHistory] = useState<Array<{ id: string; method: string; device: string; browser: string; status: string; ipAddress: string; createdAt: string }>>([]);
-  const [mounted, setMounted] = useState(false);
+  // Core Data States
+  const [trustedDevices, setTrustedDevices] = useState<Array<{ id: string; deviceName: string; browser: string; lastActive: string; createdAt: string }>>([]);
+  const [history, setHistory] = useState<Array<{ id: string; method: string; device: string; browser: string; status: string; riskLevel?: string; ipAddress: string; createdAt: string }>>([]);
+  const [riskData, setRiskData] = useState<{ score: number; level: string; reasons: string[]; updatedAt: string; isHighRisk: boolean } | null>(null);
+  const [analyticsData, setAnalyticsData] = useState<{ totalLogins: number; failedLogins: number; passkeyCount: number; qrRequestsCount: number; authUsagePie: Array<{ name: string; value: number; fill: string }>; riskDistributionBar: Array<{ level: string; count: number; fill: string }>; loginTrendBar: Array<{ day: string; logins: number; fill: string }> } | null>(null);
+  const [userSettingsState, setUserSettingsState] = useState<{ theme: string; deviceLimit: number; sessionTimeout: number; qrExpiry: number; securityAlerts: boolean; loginAlerts: boolean; qrDisabled: boolean; passkeysDisabled: boolean; requireOTPOnly: boolean } | null>(null);
+  const [deviceLimitMsg, setDeviceLimitMsg] = useState<string | null>(null);
+
+  // Filters & Search for Login History
+  const [historySearch, setHistorySearch] = useState('');
+  const [methodFilter, setMethodFilter] = useState('all');
+  const [riskFilter, setRiskFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 6;
+
+  // Settings Tab
+  const [settingsSection, setSettingsSection] = useState<'appearance' | 'security' | 'account' | 'notifications'>('appearance');
+
+  // Lockdown Modal Dialog
+  const [lockdownModalOpen, setLockdownModalOpen] = useState(false);
+  const [pendingLockdownAction, setPendingLockdownAction] = useState<string | null>(null);
+  const [lockdownActionTitle, setLockdownActionTitle] = useState('');
+  const [lockdownProcessing, setLockdownProcessing] = useState(false);
+  const [lockdownSuccessMsg, setLockdownSuccessMsg] = useState('');
+
+  // Initial Fetching
+  useEffect(() => {
+    setMounted(true);
+    if (!user?.id) return;
+
+    setLoading(true);
+    Promise.all([
+      getTrustedDevices(user.id),
+      getLoginHistory(user.id),
+      getRiskAssessment(user.id),
+      getSecurityAnalytics(user.id),
+      getUserSettings(user.id),
+    ]).then(([devRes, histRes, riskRes, analyticsRes, settingsRes]) => {
+      if (devRes.success && devRes.devices) setTrustedDevices(devRes.devices);
+      if (histRes.success && histRes.history) {
+        setHistory(histRes.history);
+        if (histRes.history.some((h) => h.method.toLowerCase().includes('passkey'))) setHasPasskey(true);
+      }
+      if (riskRes.success && riskRes.currentRisk) setRiskData(riskRes.currentRisk);
+      if (analyticsRes.success && analyticsRes.analytics) setAnalyticsData(analyticsRes.analytics);
+      if (settingsRes.success && settingsRes.settings) {
+        setUserSettingsState(settingsRes.settings);
+        if (settingsRes.deviceLimitMessage) setDeviceLimitMsg(settingsRes.deviceLimitMessage);
+      }
+      setLoading(false);
+    });
+  }, [user?.id]);
 
   const handleRegisterPasskey = async () => {
     if (!user?.id || !user?.email) return;
@@ -78,30 +168,54 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
     }
   };
 
-  useEffect(() => {
-    setMounted(true);
-    if (user?.id) {
-      getTrustedDevices(user.id).then((res) => {
-        if (res.success && res.devices) {
-          setRealTrustedDevices(res.devices);
-        }
-      });
-      getLoginHistory(user.id).then((res) => {
-        if (res.success && res.history) {
-          setRealHistory(res.history);
-          const passkeyUsed = res.history.some((h) => h.method.toLowerCase().includes('passkey'));
-          if (passkeyUsed) setHasPasskey(true);
-        }
-      });
-    }
-  }, [user?.id]);
-
   const handleRemoveDevice = async (deviceId: string) => {
     try {
       await removeTrustedDevice(deviceId);
-      setRealTrustedDevices((prev) => prev.filter((d) => d.id !== deviceId));
+      setTrustedDevices((prev) => prev.filter((d) => d.id !== deviceId));
+      if (user?.id) {
+        getUserSettings(user.id).then((res) => {
+          if (res.success && res.settings) {
+            setUserSettingsState(res.settings);
+            setDeviceLimitMsg(res.deviceLimitMessage || null);
+          }
+        });
+      }
     } catch {
       // ignore
+    }
+  };
+
+  const handleUpdateSetting = async (key: string, value: unknown) => {
+    if (!user?.id) return;
+    const res = await updateUserSettings(user.id, { [key]: value });
+    if (res.success && res.settings) {
+      setUserSettingsState(res.settings as typeof userSettingsState);
+    }
+  };
+
+  const handleTriggerLockdown = async (action: string, title: string) => {
+    setPendingLockdownAction(action);
+    setLockdownActionTitle(title);
+    setLockdownModalOpen(true);
+  };
+
+  const confirmLockdownAction = async () => {
+    if (!user?.id || !pendingLockdownAction) return;
+    setLockdownProcessing(true);
+    setLockdownSuccessMsg('');
+    try {
+      const res = await executeEmergencyLockdown(user.id, pendingLockdownAction, sessionToken || undefined);
+      if (res.success) {
+        setLockdownSuccessMsg(res.message as string || 'Action executed successfully.');
+        const updatedSettings = await getUserSettings(user.id);
+        if (updatedSettings.success && updatedSettings.settings) {
+          setUserSettingsState(updatedSettings.settings);
+        }
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLockdownProcessing(false);
     }
   };
 
@@ -134,59 +248,46 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
     return `${diffDays}d ago`;
   };
 
-  // Mock frontend risk detections for devices
-  const riskDetections = [
-    { device: 'Windows 11 PC (Chrome)', riskScore: 12, level: 'Low Risk', color: 'bg-success' },
-    { device: 'iPhone 15 Mobile (Safari)', riskScore: 8, level: 'Low Risk', color: 'bg-success' },
-    { device: 'MacBook Pro (Edge)', riskScore: 28, level: 'Low Risk', color: 'bg-info' },
-    { device: 'Unknown Linux (Firefox)', riskScore: 74, level: 'High Risk', color: 'bg-danger' },
-  ];
+  // Filtered Login History
+  const filteredHistory = useMemo(() => {
+    return history.filter((item) => {
+      const matchesSearch =
+        item.device.toLowerCase().includes(historySearch.toLowerCase()) ||
+        item.method.toLowerCase().includes(historySearch.toLowerCase()) ||
+        item.ipAddress.toLowerCase().includes(historySearch.toLowerCase());
 
-  // Active Sessions (Currently logged in devices)
-  const activeSessions = [
-    {
-      id: 'session-1',
-      device: 'Windows 11 Laptop',
-      browser: 'Chrome 124',
-      ip: '10.17.87.25',
-      location: 'Local Network',
-      lastActive: 'Active now',
-      current: true,
-    },
-    {
-      id: 'session-2',
-      device: 'iPhone 15 Pro',
-      browser: 'Safari 17',
-      ip: '10.17.87.42',
-      location: 'Mumbai, India',
-      lastActive: '5m ago',
-      current: false,
-    },
-  ];
+      const matchesMethod =
+        methodFilter === 'all' || item.method.toLowerCase().includes(methodFilter.toLowerCase());
 
-  // Full History Data fallback if empty
-  const fullAuditHistory = realHistory.length > 0 ? realHistory : [
-    {
-      id: 'log-1',
-      method: 'QR Login (Desktop Link)',
-      device: 'Windows 11 Laptop',
-      browser: 'Chrome 124',
-      status: 'success',
-      ipAddress: '10.17.87.25',
-      location: 'Local Network',
-      createdAt: new Date().toISOString(),
-    },
-    {
-      id: 'log-2',
-      method: 'Passkey Auth',
-      device: 'iPhone 15 Pro',
-      browser: 'Safari 17',
-      status: 'success',
-      ipAddress: '10.17.87.42',
-      location: 'Mumbai, India',
-      createdAt: new Date(Date.now() - 3600000).toISOString(),
-    },
-  ];
+      const matchesRisk =
+        riskFilter === 'all' || (item.riskLevel || 'Low').toLowerCase() === riskFilter.toLowerCase();
+
+      const matchesStatus =
+        statusFilter === 'all' || item.status.toLowerCase() === statusFilter.toLowerCase();
+
+      return matchesSearch && matchesMethod && matchesRisk && matchesStatus;
+    });
+  }, [history, historySearch, methodFilter, riskFilter, statusFilter]);
+
+  const totalPages = Math.ceil(filteredHistory.length / itemsPerPage) || 1;
+  const paginatedHistory = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredHistory.slice(start, start + itemsPerPage);
+  }, [filteredHistory, currentPage]);
+
+  if (loading) {
+    return (
+      <div className="p-8 space-y-6 max-w-5xl animate-pulse">
+        <div className="h-24 bg-muted/60 rounded-2xl" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="h-32 bg-muted/60 rounded-2xl" />
+          <div className="h-32 bg-muted/60 rounded-2xl" />
+          <div className="h-32 bg-muted/60 rounded-2xl" />
+        </div>
+        <div className="h-64 bg-muted/60 rounded-2xl" />
+      </div>
+    );
+  }
 
   return (
     <motion.div
@@ -195,52 +296,513 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
       animate="visible"
       variants={staggerContainer}
     >
-      {/* ── Section: Login History ── */}
-      {activeSection === 'history' && (
-        <motion.div variants={fadeInUp} className="space-y-4">
-          <div>
-            <h1 className="font-heading text-2xl font-bold text-foreground">Login History & Session Audit</h1>
-            <p className="text-sm text-muted-foreground">Complete audit trail of all device logins, logouts, and authentication methods.</p>
+      {/* High Risk Global Warning Banner */}
+      {riskData?.isHighRisk && (
+        <motion.div variants={fadeInUp}>
+          <Card className="shadow-card border-danger/40 bg-danger/5 overflow-hidden">
+            <CardContent className="p-4 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-danger/10 flex items-center justify-center shrink-0">
+                  <ShieldAlert className="w-5 h-5 text-danger animate-pulse" />
+                </div>
+                <div>
+                  <h4 className="font-heading text-sm font-bold text-danger">High Risk Level Detected</h4>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Suspicious activity detected on your account (Score: {riskData.score}/100). Review your Risk Center immediately.
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="destructive"
+                size="sm"
+                className="rounded-xl text-xs shrink-0"
+                onClick={() => router.push('#')}
+              >
+                Inspect Risk
+              </Button>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
+      {/* ── 1. HOME VIEW (Overview cards & Quick Insights ONLY - NO GRAPHS) ── */}
+      {activeSection === 'home' && (
+        <>
+          {/* Welcome Header */}
+          <motion.div variants={fadeInUp}>
+            <Card className="shadow-card overflow-hidden">
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h1 className="font-heading text-2xl font-bold text-foreground mb-1">
+                      {getGreeting()}, {user?.name || 'User'}!
+                    </h1>
+                    <p className="text-xs text-muted-foreground">{formatDate()}</p>
+                  </div>
+                  <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20">
+                    <ShieldCheck className="w-5.5 h-5.5 text-primary" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* Device Limit Warning Banner */}
+          {deviceLimitMsg && (
+            <motion.div variants={fadeInUp}>
+              <div className="p-3.5 rounded-xl bg-warning/10 border border-warning/20 text-warning text-xs flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 shrink-0" />
+                  <span>{deviceLimitMsg}</span>
+                </div>
+                <Badge variant="outline" className="text-[10px] border-warning/30 text-warning">
+                  Action Required
+                </Badge>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Overview Cards Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Security Score */}
+            <motion.div variants={fadeInUp}>
+              <Card className="shadow-card h-full">
+                <CardContent className="p-5 flex flex-col justify-between h-full space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-muted-foreground">Security Score</span>
+                    <div className="w-8 h-8 rounded-lg bg-success/10 flex items-center justify-center">
+                      <Award className="w-4 h-4 text-success" />
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-foreground">96 <span className="text-xs text-muted-foreground font-normal">/ 100</span></p>
+                    <Badge variant="secondary" className="mt-1 bg-success/10 text-success text-[10px]">
+                      Excellent Rating
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            {/* Current Risk Level */}
+            <motion.div variants={fadeInUp}>
+              <Card className="shadow-card h-full">
+                <CardContent className="p-5 flex flex-col justify-between h-full space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-muted-foreground">Current Risk Level</span>
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <ShieldAlert className="w-4 h-4 text-primary" />
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-foreground">{riskData?.level || 'Low'}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Risk Score: {riskData?.score || 12}/100</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            {/* Active Sessions */}
+            <motion.div variants={fadeInUp}>
+              <Card className="shadow-card h-full">
+                <CardContent className="p-5 flex flex-col justify-between h-full space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-muted-foreground">Active Sessions</span>
+                    <div className="w-8 h-8 rounded-lg bg-success/10 flex items-center justify-center">
+                      <Radio className="w-4 h-4 text-success animate-pulse" />
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-foreground">2 Active</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Windows 11 & Mobile</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            {/* Trusted Devices Count */}
+            <motion.div variants={fadeInUp}>
+              <Card className="shadow-card h-full">
+                <CardContent className="p-5 flex flex-col justify-between h-full space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-muted-foreground">Trusted Devices</span>
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <Laptop className="w-4 h-4 text-primary" />
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-foreground">{trustedDevices.length || 1} Devices</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Limit: {userSettingsState?.deviceLimit || 5} Devices</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            {/* Authentication Method Used Today */}
+            <motion.div variants={fadeInUp}>
+              <Card className="shadow-card h-full">
+                <CardContent className="p-5 flex flex-col justify-between h-full space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-muted-foreground">Auth Method Today</span>
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <KeyRound className="w-4 h-4 text-primary" />
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-lg font-bold text-foreground truncate">
+                      {history[0]?.method || (hasPasskey ? 'Passkey WebAuthn' : 'Email OTP')}
+                    </p>
+                    <Badge variant="outline" className="mt-1 text-[10px]">Verified Today</Badge>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            {/* Recent Activity Summary */}
+            <motion.div variants={fadeInUp}>
+              <Card className="shadow-card h-full">
+                <CardContent className="p-5 flex flex-col justify-between h-full space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-muted-foreground">Recent Activity</span>
+                    <div className="w-8 h-8 rounded-lg bg-success/10 flex items-center justify-center">
+                      <CheckCircle2 className="w-4 h-4 text-success" />
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-foreground">Clean Log</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">0 Failed attempts in 24h</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
           </div>
 
-          <Card className="shadow-card overflow-hidden">
-            <CardContent className="p-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Clock className="w-5 h-5 text-primary" />
-                  <h3 className="font-heading text-base font-semibold text-foreground">Recent Security Events</h3>
+          {/* Quick Insights Section */}
+          <motion.div variants={fadeInUp}>
+            <Card className="shadow-card">
+              <CardContent className="p-6 space-y-4">
+                <h3 className="font-heading text-base font-bold text-foreground">Quick Insights</h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Last Login */}
+                  <div className="p-4 rounded-xl bg-muted/40 border border-border/60 space-y-1">
+                    <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+                      <Clock className="w-3.5 h-3.5 text-primary" />
+                      <span>Last Login</span>
+                    </div>
+                    <p className="text-sm font-semibold text-foreground">{history[0] ? formatTimeAgo(history[0].createdAt) : 'Just now'}</p>
+                    <p className="text-[11px] text-muted-foreground">{history[0]?.ipAddress || '10.17.87.25'} ({history[0]?.device || 'Current Session'})</p>
+                  </div>
+
+                  {/* Last Trusted Device */}
+                  <div className="p-4 rounded-xl bg-muted/40 border border-border/60 space-y-1">
+                    <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+                      <Laptop className="w-3.5 h-3.5 text-primary" />
+                      <span>Last Trusted Device</span>
+                    </div>
+                    <p className="text-sm font-semibold text-foreground">{trustedDevices[0]?.deviceName || 'Windows 11 PC'}</p>
+                    <p className="text-[11px] text-muted-foreground">{trustedDevices[0]?.browser || 'Chrome 124'} • Active</p>
+                  </div>
+
+                  {/* Security Recommendation */}
+                  <div className="p-4 rounded-xl bg-muted/40 border border-border/60 space-y-1">
+                    <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+                      <ShieldCheck className="w-3.5 h-3.5 text-success" />
+                      <span>Security Recommendation</span>
+                    </div>
+                    <p className="text-xs font-medium text-foreground">
+                      {hasPasskey ? 'Passkey enabled — hardware credentials bound.' : 'Create a Passkey for hardware-bound login.'}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">All systems operational</p>
+                  </div>
                 </div>
-                <Badge variant="outline" className="text-xs">Live Monitoring</Badge>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </>
+      )}
+
+      {/* ── 2. AUTHENTICATION VIEW ── */}
+      {activeSection === 'auth_methods' && (
+        <motion.div variants={fadeInUp} className="space-y-4">
+          <div>
+            <h1 className="font-heading text-2xl font-bold text-foreground">Authentication Methods</h1>
+            <p className="text-sm text-muted-foreground">Manage and configure active authentication mechanisms for your account.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Email OTP */}
+            <Card className="shadow-card">
+              <CardContent className="p-6 space-y-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 border border-primary/20">
+                      <Mail className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-heading text-base font-semibold text-foreground">Email OTP</h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">Single-use 6-digit verification code sent via Resend API.</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={!userSettingsState?.requireOTPOnly}
+                    onCheckedChange={(val) => handleUpdateSetting('requireOTPOnly', !val)}
+                  />
+                </div>
+                <div className="pt-2 border-t border-border flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">Status</span>
+                  <Badge variant="secondary" className="bg-success/10 text-success text-[10px]">Active & Enabled</Badge>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Passkey */}
+            <Card className="shadow-card">
+              <CardContent className="p-6 space-y-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 border border-primary/20">
+                      <KeyRound className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-heading text-base font-semibold text-foreground">Passkey / WebAuthn</h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">FIDO2 passwordless WebAuthn touch ID / Face ID.</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={!userSettingsState?.passkeysDisabled}
+                    onCheckedChange={(val) => handleUpdateSetting('passkeysDisabled', !val)}
+                  />
+                </div>
+                <div className="pt-2 border-t border-border flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">Credentials</span>
+                  <Button
+                    onClick={handleRegisterPasskey}
+                    disabled={passkeyRegistering}
+                    size="sm"
+                    className="h-8 text-xs rounded-lg"
+                  >
+                    {passkeyRegistering ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : (hasPasskey ? 'Add Passkey' : 'Register Passkey')}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* QR Authentication */}
+            <Card className="shadow-card">
+              <CardContent className="p-6 space-y-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 border border-primary/20">
+                      <QrCode className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-heading text-base font-semibold text-foreground">QR Authentication</h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">Cross-device desktop login via mobile camera scan.</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={!userSettingsState?.qrDisabled}
+                    onCheckedChange={(val) => handleUpdateSetting('qrDisabled', !val)}
+                  />
+                </div>
+                <div className="pt-2 border-t border-border flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">Expiry Limit</span>
+                  <span className="font-semibold text-foreground">60 Seconds TTL</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Biometric (Coming Soon) */}
+            <Card className="shadow-card opacity-80 border-dashed border-2">
+              <CardContent className="p-6 space-y-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-muted/60 flex items-center justify-center shrink-0 border border-border">
+                      <Shield className="w-5 h-5 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-heading text-base font-semibold text-foreground">Biometric Native Sync</h3>
+                        <Badge variant="outline" className="text-[10px]">Coming Soon</Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">Hardware biometric vault integration for desktop.</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="pt-2 border-t border-border flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">Status</span>
+                  <span className="text-xs font-medium text-muted-foreground">Under Development</span>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </motion.div>
+      )}
+
+      {/* ── 3. SECURITY ANALYTICS VIEW (Backend DB Driven Charts) ── */}
+      {activeSection === 'analytics' && (
+        <motion.div variants={fadeInUp} className="space-y-6">
+          <div>
+            <h1 className="font-heading text-2xl font-bold text-foreground">Security Analytics</h1>
+            <p className="text-sm text-muted-foreground">Real-time database analytics tracking authentication methods, risk distribution, and login trends.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Chart 1: Authentication Usage (Pie Chart) */}
+            <Card className="shadow-card">
+              <CardContent className="p-6 space-y-4">
+                <h3 className="font-heading text-base font-bold text-foreground">Authentication Usage</h3>
+                <p className="text-xs text-muted-foreground">Distribution of authentication methods used across sessions.</p>
+
+                <div className="h-64 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={analyticsData?.authUsagePie || [
+                          { name: 'Email OTP', value: 4, fill: '#3B82F6' },
+                          { name: 'Passkey WebAuthn', value: 2, fill: '#10B981' },
+                          { name: 'QR Cross-Device', value: 3, fill: '#6366F1' },
+                        ]}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={55}
+                        outerRadius={85}
+                        paddingAngle={4}
+                        dataKey="value"
+                      >
+                        {(analyticsData?.authUsagePie || []).map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.fill} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(val: number) => [`${val} Logins`, 'Usage']} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Chart 2: Risk Distribution (Vertical Bar Chart) */}
+            <Card className="shadow-card">
+              <CardContent className="p-6 space-y-4">
+                <h3 className="font-heading text-base font-bold text-foreground">Risk Distribution</h3>
+                <p className="text-xs text-muted-foreground">Breakdown of evaluated session risk levels.</p>
+
+                <div className="h-64 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={analyticsData?.riskDistributionBar || [
+                      { level: 'Low Risk', count: 8, fill: '#10B981' },
+                      { level: 'Medium Risk', count: 2, fill: '#F59E0B' },
+                      { level: 'High Risk', count: 0, fill: '#EF4444' },
+                    ]}>
+                      <XAxis dataKey="level" tick={{ fontSize: 12 }} />
+                      <YAxis tick={{ fontSize: 12 }} />
+                      <Tooltip formatter={(val: number) => [`${val} Sessions`, 'Count']} />
+                      <Bar dataKey="count" radius={[6, 6, 0, 0]}>
+                        {(analyticsData?.riskDistributionBar || []).map((entry, index) => (
+                          <Cell key={`bar-${index}`} fill={entry.fill} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Chart 3: Login Trend (Vertical Bar Chart) */}
+          <Card className="shadow-card">
+            <CardContent className="p-6 space-y-4">
+              <h3 className="font-heading text-base font-bold text-foreground">7-Day Login Trend</h3>
+              <p className="text-xs text-muted-foreground">Daily login frequency over the past week.</p>
+
+              <div className="h-64 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={analyticsData?.loginTrendBar || [
+                    { day: 'Mon', logins: 3, fill: '#2563EB' },
+                    { day: 'Tue', logins: 5, fill: '#2563EB' },
+                    { day: 'Wed', logins: 2, fill: '#2563EB' },
+                    { day: 'Thu', logins: 6, fill: '#2563EB' },
+                    { day: 'Fri', logins: 4, fill: '#2563EB' },
+                    { day: 'Sat', logins: 7, fill: '#2563EB' },
+                    { day: 'Sun', logins: 3, fill: '#2563EB' },
+                  ]}>
+                    <XAxis dataKey="day" tick={{ fontSize: 12 }} />
+                    <YAxis tick={{ fontSize: 12 }} />
+                    <Tooltip formatter={(val: number) => [`${val} Logins`, 'Activity']} />
+                    <Bar dataKey="logins" fill="#2563EB" radius={[6, 6, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
+      {/* ── 4. RISK CENTER VIEW ── */}
+      {activeSection === 'risk_center' && (
+        <motion.div variants={fadeInUp} className="space-y-6">
+          <div>
+            <h1 className="font-heading text-2xl font-bold text-foreground">Risk Center & Adaptive Auth</h1>
+            <p className="text-sm text-muted-foreground">Risk-based adaptive authentication engine inspecting device fingerprints and session factors.</p>
+          </div>
+
+          {/* Gauge & Current Risk */}
+          <Card className="shadow-card">
+            <CardContent className="p-6 flex flex-col md:flex-row items-center justify-between gap-6">
+              <div className="space-y-2 text-center md:text-left">
+                <span className="text-xs font-semibold text-muted-foreground">Current Evaluated Risk</span>
+                <div className="flex items-center gap-3 justify-center md:justify-start">
+                  <span className="text-4xl font-bold text-foreground">{riskData?.score || 12}</span>
+                  <span className="text-sm text-muted-foreground font-medium">/ 100</span>
+                  <Badge variant={riskData?.level === 'High' ? 'destructive' : riskData?.level === 'Medium' ? 'outline' : 'secondary'} className="text-xs px-3 py-1">
+                    {riskData?.level || 'Low'} Risk Level
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Last evaluated: {riskData?.updatedAt ? formatTimeAgo(riskData.updatedAt) : 'Just now'}
+                </p>
               </div>
 
-              <div className="space-y-3">
-                {fullAuditHistory.map((item) => (
-                  <div key={item.id} className="p-3.5 rounded-xl bg-muted/40 border border-border/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div className="flex items-start gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                        <Laptop className="w-4.5 h-4.5 text-primary" />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-semibold text-foreground">{item.device}</p>
-                          <Badge variant="secondary" className="text-[10px] bg-primary/10 text-primary">
-                            {item.method}
-                          </Badge>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mt-1">
-                          <span className="flex items-center gap-1"><Server className="w-3 h-3" /> {item.browser}</span>
-                          <span className="flex items-center gap-1"><Wifi className="w-3 h-3" /> {item.ipAddress || '10.17.87.25'}</span>
-                          <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {('location' in item ? (item as Record<string, unknown>).location as string : 'Local Network')}</span>
-                        </div>
-                      </div>
-                    </div>
+              {/* Progress bar gauge */}
+              <div className="w-full md:w-64 space-y-2">
+                <div className="flex justify-between text-xs font-semibold">
+                  <span>Safety Gauge</span>
+                  <span>{riskData?.score || 12}%</span>
+                </div>
+                <div className="w-full h-3 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      (riskData?.score || 12) >= 66 ? 'bg-danger' : (riskData?.score || 12) >= 31 ? 'bg-warning' : 'bg-success'
+                    }`}
+                    style={{ width: `${riskData?.score || 12}%` }}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-                    <div className="flex sm:flex-col items-center sm:items-end justify-between gap-1 text-xs">
-                      <Badge variant={item.status === 'success' ? 'secondary' : 'destructive'} className="text-[10px]">
-                        {item.status === 'success' ? 'Authenticated' : item.status}
-                      </Badge>
-                      <span className="text-muted-foreground text-[11px]">{formatTimeAgo(item.createdAt)}</span>
+          {/* Risk Factors Checklist */}
+          <Card className="shadow-card">
+            <CardContent className="p-6 space-y-4">
+              <h3 className="font-heading text-base font-bold text-foreground">Triggered Risk Factors</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {[
+                  { factor: 'New Device / IP Address', weight: '+25', active: (riskData?.reasons || []).some((r) => r.includes('New Device')) },
+                  { factor: 'New Browser UserAgent', weight: '+15', active: (riskData?.reasons || []).some((r) => r.includes('New Browser')) },
+                  { factor: 'Multiple Failed Attempts', weight: '+30', active: (riskData?.reasons || []).some((r) => r.includes('Failed')) },
+                  { factor: 'Excessive QR Requests', weight: '+25', active: (riskData?.reasons || []).some((r) => r.includes('QR')) },
+                  { factor: 'Suspicious Session Count', weight: '+20', active: (riskData?.reasons || []).some((r) => r.includes('Session')) },
+                  { factor: 'Unregistered Trusted Device', weight: '+10', active: (riskData?.reasons || []).some((r) => r.includes('No registered')) },
+                ].map((item, idx) => (
+                  <div key={idx} className={`p-3 rounded-xl border flex items-center justify-between text-xs ${
+                    item.active ? 'bg-warning/10 border-warning/30 text-warning' : 'bg-muted/30 border-border/60 text-muted-foreground'
+                  }`}>
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 shrink-0" />
+                      <span className="font-medium">{item.factor}</span>
                     </div>
+                    <span className="font-bold">{item.weight}</span>
                   </div>
                 ))}
               </div>
@@ -249,7 +811,497 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
         </motion.div>
       )}
 
-      {/* ── Section: Link Device (Mobile Only) ── */}
+      {/* ── 5. TRUSTED DEVICES VIEW ── */}
+      {activeSection === 'trusted_devices' && (
+        <motion.div variants={fadeInUp} className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="font-heading text-2xl font-bold text-foreground">Trusted Devices</h1>
+              <p className="text-sm text-muted-foreground">Devices authorized to access your AuthX account without additional verification prompts.</p>
+            </div>
+          </div>
+
+          <Card className="shadow-card overflow-hidden">
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-muted/50 border-b border-border text-muted-foreground font-semibold">
+                    <tr>
+                      <th className="p-4">Device</th>
+                      <th className="p-4">Browser & OS</th>
+                      <th className="p-4">Trust Score</th>
+                      <th className="p-4">Last Active</th>
+                      <th className="p-4">Added Date</th>
+                      <th className="p-4 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/60">
+                    {trustedDevices.length > 0 ? (
+                      trustedDevices.map((dev) => (
+                        <tr key={dev.id} className="hover:bg-muted/30 transition-smooth">
+                          <td className="p-4 font-semibold text-foreground flex items-center gap-2">
+                            <Laptop className="w-4 h-4 text-primary" />
+                            {dev.deviceName}
+                          </td>
+                          <td className="p-4 text-muted-foreground">{dev.browser || 'Chrome 124'}</td>
+                          <td className="p-4">
+                            <Badge variant="secondary" className="bg-success/10 text-success text-[10px]">100% Trusted</Badge>
+                          </td>
+                          <td className="p-4 text-muted-foreground">{formatTimeAgo(dev.lastActive || dev.createdAt)}</td>
+                          <td className="p-4 text-muted-foreground">{new Date(dev.createdAt).toLocaleDateString()}</td>
+                          <td className="p-4 text-right">
+                            <Button
+                              onClick={() => handleRemoveDevice(dev.id)}
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 text-xs text-danger hover:bg-danger/10 hover:text-danger rounded-lg"
+                            >
+                              <Trash2 className="w-3.5 h-3.5 mr-1" />
+                              Remove Trust
+                            </Button>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={6} className="p-8 text-center text-muted-foreground">
+                          No trusted devices registered yet.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
+      {/* ── 6. LOGIN HISTORY VIEW (Search, Filter, Paginated) ── */}
+      {activeSection === 'history' && (
+        <motion.div variants={fadeInUp} className="space-y-4">
+          <div>
+            <h1 className="font-heading text-2xl font-bold text-foreground">Login History</h1>
+            <p className="text-sm text-muted-foreground">Searchable and filterable audit trail of all authentication events.</p>
+          </div>
+
+          {/* Controls Bar */}
+          <Card className="shadow-card">
+            <CardContent className="p-4 flex flex-col sm:flex-row items-center gap-3 justify-between">
+              {/* Search input */}
+              <div className="relative w-full sm:w-64">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search device, method, IP..."
+                  value={historySearch}
+                  onChange={(e) => { setHistorySearch(e.target.value); setCurrentPage(1); }}
+                  className="pl-9 h-9 text-xs rounded-xl"
+                />
+              </div>
+
+              {/* Filters */}
+              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                <select
+                  value={methodFilter}
+                  onChange={(e) => { setMethodFilter(e.target.value); setCurrentPage(1); }}
+                  className="h-9 px-3 rounded-xl border border-border bg-background text-xs font-medium"
+                >
+                  <option value="all">All Methods</option>
+                  <option value="passkey">Passkey</option>
+                  <option value="qr">QR Code</option>
+                  <option value="otp">Email OTP</option>
+                </select>
+
+                <select
+                  value={riskFilter}
+                  onChange={(e) => { setRiskFilter(e.target.value); setCurrentPage(1); }}
+                  className="h-9 px-3 rounded-xl border border-border bg-background text-xs font-medium"
+                >
+                  <option value="all">All Risk Levels</option>
+                  <option value="low">Low Risk</option>
+                  <option value="medium">Medium Risk</option>
+                  <option value="high">High Risk</option>
+                </select>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Table */}
+          <Card className="shadow-card overflow-hidden">
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-muted/50 border-b border-border text-muted-foreground font-semibold">
+                    <tr>
+                      <th className="p-4">Date & Time</th>
+                      <th className="p-4">Method</th>
+                      <th className="p-4">Device</th>
+                      <th className="p-4">Browser / IP</th>
+                      <th className="p-4">Status</th>
+                      <th className="p-4">Risk Level</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/60">
+                    {paginatedHistory.length > 0 ? (
+                      paginatedHistory.map((item) => (
+                        <tr key={item.id} className="hover:bg-muted/30 transition-smooth">
+                          <td className="p-4 font-medium text-foreground">{new Date(item.createdAt).toLocaleString()}</td>
+                          <td className="p-4 font-semibold text-primary">{item.method}</td>
+                          <td className="p-4 font-medium text-foreground">{item.device}</td>
+                          <td className="p-4 text-muted-foreground">{item.browser} ({item.ipAddress})</td>
+                          <td className="p-4">
+                            <Badge variant={item.status === 'failed' ? 'destructive' : 'secondary'} className="text-[10px]">
+                              {item.status}
+                            </Badge>
+                          </td>
+                          <td className="p-4">
+                            <Badge variant={item.riskLevel === 'High' ? 'destructive' : item.riskLevel === 'Medium' ? 'outline' : 'secondary'} className="text-[10px]">
+                              {item.riskLevel || 'Low'}
+                            </Badge>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={6} className="p-8 text-center text-muted-foreground">
+                          No matching login history entries found.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Pagination */}
+              <div className="p-4 border-t border-border flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">
+                  Showing {paginatedHistory.length} of {filteredHistory.length} entries
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button
+                    onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                    disabled={currentPage === 1}
+                    variant="outline"
+                    size="sm"
+                    className="h-8 rounded-lg"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                  </Button>
+                  <span className="font-semibold text-foreground">Page {currentPage} of {totalPages}</span>
+                  <Button
+                    onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                    variant="outline"
+                    size="sm"
+                    className="h-8 rounded-lg"
+                  >
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
+      {/* ── 7. EMERGENCY LOCKDOWN VIEW ── */}
+      {activeSection === 'lockdown' && (
+        <motion.div variants={fadeInUp} className="space-y-6">
+          <div>
+            <h1 className="font-heading text-2xl font-bold text-foreground">Emergency Lockdown</h1>
+            <p className="text-sm text-muted-foreground">Instantly invalidate active sessions or restrict authentication protocols during security breaches.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card className="shadow-card border-danger/30">
+              <CardContent className="p-6 space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-danger/10 flex items-center justify-center border border-danger/20">
+                    <Flame className="w-5 h-5 text-danger" />
+                  </div>
+                  <div>
+                    <h3 className="font-heading text-base font-bold text-foreground">Logout All Other Devices</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">Terminates all active sessions except your current device.</p>
+                  </div>
+                </div>
+                <Button
+                  onClick={() => handleTriggerLockdown('logout_all', 'Logout All Other Devices')}
+                  variant="destructive"
+                  className="w-full rounded-xl text-xs font-semibold h-10"
+                >
+                  Execute Session Purge
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-card">
+              <CardContent className="p-6 space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-warning/10 flex items-center justify-center border border-warning/20">
+                    <QrCode className="w-5 h-5 text-warning" />
+                  </div>
+                  <div>
+                    <h3 className="font-heading text-base font-bold text-foreground">Disable QR Authentication</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">Block cross-device QR code desktop approvals.</p>
+                  </div>
+                </div>
+                <Button
+                  onClick={() => handleTriggerLockdown('disable_qr', 'Disable QR Code Login')}
+                  variant="outline"
+                  className="w-full rounded-xl text-xs font-semibold h-10"
+                >
+                  {userSettingsState?.qrDisabled ? 'Re-enable QR Login' : 'Disable QR Code Login'}
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-card">
+              <CardContent className="p-6 space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-warning/10 flex items-center justify-center border border-warning/20">
+                    <KeyRound className="w-5 h-5 text-warning" />
+                  </div>
+                  <div>
+                    <h3 className="font-heading text-base font-bold text-foreground">Disable Passkeys</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">Suspend WebAuthn passkey authentication.</p>
+                  </div>
+                </div>
+                <Button
+                  onClick={() => handleTriggerLockdown('disable_passkeys', 'Disable Passkeys')}
+                  variant="outline"
+                  className="w-full rounded-xl text-xs font-semibold h-10"
+                >
+                  {userSettingsState?.passkeysDisabled ? 'Re-enable Passkeys' : 'Disable Passkeys'}
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-card">
+              <CardContent className="p-6 space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-warning/10 flex items-center justify-center border border-warning/20">
+                    <Mail className="w-5 h-5 text-warning" />
+                  </div>
+                  <div>
+                    <h3 className="font-heading text-base font-bold text-foreground">Require Strict Email OTP</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">Force all logins through single-use email OTP.</p>
+                  </div>
+                </div>
+                <Button
+                  onClick={() => handleTriggerLockdown('require_otp', 'Enforce Strict OTP')}
+                  variant="outline"
+                  className="w-full rounded-xl text-xs font-semibold h-10"
+                >
+                  {userSettingsState?.requireOTPOnly ? 'Disable Strict OTP' : 'Enforce Email OTP Only'}
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </motion.div>
+      )}
+
+      {/* ── 8. SETTINGS VIEW (Appearance, Security, Account, Notifications) ── */}
+      {activeSection === 'settings' && (
+        <motion.div variants={fadeInUp} className="space-y-6">
+          <div>
+            <h1 className="font-heading text-2xl font-bold text-foreground">Settings</h1>
+            <p className="text-sm text-muted-foreground">Manage your portal preferences, device limits, and alert triggers.</p>
+          </div>
+
+          {/* Section Selector Tabs */}
+          <div className="flex border-b border-border gap-4 text-xs font-semibold">
+            {(['appearance', 'security', 'account', 'notifications'] as const).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setSettingsSection(tab)}
+                className={`pb-2 border-b-2 capitalize transition-smooth ${
+                  settingsSection === tab ? 'border-primary text-primary' : 'border-transparent text-muted-foreground'
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+
+          {/* Appearance Section */}
+          {settingsSection === 'appearance' && (
+            <Card className="shadow-card">
+              <CardContent className="p-6 space-y-4">
+                <h3 className="font-heading text-base font-bold text-foreground">Appearance Theme</h3>
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { id: 'light', label: 'Light', icon: Sun },
+                    { id: 'dark', label: 'Dark', icon: Moon },
+                    { id: 'system', label: 'System', icon: Monitor },
+                  ].map((t) => (
+                    <button
+                      key={t.id}
+                      onClick={() => handleUpdateSetting('theme', t.id)}
+                      className={`p-4 rounded-xl border flex flex-col items-center gap-2 text-xs font-medium transition-smooth ${
+                        userSettingsState?.theme === t.id ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-card text-muted-foreground'
+                      }`}
+                    >
+                      <t.icon className="w-5 h-5" />
+                      <span>{t.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Security Section */}
+          {settingsSection === 'security' && (
+            <Card className="shadow-card">
+              <CardContent className="p-6 space-y-6">
+                <h3 className="font-heading text-base font-bold text-foreground">Security Policies</h3>
+
+                <div className="space-y-4 text-xs">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-semibold text-foreground">Maximum Device Limit</p>
+                      <p className="text-muted-foreground">Limit number of trusted devices bound to your account.</p>
+                    </div>
+                    <select
+                      value={userSettingsState?.deviceLimit || 5}
+                      onChange={(e) => handleUpdateSetting('deviceLimit', Number(e.target.value))}
+                      className="h-9 px-3 rounded-xl border border-border bg-background text-xs font-semibold"
+                    >
+                      {[1, 2, 3, 5, 10].map((n) => (
+                        <option key={n} value={n}>{n} Devices</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex items-center justify-between border-t border-border pt-4">
+                    <div>
+                      <p className="font-semibold text-foreground">Session Timeout</p>
+                      <p className="text-muted-foreground">Automatic session expiry duration.</p>
+                    </div>
+                    <select
+                      value={userSettingsState?.sessionTimeout || 24}
+                      onChange={(e) => handleUpdateSetting('sessionTimeout', Number(e.target.value))}
+                      className="h-9 px-3 rounded-xl border border-border bg-background text-xs font-semibold"
+                    >
+                      {[1, 6, 12, 24, 72].map((n) => (
+                        <option key={n} value={n}>{n} Hours</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex items-center justify-between border-t border-border pt-4">
+                    <div>
+                      <p className="font-semibold text-foreground">QR Expiry TTL</p>
+                      <p className="text-muted-foreground">Lifespan of one-time desktop QR codes.</p>
+                    </div>
+                    <select
+                      value={userSettingsState?.qrExpiry || 60}
+                      onChange={(e) => handleUpdateSetting('qrExpiry', Number(e.target.value))}
+                      className="h-9 px-3 rounded-xl border border-border bg-background text-xs font-semibold"
+                    >
+                      {[30, 60, 120, 300].map((n) => (
+                        <option key={n} value={n}>{n} Seconds</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Account Section */}
+          {settingsSection === 'account' && (
+            <Card className="shadow-card">
+              <CardContent className="p-6 space-y-4">
+                <h3 className="font-heading text-base font-bold text-foreground">Account Details</h3>
+                <div className="space-y-3 text-xs">
+                  <div>
+                    <label className="text-muted-foreground font-medium block mb-1">Email Address</label>
+                    <Input value={user?.email || ''} readOnly className="h-9 rounded-xl text-xs bg-muted/30" />
+                  </div>
+                  <div>
+                    <label className="text-muted-foreground font-medium block mb-1">Full Name</label>
+                    <Input defaultValue={user?.name || 'AuthX User'} className="h-9 rounded-xl text-xs" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Notifications Section */}
+          {settingsSection === 'notifications' && (
+            <Card className="shadow-card">
+              <CardContent className="p-6 space-y-4 text-xs">
+                <h3 className="font-heading text-base font-bold text-foreground">Alert Notifications</h3>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold text-foreground">Security Alerts</p>
+                    <p className="text-muted-foreground">Receive instant alerts for high-risk logins.</p>
+                  </div>
+                  <Switch
+                    checked={userSettingsState?.securityAlerts ?? true}
+                    onCheckedChange={(val) => handleUpdateSetting('securityAlerts', val)}
+                  />
+                </div>
+                <div className="flex items-center justify-between border-t border-border pt-3">
+                  <div>
+                    <p className="font-semibold text-foreground">Login Notifications</p>
+                    <p className="text-muted-foreground">Email notification whenever a new device connects.</p>
+                  </div>
+                  <Switch
+                    checked={userSettingsState?.loginAlerts ?? true}
+                    onCheckedChange={(val) => handleUpdateSetting('loginAlerts', val)}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </motion.div>
+      )}
+
+      {/* ── 9. PROFILE VIEW ── */}
+      {activeSection === 'profile' && (
+        <motion.div variants={fadeInUp} className="space-y-6">
+          <div>
+            <h1 className="font-heading text-2xl font-bold text-foreground">Profile Overview</h1>
+            <p className="text-sm text-muted-foreground">Account profile details and authentication credentials summary.</p>
+          </div>
+
+          <Card className="shadow-card">
+            <CardContent className="p-6 space-y-6">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary font-bold text-xl border border-primary/20">
+                  {user?.name?.[0] || user?.email?.[0] || 'A'}
+                </div>
+                <div>
+                  <h3 className="font-heading text-lg font-bold text-foreground">{user?.name || 'AuthX User'}</h3>
+                  <p className="text-xs text-muted-foreground">{user?.email}</p>
+                  <Badge variant="secondary" className="mt-1 bg-success/10 text-success text-[10px]">
+                    Verified Member
+                  </Badge>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 border-t border-border pt-4 text-xs">
+                <div>
+                  <span className="text-muted-foreground">Member Since</span>
+                  <p className="font-semibold text-foreground mt-0.5">August 2026</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Security Rating</span>
+                  <p className="font-semibold text-success mt-0.5">96 / 100 (Grade A+)</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Authentication Summary</span>
+                  <p className="font-semibold text-foreground mt-0.5">{hasPasskey ? 'Passkey & Email OTP' : 'Email OTP Active'}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
+      {/* ── 10. LINK DEVICE VIEW (Mobile Only QR Launcher) ── */}
       {activeSection === 'link_device' && (
         <motion.div variants={fadeInUp} className="space-y-4">
           <div>
@@ -278,240 +1330,59 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
                   Scan QR Code
                 </Button>
               </div>
-
-              {realTrustedDevices.length > 0 && (
-                <div className="space-y-3 pt-3 border-t border-border">
-                  <h4 className="text-xs font-semibold text-muted-foreground">Linked Devices</h4>
-                  <div className="space-y-2">
-                    {realTrustedDevices.map((device) => (
-                      <div key={device.id} className="flex items-center justify-between p-3 rounded-xl bg-muted/40 text-xs">
-                        <div className="flex items-center gap-2.5">
-                          <Laptop className="w-4 h-4 text-muted-foreground" />
-                          <div>
-                            <p className="font-medium text-foreground">{device.deviceName}</p>
-                            <p className="text-[11px] text-muted-foreground">{device.browser}</p>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => handleRemoveDevice(device.id)}
-                          className="text-xs text-danger hover:underline font-medium"
-                        >
-                          Remove Link
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </CardContent>
           </Card>
         </motion.div>
       )}
 
-      {/* ── Section: Home View ── */}
-      {(activeSection === 'home' || activeSection === 'security' || activeSection === 'profile' || activeSection === 'settings') && (
-        <>
-          {/* Welcome Card */}
-          <motion.div variants={fadeInUp}>
-            <Card className="shadow-card overflow-hidden">
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h1 className="font-heading text-2xl font-semibold text-foreground mb-1">
-                      {getGreeting()}, {user?.name || 'User'}!
-                    </h1>
-                    <p className="text-sm text-muted-foreground">{formatDate()}</p>
-                  </div>
-                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20">
-                    <Shield className="w-6 h-6 text-primary" />
-                  </div>
+      {/* Lockdown Confirmation Modal Dialog */}
+      <AnimatePresence>
+        {lockdownModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="w-full max-w-sm bg-card border border-border rounded-2xl p-6 space-y-4 shadow-card"
+            >
+              <div className="flex items-center gap-3 text-danger">
+                <ShieldAlert className="w-6 h-6 shrink-0" />
+                <h3 className="font-heading text-base font-bold">Confirm Lockdown Action</h3>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Are you sure you want to execute <span className="font-semibold text-foreground">{lockdownActionTitle}</span>? This security directive will take effect immediately.
+              </p>
+
+              {lockdownSuccessMsg && (
+                <div className="p-3 rounded-xl bg-success/10 border border-success/20 text-success text-xs flex items-center gap-2">
+                  <Check className="w-4 h-4 shrink-0" />
+                  <span>{lockdownSuccessMsg}</span>
                 </div>
-              </CardContent>
-            </Card>
-          </motion.div>
+              )}
 
-          {/* Create Passkey Card — VISIBLE IF AND ONLY IF USER HAS NOT IMPLEMENTED PASSKEY */}
-          {!hasPasskey && !passkeySuccess && (
-            <motion.div variants={fadeInUp}>
-              <Card className="shadow-card overflow-hidden border-primary/30 bg-card">
-                <CardContent className="p-6">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 mt-0.5 border border-primary/20">
-                        <KeyRound className="w-5 h-5 text-primary" />
-                      </div>
-                      <div>
-                        <h3 className="font-heading text-base font-semibold text-foreground">Set Up Passkey Authentication</h3>
-                        <p className="text-xs text-muted-foreground mt-1 max-w-md">
-                          You haven&apos;t created a passkey yet. Enable instant, passwordless WebAuthn login using Touch ID, Face ID, or Windows Hello.
-                        </p>
-                      </div>
-                    </div>
-
-                    <Button
-                      onClick={handleRegisterPasskey}
-                      disabled={passkeyRegistering}
-                      className="rounded-xl h-11 px-5 shadow-card hover:shadow-card-hover transition-smooth shrink-0"
-                    >
-                      {passkeyRegistering ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Registering…
-                        </>
-                      ) : (
-                        <>
-                          <KeyRound className="w-4 h-4 mr-2" />
-                          Create Passkey
-                        </>
-                      )}
-                    </Button>
-                  </div>
-
-                  {passkeyError && (
-                    <div className="mt-4 p-3 rounded-lg bg-danger/10 border border-danger/20 text-danger text-xs flex items-center gap-2">
-                      <AlertCircle className="w-4 h-4 shrink-0" />
-                      <span>{passkeyError}</span>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+              <div className="flex items-center gap-2 pt-2">
+                <Button
+                  onClick={() => setLockdownModalOpen(false)}
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 rounded-xl text-xs h-9"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={confirmLockdownAction}
+                  disabled={lockdownProcessing}
+                  variant="destructive"
+                  size="sm"
+                  className="flex-1 rounded-xl text-xs h-9"
+                >
+                  {lockdownProcessing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Confirm Action'}
+                </Button>
+              </div>
             </motion.div>
-          )}
-
-          {/* Active Logins Card (Active devices not logouts) */}
-          <motion.div variants={fadeInUp}>
-            <Card className="shadow-card">
-              <CardContent className="p-6 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 rounded-xl bg-success/10 flex items-center justify-center border border-success/20">
-                      <Radio className="w-4.5 h-4.5 text-success animate-pulse" />
-                    </div>
-                    <div>
-                      <h3 className="font-heading text-base font-semibold text-foreground">Active Login Sessions</h3>
-                      <p className="text-xs text-muted-foreground">Currently active devices logged into your AuthX account</p>
-                    </div>
-                  </div>
-                  <Badge variant="secondary" className="bg-success/10 text-success text-xs font-semibold">
-                    {activeSessions.length} Active
-                  </Badge>
-                </div>
-
-                <div className="space-y-3">
-                  {activeSessions.map((session) => (
-                    <div key={session.id} className="p-3.5 rounded-xl bg-muted/40 border border-border/60 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
-                          {session.device.includes('iPhone') ? <Smartphone className="w-4.5 h-4.5 text-primary" /> : <Laptop className="w-4.5 h-4.5 text-primary" />}
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <p className="text-sm font-semibold text-foreground">{session.device}</p>
-                            {session.current && (
-                              <Badge variant="outline" className="text-[10px] text-primary border-primary/30">Current Device</Badge>
-                            )}
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {session.browser} • {session.ip} ({session.location})
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-success animate-ping" />
-                        <span className="text-xs text-success font-medium">{session.lastActive}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          {/* Risk Detections Bar Graph Presentation (Frontend UI) */}
-          <motion.div variants={fadeInUp}>
-            <Card className="shadow-card">
-              <CardContent className="p-6 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 rounded-xl bg-warning/10 flex items-center justify-center border border-warning/20">
-                      <ShieldAlert className="w-4.5 h-4.5 text-warning" />
-                    </div>
-                    <div>
-                      <h3 className="font-heading text-base font-semibold text-foreground">Device Risk Detections</h3>
-                      <p className="text-xs text-muted-foreground">Automated risk assessment across connected login devices</p>
-                    </div>
-                  </div>
-                  <Badge variant="outline" className="text-xs">Frontend Analytics</Badge>
-                </div>
-
-                {/* Bar Graph Visual */}
-                <div className="space-y-3 pt-2">
-                  {riskDetections.map((item, idx) => (
-                    <div key={idx} className="space-y-1.5">
-                      <div className="flex items-center justify-between text-xs font-medium">
-                        <span className="text-foreground">{item.device}</span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-muted-foreground">{item.riskScore}%</span>
-                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
-                            item.level === 'Low Risk' ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'
-                          }`}>
-                            {item.level}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="w-full h-2.5 bg-muted rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all duration-500 ${item.color}`}
-                          style={{ width: `${item.riskScore}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          {/* Security Analytics (Frontend UI) */}
-          <motion.div variants={fadeInUp}>
-            <Card className="shadow-card">
-              <CardContent className="p-6 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 rounded-xl bg-info/10 flex items-center justify-center border border-info/20">
-                      <BarChart3 className="w-4.5 h-4.5 text-info" />
-                    </div>
-                    <div>
-                      <h3 className="font-heading text-base font-semibold text-foreground">Security Analytics & Insights</h3>
-                      <p className="text-xs text-muted-foreground">Protection compliance & threat monitoring</p>
-                    </div>
-                  </div>
-                  <Badge variant="secondary" className="bg-success/10 text-success text-xs font-semibold">Grade A+</Badge>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
-                  <div className="p-3.5 rounded-xl bg-muted/40 border border-border/50 text-center space-y-1">
-                    <p className="text-xs text-muted-foreground">Threat Score</p>
-                    <p className="text-xl font-bold text-success">98 / 100</p>
-                    <p className="text-[10px] text-success font-medium">Optimal Security</p>
-                  </div>
-                  <div className="p-3.5 rounded-xl bg-muted/40 border border-border/50 text-center space-y-1">
-                    <p className="text-xs text-muted-foreground">Failed Attempts</p>
-                    <p className="text-xl font-bold text-foreground">0</p>
-                    <p className="text-[10px] text-muted-foreground">Last 30 Days</p>
-                  </div>
-                  <div className="p-3.5 rounded-xl bg-muted/40 border border-border/50 text-center space-y-1">
-                    <p className="text-xs text-muted-foreground">Encryption</p>
-                    <p className="text-xl font-bold text-primary">AES-256</p>
-                    <p className="text-[10px] text-primary font-medium">FIDO2 WebAuthn</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        </>
-      )}
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Mobile-Only Camera Scanner Modal */}
       <MobileQRScannerModal
