@@ -28,11 +28,29 @@ async function apiCall(url: string, options?: RequestInit): Promise<ApiResult> {
       headers: { 'Content-Type': 'application/json' },
       ...options,
     });
-    const data = await res.json();
-    return data as ApiResult;
+
+    let data: Record<string, unknown> = {};
+    try {
+      data = await res.json();
+    } catch {
+      const text = await res.text().catch(() => '');
+      return {
+        success: false,
+        error: text ? text.slice(0, 100) : `Server error (${res.status}). Please try again.`,
+      };
+    }
+
+    if (!res.ok && !data.error) {
+      data.error = (data.message as string) || `Request failed with status ${res.status}`;
+    }
+
+    return data as unknown as ApiResult;
   } catch (error) {
     console.error(`API call failed: ${url}`, error);
-    return { success: false, error: 'Network error. Please try again.' };
+    return {
+      success: false,
+      error: error instanceof Error && error.message ? error.message : 'Network error. Please check your connection.',
+    };
   }
 }
 

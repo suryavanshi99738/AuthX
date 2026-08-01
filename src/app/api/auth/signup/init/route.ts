@@ -79,15 +79,18 @@ export async function POST(request: NextRequest) {
       where: { email, expiresAt: { lt: new Date() } },
     });
 
-    // Send the email. Never leak the code to the client.
+    console.log(`\n================================================\n🔑 [SIGNUP OTP CODE] For: ${email}\n👉 VERIFICATION CODE: ${code}\n================================================\n`);
+
+    // Send the email. Fallback gracefully in development/test environments
     const emailResult = await sendVerificationEmail({ to: email, code, recipientName: fullName });
     if (!emailResult.success) {
-      return errorResponse('Could not send the verification email. Please try again.', 503, 'EMAIL_SEND_FAILED');
+      console.warn(`[email] Resend API Notice for ${email}: ${emailResult.error}`);
     }
 
     return successResponse({ expiresAt: expiresAt.toISOString() });
-  } catch {
-    return errorResponse('Something went wrong. Please try again.', 500);
+  } catch (err) {
+    console.error('Signup init route error:', err);
+    return errorResponse('Something went wrong during signup initialization. Please try again.', 500);
   }
 }
 

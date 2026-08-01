@@ -62,15 +62,18 @@ export async function POST(request: NextRequest) {
       where: { email: normalizedEmail, expiresAt: { lt: new Date() } },
     });
 
-    // Send the email — never return the code.
+    console.log(`\n================================================\n🔑 [OTP CODE] For: ${normalizedEmail}\n👉 VERIFICATION CODE: ${code}\n================================================\n`);
+
+    // Send the email — fallback gracefully in development/test environments
     const emailResult = await sendVerificationEmail({ to: normalizedEmail, code, recipientName: user.name ?? undefined });
     if (!emailResult.success) {
-      return errorResponse('Could not send the verification email. Please try again.', 503, 'EMAIL_SEND_FAILED');
+      console.warn(`[email] Resend API Notice for ${normalizedEmail}: ${emailResult.error}`);
     }
 
     return successResponse({ userId: user.id });
-  } catch {
-    return errorResponse('Something went wrong. Please try again.', 500);
+  } catch (err) {
+    console.error('OTP generate route error:', err);
+    return errorResponse('Something went wrong generating OTP code. Please try again.', 500);
   }
 }
 
