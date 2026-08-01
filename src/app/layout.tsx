@@ -67,7 +67,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} ${sora.variable} ${plusJakarta.variable} antialiased bg-background text-foreground min-h-screen flex flex-col`}>
+      <body
+        suppressHydrationWarning
+        className={`${inter.variable} ${sora.variable} ${plusJakarta.variable} antialiased bg-background text-foreground min-h-screen flex flex-col`}
+      >
         {children}
         <Toaster />
       </body>

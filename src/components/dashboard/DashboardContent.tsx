@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   Shield,
@@ -61,7 +61,14 @@ export function DashboardContent({ dashboardData }: DashboardContentProps) {
   const recentLogins = (dashboardData?.recentLogins as Array<{ id: string; device: string; method: string; timestamp: string; status: string }>) || [];
   const trustedDevices = (dashboardData?.trustedDevices as Array<{ id: string; name: string; type: string; lastUsed: string; passkeyRegistered: boolean }>) || [];
 
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const getGreeting = () => {
+    if (!mounted) return 'Welcome';
     const hour = new Date().getHours();
     if (hour < 12) return 'Good morning';
     if (hour < 18) return 'Good afternoon';
@@ -69,6 +76,7 @@ export function DashboardContent({ dashboardData }: DashboardContentProps) {
   };
 
   const formatDate = () => {
+    if (!mounted) return '';
     return new Date().toLocaleDateString('en-US', {
       weekday: 'long',
       year: 'numeric',
