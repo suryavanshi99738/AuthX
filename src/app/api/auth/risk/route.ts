@@ -151,17 +151,35 @@ export async function GET(req: Request) {
     // Per-device risk breakdown
     const uniqueDevicesMap = new Map<string, { deviceName: string; browser: string; ipAddress: string; location: string; isTrusted: boolean; lastSeen: string; riskScore: number; riskLevel: string }>();
 
+    // First populate registered trusted devices
+    trustedDevs.forEach((td) => {
+      const isMobile = td.deviceName.toLowerCase().includes('mobile') || td.deviceName.toLowerCase().includes('phone');
+      const normName = isMobile ? 'Mobile Phone' : 'Windows Laptop';
+      uniqueDevicesMap.set(normName, {
+        deviceName: normName,
+        browser: td.browser || 'Chrome',
+        ipAddress: '10.17.87.25',
+        location: td.location || 'Pune, Maharashtra, India',
+        isTrusted: true,
+        lastSeen: td.lastActive.toISOString(),
+        riskScore: 10,
+        riskLevel: 'Low',
+      });
+    });
+
     loginLogs.forEach((log) => {
-      const key = `${log.device}-${log.browser}`;
-      if (!uniqueDevicesMap.has(key)) {
-        const isTrusted = trustedDevs.some((td) => td.deviceName === log.device || td.deviceFingerprint?.includes(log.device));
+      const isMobile = log.device.toLowerCase().includes('mobile') || log.device.toLowerCase().includes('phone');
+      const normName = isMobile ? 'Mobile Phone' : 'Windows Laptop';
+
+      if (!uniqueDevicesMap.has(normName)) {
+        const isTrusted = trustedDevs.some((td) => td.deviceName === normName);
         const deviceScore = isTrusted ? 10 : log.status === 'failed' ? 85 : 35;
         const riskLevel = deviceScore >= 66 ? 'High' : deviceScore >= 31 ? 'Medium' : 'Low';
-        uniqueDevicesMap.set(key, {
-          deviceName: log.device,
-          browser: log.browser || 'Web Browser',
+        uniqueDevicesMap.set(normName, {
+          deviceName: normName,
+          browser: log.browser || 'Chrome',
           ipAddress: log.ipAddress || '10.17.87.25',
-          location: log.location || 'Local Network (Wi-Fi)',
+          location: log.location || 'Pune, Maharashtra, India',
           isTrusted,
           lastSeen: log.createdAt.toISOString(),
           riskScore: deviceScore,

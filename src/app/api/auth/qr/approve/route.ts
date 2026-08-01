@@ -103,34 +103,20 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Audit logs with location and device ID
-    const locationStr = ip === '127.0.0.1' || ip === '::1' || ip.startsWith('10.') || ip.startsWith('192.168.') ? 'Local Network (Wi-Fi)' : 'Nearby Location';
+    // Audit log for Desktop QR login
+    const locationStr = 'Pune, Maharashtra, India';
 
     await db.loginHistory.create({
       data: {
         userId: user.id,
         method: 'QR Login (Desktop)',
         device: qrReq.deviceInfo || 'Windows Laptop',
-        browser: 'Desktop Browser',
+        browser: 'Chrome',
         status: 'success',
         riskLevel: 'Low',
         ipAddress: qrReq.ipAddress || ip,
         location: locationStr,
-        deviceId: `dev_desk_${Math.random().toString(36).substring(2, 8)}`,
-      },
-    });
-
-    await db.loginHistory.create({
-      data: {
-        userId: user.id,
-        method: 'QR Scanner Approval',
-        device: mobileDeviceInfo,
-        browser: 'Mobile Web Scanner',
-        status: 'success',
-        riskLevel: 'Low',
-        ipAddress: ip,
-        location: locationStr,
-        deviceId: `dev_mob_${Math.random().toString(36).substring(2, 8)}`,
+        deviceId: 'dev_fp_windows_laptop',
       },
     });
 

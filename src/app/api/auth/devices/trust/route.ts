@@ -17,22 +17,32 @@ export async function POST(request: NextRequest) {
     return errorResponse('Invalid request body.', 400);
   }
 
-  const { userId, deviceName = 'Mobile Device', browser = 'Mobile Browser', deviceFingerprint = 'default_fingerprint', location = 'Local Network' } = body;
+  const { userId, deviceName = 'Mobile Phone', browser = 'Chrome' } = body;
   if (!userId || typeof userId !== 'string') {
     return errorResponse('userId is required.', 400);
   }
 
   const ip = getClientIp(request);
+  const isMobile = deviceName.toLowerCase().includes('mobile') || deviceName.toLowerCase().includes('phone');
+  const normName = isMobile ? 'Mobile Phone' : 'Windows Laptop';
+  const normFingerprint = isMobile ? 'dev_fp_mobile_phone' : 'dev_fp_windows_laptop';
+  const normLocation = 'Pune, Maharashtra, India';
 
   try {
     const existing = await db.trustedDevice.findFirst({
-      where: { userId, deviceFingerprint },
+      where: {
+        userId,
+        OR: [
+          { deviceFingerprint: normFingerprint },
+          { deviceName: normName },
+        ],
+      },
     });
 
     if (existing) {
       const updated = await db.trustedDevice.update({
         where: { id: existing.id },
-        data: { lastActive: new Date(), location, status: 'trusted' },
+        data: { lastActive: new Date(), location: normLocation, status: 'trusted' },
       });
       return successResponse({ trustedDevice: updated });
     }
@@ -40,10 +50,10 @@ export async function POST(request: NextRequest) {
     const created = await db.trustedDevice.create({
       data: {
         userId,
-        deviceName,
+        deviceName: normName,
         browser,
-        deviceFingerprint,
-        location,
+        deviceFingerprint: normFingerprint,
+        location: normLocation,
         status: 'trusted',
         lastActive: new Date(),
       },

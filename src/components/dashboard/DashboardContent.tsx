@@ -520,7 +520,15 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
                   <div className="space-y-1 min-w-0">
                     <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Auth Method Today</span>
                     <p className="text-lg font-bold text-foreground truncate">
-                      {history[0]?.method || (hasPasskey ? 'Passkey WebAuthn' : 'Email OTP')}
+                      {(() => {
+                        const isMobileClient = typeof window !== 'undefined' && /mobile|iphone|ipad|android/i.test(navigator.userAgent);
+                        if (isMobileClient) {
+                          const mobileLog = history.find((h) => h.device.toLowerCase().includes('mobile') || h.device.toLowerCase().includes('phone'));
+                          return mobileLog?.method || 'Email OTP';
+                        }
+                        const desktopLog = history.find((h) => h.device.toLowerCase().includes('laptop') || h.device.toLowerCase().includes('windows'));
+                        return desktopLog?.method || 'QR Login (Desktop)';
+                      })()}
                     </p>
                     <Badge variant="outline" className="text-[10px] border-primary/30 text-primary">Hardware Verified</Badge>
                   </div>
