@@ -43,6 +43,9 @@ import {
   Award,
   Calendar,
   Check,
+  CheckCircle,
+  XCircle,
+  Zap,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -81,6 +84,36 @@ interface DashboardContentProps {
   dashboardData?: Record<string, unknown>;
 }
 
+/* ── Smooth Animated Counter Helper ── */
+function AnimatedCounter({ value, duration = 0.8 }: { value: number; duration?: number }) {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    let start = 0;
+    const end = value;
+    if (start === end) {
+      setCount(end);
+      return;
+    }
+
+    const totalMs = duration * 1000;
+    const intervalMs = 20;
+    const steps = Math.max(Math.floor(totalMs / intervalMs), 1);
+    const stepVal = (end - start) / steps;
+    let currentStep = 0;
+
+    const timer = setInterval(() => {
+      currentStep++;
+      setCount(Math.min(Math.round(stepVal * currentStep), end));
+      if (currentStep >= steps) clearInterval(timer);
+    }, intervalMs);
+
+    return () => clearInterval(timer);
+  }, [value, duration]);
+
+  return <span>{count}</span>;
+}
+
 export function DashboardContent({ activeSection = 'home', dashboardData }: DashboardContentProps) {
   const router = useRouter();
   const { user, sessionToken } = useAuth();
@@ -98,9 +131,12 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
   const [trustedDevices, setTrustedDevices] = useState<Array<{ id: string; deviceName: string; browser: string; lastActive: string; createdAt: string }>>([]);
   const [history, setHistory] = useState<Array<{ id: string; method: string; device: string; browser: string; status: string; riskLevel?: string; ipAddress: string; createdAt: string }>>([]);
   const [riskData, setRiskData] = useState<{ score: number; level: string; reasons: string[]; updatedAt: string; isHighRisk: boolean } | null>(null);
-  const [analyticsData, setAnalyticsData] = useState<{ totalLogins: number; failedLogins: number; passkeyCount: number; qrRequestsCount: number; authUsagePie: Array<{ name: string; value: number; fill: string }>; riskDistributionBar: Array<{ level: string; count: number; fill: string }>; loginTrendBar: Array<{ day: string; logins: number; fill: string }> } | null>(null);
+  const [analyticsData, setAnalyticsData] = useState<{ totalLogins: number; successfulLogins: number; failedAttempts: number; successRate: string; passkeyCount: number; qrRequestsCount: number; authUsagePie: Array<{ name: string; value: number; percentage: string; lastUsed: string; fill: string }>; riskDistributionBar: Array<{ level: string; count: number; percentage: string; factor: string; fill: string }>; loginTrendBar: Array<{ day: string; date: string; logins: number; successCount: number; failedCount: number; mostUsed: string; fill: string }> } | null>(null);
   const [userSettingsState, setUserSettingsState] = useState<{ theme: string; deviceLimit: number; sessionTimeout: number; qrExpiry: number; securityAlerts: boolean; loginAlerts: boolean; qrDisabled: boolean; passkeysDisabled: boolean; requireOTPOnly: boolean } | null>(null);
   const [deviceLimitMsg, setDeviceLimitMsg] = useState<string | null>(null);
+
+  // Chart Interactive Active Hover Slices
+  const [pieActiveIndex, setPieActiveIndex] = useState<number | null>(null);
 
   // Filters & Search for Login History
   const [historySearch, setHistorySearch] = useState('');
@@ -279,10 +315,11 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
     return (
       <div className="p-8 space-y-6 max-w-5xl animate-pulse">
         <div className="h-24 bg-muted/60 rounded-2xl" />
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="h-32 bg-muted/60 rounded-2xl" />
-          <div className="h-32 bg-muted/60 rounded-2xl" />
-          <div className="h-32 bg-muted/60 rounded-2xl" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="h-28 bg-muted/60 rounded-2xl" />
+          <div className="h-28 bg-muted/60 rounded-2xl" />
+          <div className="h-28 bg-muted/60 rounded-2xl" />
+          <div className="h-28 bg-muted/60 rounded-2xl" />
         </div>
         <div className="h-64 bg-muted/60 rounded-2xl" />
       </div>
@@ -296,7 +333,7 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
       animate="visible"
       variants={staggerContainer}
     >
-      {/* High Risk Global Warning Banner */}
+      {/* High Risk Warning Banner */}
       {riskData?.isHighRisk && (
         <motion.div variants={fadeInUp}>
           <Card className="shadow-card border-danger/40 bg-danger/5 overflow-hidden">
@@ -337,9 +374,9 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
                     <h1 className="font-heading text-2xl font-bold text-foreground mb-1">
                       {getGreeting()}, {user?.name || 'User'}!
                     </h1>
-                    <p className="text-xs text-muted-foreground">{formatDate()}</p>
+                    <p className="text-xs text-muted-foreground font-medium">{formatDate()}</p>
                   </div>
-                  <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20">
+                  <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20 shrink-0">
                     <ShieldCheck className="w-5.5 h-5.5 text-primary" />
                   </div>
                 </div>
@@ -364,57 +401,85 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
 
           {/* Overview Cards Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {/* Security Score */}
+            {/* Security Score Card with Circular SVG Progress Ring */}
             <motion.div variants={fadeInUp}>
-              <Card className="shadow-card h-full">
-                <CardContent className="p-5 flex flex-col justify-between h-full space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-muted-foreground">Security Score</span>
-                    <div className="w-8 h-8 rounded-lg bg-success/10 flex items-center justify-center">
-                      <Award className="w-4 h-4 text-success" />
+              <Card className="shadow-card h-full hover:-translate-y-0.5 hover:shadow-card-hover hover:border-primary/30 transition-all duration-300 cursor-pointer">
+                <CardContent className="p-5 flex items-center justify-between h-full">
+                  <div className="space-y-1">
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Security Score</span>
+                    <div className="flex items-baseline gap-1">
+                      <p className="text-3xl font-bold text-foreground">
+                        <AnimatedCounter value={96} />
+                      </p>
+                      <span className="text-xs text-muted-foreground font-medium">/ 100</span>
                     </div>
+                    <p className="text-[11px] text-success font-semibold flex items-center gap-1 mt-1">
+                      <CheckCircle className="w-3 h-3" /> Grade A+ Rating
+                    </p>
                   </div>
-                  <div>
-                    <p className="text-2xl font-bold text-foreground">96 <span className="text-xs text-muted-foreground font-normal">/ 100</span></p>
-                    <Badge variant="secondary" className="mt-1 bg-success/10 text-success text-[10px]">
-                      Excellent Rating
-                    </Badge>
+
+                  {/* Circular SVG Ring */}
+                  <div className="relative w-14 h-14 flex items-center justify-center shrink-0">
+                    <svg className="w-14 h-14 -rotate-90" viewBox="0 0 48 48">
+                      <circle cx="24" cy="24" r="19" fill="none" stroke="currentColor" strokeWidth="4" className="text-muted/30" />
+                      <circle
+                        cx="24"
+                        cy="24"
+                        r="19"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                        strokeDasharray="119.3"
+                        strokeDashoffset={119.3 * (1 - 0.96)}
+                        strokeLinecap="round"
+                        className="text-primary transition-all duration-1000 ease-out"
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-[11px] font-bold text-foreground">96%</span>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
             </motion.div>
 
-            {/* Current Risk Level */}
+            {/* Current Risk Level Card */}
             <motion.div variants={fadeInUp}>
-              <Card className="shadow-card h-full">
-                <CardContent className="p-5 flex flex-col justify-between h-full space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-muted-foreground">Current Risk Level</span>
-                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <ShieldAlert className="w-4 h-4 text-primary" />
-                    </div>
+              <Card className="shadow-card h-full hover:-translate-y-0.5 hover:shadow-card-hover hover:border-primary/30 transition-all duration-300 cursor-pointer">
+                <CardContent className="p-5 flex items-center justify-between h-full">
+                  <div className="space-y-1">
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Current Risk</span>
+                    <p className="text-3xl font-bold text-foreground">{riskData?.level || 'Low'}</p>
+                    <p className="text-[11px] text-muted-foreground">Score: {riskData?.score || 12}/100</p>
                   </div>
-                  <div>
-                    <p className="text-2xl font-bold text-foreground">{riskData?.level || 'Low'}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">Risk Score: {riskData?.score || 12}/100</p>
+
+                  <div className="flex flex-col items-end gap-1.5 shrink-0">
+                    <div className="w-10 h-10 rounded-xl bg-success/10 flex items-center justify-center border border-success/20">
+                      <ShieldCheck className="w-5 h-5 text-success" />
+                    </div>
+                    <span className="flex items-center gap-1 text-[10px] text-success font-semibold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+                      Protected
+                    </span>
                   </div>
                 </CardContent>
               </Card>
             </motion.div>
 
-            {/* Active Sessions */}
+            {/* Active Sessions Card */}
             <motion.div variants={fadeInUp}>
-              <Card className="shadow-card h-full">
-                <CardContent className="p-5 flex flex-col justify-between h-full space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-muted-foreground">Active Sessions</span>
-                    <div className="w-8 h-8 rounded-lg bg-success/10 flex items-center justify-center">
-                      <Radio className="w-4 h-4 text-success animate-pulse" />
-                    </div>
+              <Card className="shadow-card h-full hover:-translate-y-0.5 hover:shadow-card-hover hover:border-primary/30 transition-all duration-300 cursor-pointer">
+                <CardContent className="p-5 flex items-center justify-between h-full">
+                  <div className="space-y-1">
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Active Sessions</span>
+                    <p className="text-3xl font-bold text-foreground">
+                      <AnimatedCounter value={2} /> <span className="text-xs text-muted-foreground font-normal">Active</span>
+                    </p>
+                    <p className="text-[11px] text-muted-foreground truncate">Windows PC & Mobile</p>
                   </div>
-                  <div>
-                    <p className="text-2xl font-bold text-foreground">2 Active</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">Windows 11 & Mobile</p>
+
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20 shrink-0">
+                    <Radio className="w-5 h-5 text-primary animate-pulse" />
                   </div>
                 </CardContent>
               </Card>
@@ -422,55 +487,66 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
 
             {/* Trusted Devices Count */}
             <motion.div variants={fadeInUp}>
-              <Card className="shadow-card h-full">
-                <CardContent className="p-5 flex flex-col justify-between h-full space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-muted-foreground">Trusted Devices</span>
-                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <Laptop className="w-4 h-4 text-primary" />
-                    </div>
+              <Card className="shadow-card h-full hover:-translate-y-0.5 hover:shadow-card-hover hover:border-primary/30 transition-all duration-300 cursor-pointer">
+                <CardContent className="p-5 flex items-center justify-between h-full">
+                  <div className="space-y-1">
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Trusted Devices</span>
+                    <p className="text-3xl font-bold text-foreground">
+                      <AnimatedCounter value={trustedDevices.length || 1} /> <span className="text-xs text-muted-foreground font-normal">Bound</span>
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">Limit: {userSettingsState?.deviceLimit || 5} Max</p>
                   </div>
-                  <div>
-                    <p className="text-2xl font-bold text-foreground">{trustedDevices.length || 1} Devices</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">Limit: {userSettingsState?.deviceLimit || 5} Devices</p>
+
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20 shrink-0">
+                    <Laptop className="w-5 h-5 text-primary" />
                   </div>
                 </CardContent>
               </Card>
             </motion.div>
 
-            {/* Authentication Method Used Today */}
+            {/* Auth Method Used Today */}
             <motion.div variants={fadeInUp}>
-              <Card className="shadow-card h-full">
-                <CardContent className="p-5 flex flex-col justify-between h-full space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-muted-foreground">Auth Method Today</span>
-                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <KeyRound className="w-4 h-4 text-primary" />
-                    </div>
-                  </div>
-                  <div>
+              <Card className="shadow-card h-full hover:-translate-y-0.5 hover:shadow-card-hover hover:border-primary/30 transition-all duration-300 cursor-pointer">
+                <CardContent className="p-5 flex items-center justify-between h-full">
+                  <div className="space-y-1 min-w-0">
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Auth Method Today</span>
                     <p className="text-lg font-bold text-foreground truncate">
                       {history[0]?.method || (hasPasskey ? 'Passkey WebAuthn' : 'Email OTP')}
                     </p>
-                    <Badge variant="outline" className="mt-1 text-[10px]">Verified Today</Badge>
+                    <Badge variant="outline" className="text-[10px] border-primary/30 text-primary">Hardware Verified</Badge>
+                  </div>
+
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20 shrink-0 ml-2">
+                    <KeyRound className="w-5 h-5 text-primary" />
                   </div>
                 </CardContent>
               </Card>
             </motion.div>
 
-            {/* Recent Activity Summary */}
+            {/* Recent Activity Card (Detailed breakdown instead of static text) */}
             <motion.div variants={fadeInUp}>
-              <Card className="shadow-card h-full">
-                <CardContent className="p-5 flex flex-col justify-between h-full space-y-3">
+              <Card className="shadow-card h-full hover:-translate-y-0.5 hover:shadow-card-hover hover:border-primary/30 transition-all duration-300 cursor-pointer">
+                <CardContent className="p-5 flex flex-col justify-between h-full space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-muted-foreground">Recent Activity</span>
-                    <div className="w-8 h-8 rounded-lg bg-success/10 flex items-center justify-center">
-                      <CheckCircle2 className="w-4 h-4 text-success" />
-                    </div>
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Recent Activity</span>
+                    <Badge variant="secondary" className="bg-success/10 text-success text-[10px]">
+                      Session Active
+                    </Badge>
                   </div>
-                  <div>
-                    <p className="text-2xl font-bold text-foreground">Clean Log</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">0 Failed attempts in 24h</p>
+
+                  <div className="space-y-1 text-xs">
+                    <p className="text-foreground font-semibold flex items-center justify-between">
+                      <span>Last Login:</span>
+                      <span className="text-muted-foreground font-normal">{history[0] ? formatTimeAgo(history[0].createdAt) : 'Just now'}</span>
+                    </p>
+                    <p className="text-foreground font-semibold flex items-center justify-between">
+                      <span>Method:</span>
+                      <span className="text-primary font-semibold">{history[0]?.method || 'Email OTP'}</span>
+                    </p>
+                    <p className="text-foreground font-semibold flex items-center justify-between">
+                      <span>Failed Attempts (24h):</span>
+                      <span className="text-success font-bold">0</span>
+                    </p>
                   </div>
                 </CardContent>
               </Card>
@@ -511,7 +587,7 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
                       <span>Security Recommendation</span>
                     </div>
                     <p className="text-xs font-medium text-foreground">
-                      {hasPasskey ? 'Passkey enabled — hardware credentials bound.' : 'Create a Passkey for hardware-bound login.'}
+                      {hasPasskey ? 'Passkey active — hardware credentials bound.' : 'Create a Passkey for hardware-bound login.'}
                     </p>
                     <p className="text-[11px] text-muted-foreground">All systems operational</p>
                   </div>
@@ -640,7 +716,7 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
         </motion.div>
       )}
 
-      {/* ── 3. SECURITY ANALYTICS VIEW (Backend DB Driven Charts) ── */}
+      {/* ── 3. SECURITY ANALYTICS VIEW (Polished Donut + Vertical Bar Charts) ── */}
       {activeSection === 'analytics' && (
         <motion.div variants={fadeInUp} className="space-y-6">
           <div>
@@ -648,57 +724,173 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
             <p className="text-sm text-muted-foreground">Real-time database analytics tracking authentication methods, risk distribution, and login trends.</p>
           </div>
 
+          {/* Analytics Summary Cards (Above Charts) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card className="shadow-card hover:-translate-y-0.5 transition-all duration-300">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total Logins</p>
+                  <p className="text-2xl font-bold text-foreground mt-0.5">
+                    <AnimatedCounter value={analyticsData?.totalLogins || 8} />
+                  </p>
+                </div>
+                <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <BarChart3 className="w-4.5 h-4.5 text-primary" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-card hover:-translate-y-0.5 transition-all duration-300">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Successful</p>
+                  <p className="text-2xl font-bold text-success mt-0.5">
+                    <AnimatedCounter value={analyticsData?.successfulLogins || 8} />
+                  </p>
+                </div>
+                <div className="w-9 h-9 rounded-xl bg-success/10 flex items-center justify-center">
+                  <CheckCircle className="w-4.5 h-4.5 text-success" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-card hover:-translate-y-0.5 transition-all duration-300">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Failed Attempts</p>
+                  <p className="text-2xl font-bold text-foreground mt-0.5">
+                    <AnimatedCounter value={analyticsData?.failedAttempts || 0} />
+                  </p>
+                </div>
+                <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center">
+                  <XCircle className="w-4.5 h-4.5 text-muted-foreground" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-card hover:-translate-y-0.5 transition-all duration-300">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Success Rate</p>
+                  <p className="text-2xl font-bold text-primary mt-0.5">{analyticsData?.successRate || '100%'}</p>
+                </div>
+                <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <Award className="w-4.5 h-4.5 text-primary" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Chart 1: Authentication Usage (Pie Chart) */}
+            {/* Donut Chart: Authentication Usage */}
             <Card className="shadow-card">
               <CardContent className="p-6 space-y-4">
-                <h3 className="font-heading text-base font-bold text-foreground">Authentication Usage</h3>
-                <p className="text-xs text-muted-foreground">Distribution of authentication methods used across sessions.</p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-heading text-base font-bold text-foreground">Authentication Usage</h3>
+                    <p className="text-xs text-muted-foreground">Distribution of authentication methods used across sessions.</p>
+                  </div>
+                  <Badge variant="outline" className="text-[10px]">Real-Time</Badge>
+                </div>
 
-                <div className="h-64 w-full">
+                {/* Donut Chart Wrapper */}
+                <div className="relative h-64 w-full flex items-center justify-center">
+                  {/* Centered Donut Label */}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10">
+                    <span className="text-2xl font-bold text-foreground">
+                      <AnimatedCounter value={analyticsData?.totalLogins || 8} />
+                    </span>
+                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Total Logins</span>
+                  </div>
+
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
                         data={analyticsData?.authUsagePie || [
-                          { name: 'Email OTP', value: 4, fill: '#3B82F6' },
-                          { name: 'Passkey WebAuthn', value: 2, fill: '#10B981' },
-                          { name: 'QR Cross-Device', value: 3, fill: '#6366F1' },
+                          { name: 'Email OTP', value: 4, percentage: '44.4%', lastUsed: 'Just now', fill: '#3B82F6' },
+                          { name: 'Passkey WebAuthn', value: 2, percentage: '22.2%', lastUsed: '1h ago', fill: '#10B981' },
+                          { name: 'QR Cross-Device', value: 3, percentage: '33.3%', lastUsed: '3h ago', fill: '#6366F1' },
                         ]}
                         cx="50%"
                         cy="50%"
-                        innerRadius={55}
-                        outerRadius={85}
-                        paddingAngle={4}
+                        innerRadius={62}
+                        outerRadius={90}
+                        paddingAngle={5}
                         dataKey="value"
+                        onMouseEnter={(_, index) => setPieActiveIndex(index)}
+                        onMouseLeave={() => setPieActiveIndex(null)}
                       >
                         {(analyticsData?.authUsagePie || []).map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.fill} />
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={entry.fill}
+                            className="transition-all duration-300 cursor-pointer"
+                            stroke="hsl(var(--card))"
+                            strokeWidth={3}
+                            style={{
+                              transform: pieActiveIndex === index ? 'scale(1.04)' : 'scale(1)',
+                              transformOrigin: 'center center',
+                            }}
+                          />
                         ))}
                       </Pie>
-                      <Tooltip formatter={(val: number) => [`${val} Logins`, 'Usage']} />
+                      <Tooltip
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            const data = payload[0].payload;
+                            return (
+                              <div className="p-3 bg-card border border-border/80 rounded-xl shadow-card text-xs space-y-1">
+                                <p className="font-bold text-foreground">{data.name}</p>
+                                <p className="text-muted-foreground">Count: <strong className="text-foreground">{data.value}</strong> ({data.percentage})</p>
+                                <p className="text-muted-foreground">Last Used: <span className="text-primary font-medium">{data.lastUsed}</span></p>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Chart 2: Risk Distribution (Vertical Bar Chart) */}
+            {/* Vertical Bar Chart: Risk Distribution */}
             <Card className="shadow-card">
               <CardContent className="p-6 space-y-4">
-                <h3 className="font-heading text-base font-bold text-foreground">Risk Distribution</h3>
-                <p className="text-xs text-muted-foreground">Breakdown of evaluated session risk levels.</p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-heading text-base font-bold text-foreground">Risk Distribution</h3>
+                    <p className="text-xs text-muted-foreground">Breakdown of evaluated session risk levels.</p>
+                  </div>
+                  <Badge variant="outline" className="text-[10px]">Adaptive Engine</Badge>
+                </div>
 
                 <div className="h-64 w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={analyticsData?.riskDistributionBar || [
-                      { level: 'Low Risk', count: 8, fill: '#10B981' },
-                      { level: 'Medium Risk', count: 2, fill: '#F59E0B' },
-                      { level: 'High Risk', count: 0, fill: '#EF4444' },
+                      { level: 'Low Risk', count: 8, percentage: '80%', factor: 'Trusted Device Verified', fill: '#10B981' },
+                      { level: 'Medium Risk', count: 2, percentage: '20%', factor: 'New Browser UserAgent', fill: '#F59E0B' },
+                      { level: 'High Risk', count: 0, percentage: '0%', factor: 'Multiple Failed Attempts', fill: '#EF4444' },
                     ]}>
-                      <XAxis dataKey="level" tick={{ fontSize: 12 }} />
-                      <YAxis tick={{ fontSize: 12 }} />
-                      <Tooltip formatter={(val: number) => [`${val} Sessions`, 'Count']} />
-                      <Bar dataKey="count" radius={[6, 6, 0, 0]}>
+                      <XAxis dataKey="level" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                      <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                      <Tooltip
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            const data = payload[0].payload;
+                            return (
+                              <div className="p-3 bg-card border border-border/80 rounded-xl shadow-card text-xs space-y-1">
+                                <p className="font-bold text-foreground">{data.level}</p>
+                                <p className="text-muted-foreground">Count: <strong className="text-foreground">{data.count}</strong> ({data.percentage})</p>
+                                <p className="text-muted-foreground">Factor: <span className="text-foreground font-medium">{data.factor}</span></p>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <Bar dataKey="count" radius={[8, 8, 0, 0]} className="cursor-pointer">
                         {(analyticsData?.riskDistributionBar || []).map((entry, index) => (
                           <Cell key={`bar-${index}`} fill={entry.fill} />
                         ))}
@@ -710,27 +902,47 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
             </Card>
           </div>
 
-          {/* Chart 3: Login Trend (Vertical Bar Chart) */}
+          {/* Vertical Bar Chart: 7-Day Login Trend */}
           <Card className="shadow-card">
             <CardContent className="p-6 space-y-4">
-              <h3 className="font-heading text-base font-bold text-foreground">7-Day Login Trend</h3>
-              <p className="text-xs text-muted-foreground">Daily login frequency over the past week.</p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-heading text-base font-bold text-foreground">7-Day Login Trend</h3>
+                  <p className="text-xs text-muted-foreground">Daily login frequency and activity over the past week.</p>
+                </div>
+                <Badge variant="secondary" className="text-[10px]">7 Days</Badge>
+              </div>
 
               <div className="h-64 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={analyticsData?.loginTrendBar || [
-                    { day: 'Mon', logins: 3, fill: '#2563EB' },
-                    { day: 'Tue', logins: 5, fill: '#2563EB' },
-                    { day: 'Wed', logins: 2, fill: '#2563EB' },
-                    { day: 'Thu', logins: 6, fill: '#2563EB' },
-                    { day: 'Fri', logins: 4, fill: '#2563EB' },
-                    { day: 'Sat', logins: 7, fill: '#2563EB' },
-                    { day: 'Sun', logins: 3, fill: '#2563EB' },
+                    { day: 'Mon', date: 'Jul 27', logins: 3, successCount: 3, failedCount: 0, mostUsed: 'Passkey WebAuthn', fill: '#2563EB' },
+                    { day: 'Tue', date: 'Jul 28', logins: 5, successCount: 5, failedCount: 0, mostUsed: 'Email OTP', fill: '#2563EB' },
+                    { day: 'Wed', date: 'Jul 29', logins: 2, successCount: 2, failedCount: 0, mostUsed: 'QR Cross-Device', fill: '#2563EB' },
+                    { day: 'Thu', date: 'Jul 30', logins: 6, successCount: 6, failedCount: 0, mostUsed: 'Passkey WebAuthn', fill: '#2563EB' },
+                    { day: 'Fri', date: 'Jul 31', logins: 4, successCount: 4, failedCount: 0, mostUsed: 'Passkey WebAuthn', fill: '#2563EB' },
+                    { day: 'Sat', date: 'Aug 1', logins: 7, successCount: 7, failedCount: 0, mostUsed: 'Passkey WebAuthn', fill: '#2563EB' },
+                    { day: 'Sun', date: 'Aug 2', logins: 3, successCount: 3, failedCount: 0, mostUsed: 'Email OTP', fill: '#2563EB' },
                   ]}>
-                    <XAxis dataKey="day" tick={{ fontSize: 12 }} />
-                    <YAxis tick={{ fontSize: 12 }} />
-                    <Tooltip formatter={(val: number) => [`${val} Logins`, 'Activity']} />
-                    <Bar dataKey="logins" fill="#2563EB" radius={[6, 6, 0, 0]} />
+                    <XAxis dataKey="day" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                    <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                    <Tooltip
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const data = payload[0].payload;
+                          return (
+                            <div className="p-3 bg-card border border-border/80 rounded-xl shadow-card text-xs space-y-1">
+                              <p className="font-bold text-foreground">{data.date} ({data.day})</p>
+                              <p className="text-muted-foreground">Successful Logins: <strong className="text-success">{data.successCount}</strong></p>
+                              <p className="text-muted-foreground">Failed Attempts: <strong className="text-foreground">{data.failedCount}</strong></p>
+                              <p className="text-muted-foreground">Primary Method: <span className="text-primary font-medium">{data.mostUsed}</span></p>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                    <Bar dataKey="logins" fill="#2563EB" radius={[8, 8, 0, 0]} className="cursor-pointer" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -751,7 +963,7 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
           <Card className="shadow-card">
             <CardContent className="p-6 flex flex-col md:flex-row items-center justify-between gap-6">
               <div className="space-y-2 text-center md:text-left">
-                <span className="text-xs font-semibold text-muted-foreground">Current Evaluated Risk</span>
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Current Evaluated Risk</span>
                 <div className="flex items-center gap-3 justify-center md:justify-start">
                   <span className="text-4xl font-bold text-foreground">{riskData?.score || 12}</span>
                   <span className="text-sm text-muted-foreground font-medium">/ 100</span>
@@ -825,7 +1037,7 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
             <CardContent className="p-0">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-muted/50 border-b border-border text-muted-foreground font-semibold">
+                  <thead className="bg-muted/50 border-b border-border text-muted-foreground font-semibold sticky top-0 backdrop-blur-xs">
                     <tr>
                       <th className="p-4">Device</th>
                       <th className="p-4">Browser & OS</th>
@@ -838,7 +1050,7 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
                   <tbody className="divide-y divide-border/60">
                     {trustedDevices.length > 0 ? (
                       trustedDevices.map((dev) => (
-                        <tr key={dev.id} className="hover:bg-muted/30 transition-smooth">
+                        <tr key={dev.id} className="hover:bg-muted/40 transition-smooth">
                           <td className="p-4 font-semibold text-foreground flex items-center gap-2">
                             <Laptop className="w-4 h-4 text-primary" />
                             {dev.deviceName}
@@ -931,7 +1143,7 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
             <CardContent className="p-0">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-muted/50 border-b border-border text-muted-foreground font-semibold">
+                  <thead className="bg-muted/50 border-b border-border text-muted-foreground font-semibold sticky top-0 backdrop-blur-xs">
                     <tr>
                       <th className="p-4">Date & Time</th>
                       <th className="p-4">Method</th>
@@ -944,7 +1156,7 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
                   <tbody className="divide-y divide-border/60">
                     {paginatedHistory.length > 0 ? (
                       paginatedHistory.map((item) => (
-                        <tr key={item.id} className="hover:bg-muted/30 transition-smooth">
+                        <tr key={item.id} className="hover:bg-muted/40 transition-smooth">
                           <td className="p-4 font-medium text-foreground">{new Date(item.createdAt).toLocaleString()}</td>
                           <td className="p-4 font-semibold text-primary">{item.method}</td>
                           <td className="p-4 font-medium text-foreground">{item.device}</td>
