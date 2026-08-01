@@ -83,3 +83,22 @@ model SignupVerification {
   @@index([email])
   @@index([expiresAt])
 }
+
+/// Pending passkey sign-up: stores the sign-up intent (name/email/phone) and a
+/// prospective userId together with the WebAuthn challenge until the user
+/// completes the passkey ceremony. The account is only created after a
+/// successful verification — abandoned ceremonies never create a user.
+model PasskeySignup {
+  id              String   @id @default(cuid())
+  email           String
+  fullName        String
+  phone           String
+  prospectiveUserId String
+  challenge       String
+  expiresAt       DateTime
+  createdAt       DateTime @default(now())
+
+  @@index([email])
+  @@index([prospectiveUserId])
+  @@index([expiresAt])
+}

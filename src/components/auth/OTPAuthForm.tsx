@@ -29,13 +29,20 @@ type Step = 'email' | 'otp-input';
 const RESEND_COOLDOWN_SECONDS = 30;
 
 export function OTPAuthForm() {
-  const { setUser, setSession, setPageView, setAuthMethod, isDemo, authTab, signupDraft } = useAuth();
+  const { setUser, setSession, setPageView, setAuthMethod, isDemo, authTab, signupDraft, loginEmailDraft, setLoginEmailDraft } = useAuth();
 
   // Sign-up mode is active when the user arrived from the Sign Up tab with a
   // completed draft (name/email/phone).
-  const isSignup = authTab === 'signup' && Boolean(signupDraft);
+  //
+  // When `loginEmailDraft` is set, the user came from the "account already
+  // exists" panel — we run the LOGIN flow (createUserOrGet → generateOTP →
+  // verifyOTP → session) with a pre-filled, read-only email.
+  const hasPrefilledEmail = Boolean(loginEmailDraft);
+  const isSignup = authTab === 'signup' && Boolean(signupDraft) && !hasPrefilledEmail;
 
-  const [email, setEmail] = useState(isSignup ? signupDraft?.email ?? '' : '');
+  const [email, setEmail] = useState(
+    isSignup ? signupDraft?.email ?? '' : (loginEmailDraft ?? '')
+  );
   const [otpCode, setOtpCode] = useState('');
   const [step, setStep] = useState<Step>('email');
   const [overlayVisible, setOverlayVisible] = useState(false);
@@ -234,6 +241,7 @@ export function OTPAuthForm() {
               setStep('email');
               setOtpCode('');
             } else {
+              setLoginEmailDraft(null);
               setAuthMethod('default');
             }
           }}
@@ -263,8 +271,8 @@ export function OTPAuthForm() {
                 placeholder="you@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                disabled={isSignup}
-                readOnly={isSignup}
+                disabled={isSignup || hasPrefilledEmail}
+                readOnly={isSignup || hasPrefilledEmail}
                 className="h-12 rounded-xl"
                 onKeyDown={(e) => e.key === 'Enter' && handleSendOtp()}
               />

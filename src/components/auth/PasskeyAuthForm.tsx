@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { KeyRound, ArrowLeft, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,22 +11,72 @@ import {
   createUserOrGet,
   performPasskeyRegistration,
   performPasskeyAuthentication,
+  performPasskeySignup,
   createSession,
 } from '@/services/auth-client';
 import { AuthLoadingOverlay } from './AuthLoadingOverlay';
 
-type Step = 'email' | 'register' | 'done';
-
 export function PasskeyAuthForm() {
-  const { setUser, setSession, setPageView, setAuthMethod, setLoading, isDemo } = useAuth();
-  const [email, setEmail] = useState('');
-  const [step, setStep] = useState<Step>('email');
+  const { setUser, setSession, setPageView, setAuthMethod, setLoading, isDemo, authTab, signupDraft, loginEmailDraft, setLoginEmailDraft } = useAuth();
+
+  // Sign-up mode is active when the user arrived from the Sign Up tab with a
+  // completed draft (name/email/phone).
+  //
+  // When `loginEmailDraft` is set, the user came from the "account already
+  // exists" panel — we run the LOGIN flow with a pre-filled, read-only email
+  // (they may sign in with an existing passkey, or register a new one if they
+  // don't have one yet — handled by the login branch's auth-then-register
+  // fallback).
+  const hasPrefilledEmail = Boolean(loginEmailDraft);
+  const isSignup = authTab === 'signup' && Boolean(signupDraft) && !hasPrefilledEmail;
+
+  const [email, setEmail] = useState(
+    isSignup ? signupDraft?.email ?? '' : (loginEmailDraft ?? '')
+  );
   const [overlayVisible, setOverlayVisible] = useState(false);
   const [overlayStatus, setOverlayStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [overlayMessage, setOverlayMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
   const handleContinue = async () => {
+    // Sign-up flow: create the passkey + account in one ceremony.
+    if (isSignup && signupDraft) {
+      setOverlayVisible(true);
+      setOverlayStatus('loading');
+      setOverlayMessage('Creating your passkey...');
+      setErrorMessage('');
+
+      try {
+        const result = await performPasskeySignup(
+          signupDraft.fullName,
+          signupDraft.email,
+          signupDraft.phone
+        );
+        if (!result.success || !result.user || !result.session) {
+          setOverlayStatus('error');
+          setErrorMessage(result.error || 'Passkey sign-up failed');
+          return;
+        }
+        setUser({
+          id: result.user.id,
+          email: result.user.email,
+          name: result.user.name,
+        });
+        setSession(result.session.token);
+        setOverlayStatus('success');
+        setOverlayMessage('Account created successfully!');
+        setTimeout(() => {
+          setOverlayVisible(false);
+          setPageView(isDemo ? 'demoDashboard' : 'dashboard');
+        }, 1000);
+      } catch (error) {
+        setOverlayStatus('error');
+        setErrorMessage(error instanceof Error ? error.message : 'An unexpected error occurred');
+      }
+      return;
+    }
+
+    // Login flow (existing behaviour): try authentication, fall back to registration.
     if (!email.trim()) return;
 
     setOverlayVisible(true);
@@ -51,24 +101,19 @@ export function PasskeyAuthForm() {
       // Try authentication first (user may already have passkeys)
       const authResult = await performPasskeyAuthentication(user.id);
 
-      if (authResult.success) {
-        // Authentication succeeded
+      if (authResult.success && authResult.session) {
+        // Authentication succeeded — session created at verification time.
         setOverlayStatus('success');
         setOverlayMessage('Verified Successfully!');
+        setUser({ id: user.id, email: user.email, name: user.name });
+        setSession(authResult.session.token);
+        setLoading(false);
 
-        // Create session
-        const sessionResult = await createSession(user.id);
-        if (sessionResult.success && sessionResult.session) {
-          setUser({ id: user.id, email: user.email, name: user.name });
-          setSession(sessionResult.session.token);
-          setLoading(false);
-
-          setTimeout(() => {
-            setOverlayVisible(false);
-            setPageView(isDemo ? 'demoDashboard' : 'dashboard');
-          }, 1000);
-          return;
-        }
+        setTimeout(() => {
+          setOverlayVisible(false);
+          setPageView(isDemo ? 'demoDashboard' : 'dashboard');
+        }, 1000);
+        return;
       }
 
       // If auth failed, try registration
@@ -118,7 +163,7 @@ export function PasskeyAuthForm() {
       <div className="space-y-5">
         {/* Back button */}
         <button
-          onClick={() => setAuthMethod('default')}
+          onClick={() => { setLoginEmailDraft(null); setAuthMethod('default'); }}
           className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-smooth mb-2"
         >
           <ArrowLeft className="w-4 h-4" />
@@ -130,7 +175,9 @@ export function PasskeyAuthForm() {
           <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
             <KeyRound className="w-4 h-4 text-primary" />
           </div>
-          <span className="font-semibold text-foreground">Passkey Login</span>
+          <span className="font-semibold text-foreground">
+            {isSignup ? 'Passkey Sign Up' : 'Passkey Login'}
+          </span>
         </div>
 
         {/* Email input */}
@@ -141,6 +188,8 @@ export function PasskeyAuthForm() {
             placeholder="you@example.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            disabled={isSignup || hasPrefilledEmail}
+            readOnly={isSignup || hasPrefilledEmail}
             className="h-12 rounded-xl"
             onKeyDown={(e) => e.key === 'Enter' && handleContinue()}
           />
@@ -165,10 +214,10 @@ export function PasskeyAuthForm() {
 
         <Button
           className="w-full h-12 rounded-xl text-base shadow-card hover:shadow-card-hover transition-smooth"
-          disabled={!email.trim()}
+          disabled={isSignup ? false : !email.trim()}
           onClick={handleContinue}
         >
-          Continue with Passkey
+          {isSignup ? 'Create Passkey' : 'Continue with Passkey'}
           <KeyRound className="w-4 h-4 ml-2" />
         </Button>
 

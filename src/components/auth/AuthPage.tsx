@@ -18,6 +18,7 @@ import {
   ArrowLeft,
   Sparkles,
   Loader2,
+  AlertCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -101,16 +102,19 @@ function AuthInteractiveShield() {
 
 /* ── Auth Page Component ── */
 export function AuthPage() {
-  const { setPageView, authTab, setAuthTab, authMethod, setAuthMethod, setSignupDraft } = useAuth();
+  const { setPageView, authTab, setAuthTab, authMethod, setAuthMethod, setSignupDraft, setLoginEmailDraft } = useAuth();
   const [loginEmail, setLoginEmail] = useState('');
   const [signupName, setSignupName] = useState('');
   const [signupEmail, setSignupEmail] = useState('');
   const [signupPhone, setSignupPhone] = useState('');
   const [underDevOpen, setUnderDevOpen] = useState(false);
   const [underDevFeature, setUnderDevFeature] = useState('');
-  const [signupStep, setSignupStep] = useState<'form' | 'methods'>('form');
+  const [signupStep, setSignupStep] = useState<'form' | 'methods' | 'exists'>('form');
   const [signupError, setSignupError] = useState('');
   const [signupChecking, setSignupChecking] = useState(false);
+  // Email that was found to already exist — carried into the login-style
+  // method forms (Passkey/OTP) so the user can sign in to their account.
+  const [existingEmail, setExistingEmail] = useState('');
 
   const handleMethodClick = (methodId: string) => {
     if (methodId === 'passkey' || methodId === 'otp') {
@@ -124,16 +128,22 @@ export function AuthPage() {
     }
   };
 
-  // In the Sign Up flow, ONLY Email OTP is functional. Every other method
-  // surfaces the Under Development modal.
-  const handleSignupMethodClick = (methodId: string) => {
-    if (methodId === 'otp') {
-      setAuthMethod('otp');
+  // In the Sign Up flow, Email OTP and Passkey are functional. Other methods
+  // surface the Under Development modal.
+  //
+  // When `fromExists` is true (user tried to sign up with an email that
+  // already exists), Passkey/OTP run in LOGIN mode with the existing email
+  // pre-filled (read-only), so the user signs in to their account instead of
+  // creating a new one.
+  const handleSignupMethodClick = (methodId: string, fromExists = false) => {
+    if (methodId === 'otp' || methodId === 'passkey') {
+      if (fromExists) {
+        setLoginEmailDraft(existingEmail);
+      }
+      setAuthMethod(methodId as 'otp' | 'passkey');
     } else {
       setUnderDevFeature(
-        methodId === 'passkey' ? 'Passkey'
-        : methodId === 'biometric' ? 'Biometric'
-        : 'QR Code'
+        methodId === 'biometric' ? 'Biometric' : 'QR Code'
       );
       setUnderDevOpen(true);
     }
@@ -169,7 +179,12 @@ export function AuthPage() {
         return;
       }
       if (result.exists) {
-        setSignupError('An account with this email already exists. Please log in instead.');
+        // Don't just show an inline error — route the user to a dedicated
+        // panel where they can choose how to sign in to their existing
+        // account (Passkey, OTP, …). The email is carried forward so the
+        // method forms prefill it as read-only.
+        setExistingEmail(email);
+        setSignupStep('exists');
         return;
       }
       setSignupDraft({ fullName: name, email, phone });
@@ -451,6 +466,68 @@ export function AuthPage() {
                             ))}
                           </div>
                         </div>
+                      ) : signupStep === 'exists' ? (
+                        <div className="space-y-5">
+                          {/* Back button */}
+                          <button
+                            onClick={() => { setSignupStep('form'); setAuthMethod('default'); setLoginEmailDraft(null); setExistingEmail(''); }}
+                            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-smooth mb-2"
+                          >
+                            <ArrowLeft className="w-4 h-4" />
+                            Back to details
+                          </button>
+
+                          {/* Warning card */}
+                          <div className="flex items-start gap-3 p-4 rounded-xl bg-warning/10 border border-warning/30">
+                            <div className="w-10 h-10 rounded-xl bg-warning/15 flex items-center justify-center shrink-0">
+                              <AlertCircle className="w-5 h-5 text-warning" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-foreground text-sm">Account already exists</p>
+                              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                                An account is already registered with{' '}
+                                <span className="font-medium text-foreground break-all">{existingEmail}</span>.
+                                Choose a method below to sign in to your existing account.
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Method header */}
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                              <Lock className="w-4 h-4 text-primary" />
+                            </div>
+                            <span className="font-semibold text-foreground">Sign in with</span>
+                          </div>
+
+                          {/* Auth Method Icons */}
+                          <div className="grid grid-cols-4 gap-3 pt-1">
+                            {AUTH_METHODS.map((method) => (
+                              <button
+                                key={method.id}
+                                onClick={() => handleSignupMethodClick(method.id, true)}
+                                className="flex flex-col items-center gap-2 p-3 rounded-xl border border-border hover:border-primary/30 hover:bg-primary/5 transition-smooth group"
+                              >
+                                <method.icon className={`w-5 h-5 ${method.color} group-hover:scale-110 transition-smooth`} />
+                                <span className="text-[10px] text-muted-foreground font-medium">{method.label}</span>
+                              </button>
+                            ))}
+                          </div>
+
+                          {/* Hint */}
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground justify-center pt-1">
+                            <Lock className="w-3 h-3" />
+                            <span>Passkey and Email OTP are available. Other methods are coming soon.</span>
+                          </div>
+
+                          {/* Use a different email */}
+                          <button
+                            onClick={() => { setSignupStep('form'); setAuthMethod('default'); setLoginEmailDraft(null); setExistingEmail(''); setSignupEmail(''); setSignupName(''); setSignupPhone(''); }}
+                            className="w-full text-center text-xs text-primary hover:underline pt-1"
+                          >
+                            Use a different email
+                          </button>
+                        </div>
                       ) : (
                         <div className="space-y-5">
                           <button
@@ -489,7 +566,7 @@ export function AuthPage() {
                           {/* Hint */}
                           <div className="flex items-center gap-2 text-xs text-muted-foreground justify-center pt-1">
                             <Lock className="w-3 h-3" />
-                            <span>Email OTP is available. Other methods are coming soon.</span>
+                            <span>Passkey and Email OTP are available. Other methods are coming soon.</span>
                           </div>
                         </div>
                       )}
@@ -497,6 +574,7 @@ export function AuthPage() {
                   ) : (
                     <motion.div key={`${authMethod}-form`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
                       {authMethod === 'otp' && <OTPAuthForm />}
+                      {authMethod === 'passkey' && <PasskeyAuthForm />}
                     </motion.div>
                   )}
                 </AnimatePresence>

@@ -30,6 +30,14 @@ interface AuthState {
   isLoading: boolean;
   loadingMessage: string;
   signupDraft: SignupDraft | null;
+  /**
+   * When the user tries to sign up with an email that already exists, we route
+   * them to a login-style method (Passkey/OTP) with their email pre-filled.
+   * This holds that email so PasskeyAuthForm/OTPAuthForm can prefill it as
+   * read-only and run the LOGIN flow (not signup). Cleared on tab switch /
+   * back-to-default.
+   */
+  loginEmailDraft: string | null;
   // Actions
   setPageView: (view: PageView) => void;
   setAuthTab: (tab: AuthTab) => void;
@@ -39,6 +47,7 @@ interface AuthState {
   setIsDemo: (isDemo: boolean) => void;
   setLoading: (loading: boolean, message?: string) => void;
   setSignupDraft: (draft: SignupDraft | null) => void;
+  setLoginEmailDraft: (email: string | null) => void;
   logout: () => void;
   cleanupDemo: () => Promise<void>;
   hydrateFromStorage: () => void;
@@ -82,9 +91,10 @@ export const useAuth = create<AuthState>((set, get) => ({
   isLoading: false,
   loadingMessage: '',
   signupDraft: null,
+  loginEmailDraft: null,
 
   setPageView: (view) => set({ pageView: view }),
-  setAuthTab: (tab) => set({ authTab: tab, authMethod: 'default', signupDraft: null }),
+  setAuthTab: (tab) => set({ authTab: tab, authMethod: 'default', signupDraft: null, loginEmailDraft: null }),
   setAuthMethod: (method) => set({ authMethod: method }),
   setUser: (user) => {
     set({ user });
@@ -103,6 +113,7 @@ export const useAuth = create<AuthState>((set, get) => ({
   },
   setLoading: (loading, message = '') => set({ isLoading: loading, loadingMessage: message }),
   setSignupDraft: (draft) => set({ signupDraft: draft }),
+  setLoginEmailDraft: (email) => set({ loginEmailDraft: email }),
 
   logout: () => {
     clearStorage();
@@ -116,6 +127,7 @@ export const useAuth = create<AuthState>((set, get) => ({
       isLoading: false,
       loadingMessage: '',
       signupDraft: null,
+      loginEmailDraft: null,
     });
   },
 
@@ -136,6 +148,7 @@ export const useAuth = create<AuthState>((set, get) => ({
       isLoading: false,
       loadingMessage: '',
       signupDraft: null,
+      loginEmailDraft: null,
     });
   },
 

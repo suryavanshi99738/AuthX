@@ -72,7 +72,7 @@ export async function authenticatePasskey(userId: string): Promise<ApiResult & {
 export async function verifyPasskeyAuth(
   userId: string,
   credential: AuthenticationResponseJSON
-): Promise<ApiResult> {
+): Promise<ApiResult & { session?: SessionResult }> {
   return apiCall('/api/auth/passkey/auth-verify', {
     method: 'POST',
     body: JSON.stringify({ userId, credential }),
@@ -177,10 +177,10 @@ export async function performPasskeyRegistration(userId: string, email: string) 
     return { success: false, error: regResult.error || 'Failed to generate registration options' };
   }
 
-  // Step 2: Browser WebAuthn ceremony
+  // Step 2: Browser WebAuthn ceremony (v13 expected call structure)
   let credential: RegistrationResponseJSON;
   try {
-    credential = await startRegistration(regResult.options as PublicKeyCredentialCreationOptionsJSON);
+    credential = await startRegistration({ optionsJSON: regResult.options as PublicKeyCredentialCreationOptionsJSON });
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Passkey registration was cancelled';
     return { success: false, error: msg };
@@ -202,20 +202,80 @@ export async function performPasskeyAuthentication(userId: string) {
     return { success: false, error: authResult.error || 'Failed to generate authentication options' };
   }
 
-  // Step 2: Browser WebAuthn ceremony
+  // Step 2: Browser WebAuthn ceremony (v13 expected call structure)
   let credential: AuthenticationResponseJSON;
   try {
-    credential = await startAuthentication(authResult.options as PublicKeyCredentialRequestOptionsJSON);
+    credential = await startAuthentication({ optionsJSON: authResult.options as PublicKeyCredentialRequestOptionsJSON });
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Passkey authentication was cancelled';
     return { success: false, error: msg };
   }
 
-  // Step 3: Verify authentication
+  // Step 3: Verify authentication — creates a session on success
   const verifyResult = await verifyPasskeyAuth(userId, credential);
-  if (!verifyResult.success) {
+  if (!verifyResult.success || !verifyResult.session) {
     return { success: false, error: verifyResult.error || 'Passkey verification failed' };
   }
 
-  return { success: true };
+  return { success: true, session: verifyResult.session };
+}
+
+/* ── Passkey Sign Up APIs ── */
+
+export async function passkeySignupOptions(
+  fullName: string,
+  email: string,
+  phone: string
+): Promise<ApiResult & { options?: unknown; prospectiveUserId?: string }> {
+  return apiCall('/api/auth/passkey/signup/options', {
+    method: 'POST',
+    body: JSON.stringify({ fullName, email, phone }),
+  });
+}
+
+export async function passkeySignupVerify(
+  prospectiveUserId: string,
+  credential: RegistrationResponseJSON
+): Promise<ApiResult & { user?: UserResult; session?: SessionResult }> {
+  return apiCall('/api/auth/passkey/signup/verify', {
+    method: 'POST',
+    body: JSON.stringify({ prospectiveUserId, credential }),
+  });
+}
+
+/**
+ * Full passkey sign-up flow:
+ *   1. Request registration options (creates a pending sign-up record).
+ *   2. Browser WebAuthn ceremony (create credential on the device).
+ *   3. Verify the credential — on success the account + session are created.
+ *
+ * Returns the new user + session on success.
+ */
+export async function performPasskeySignup(fullName: string, email: string, phone: string) {
+  // Step 1: Get registration options
+  const optResult = await passkeySignupOptions(fullName, email, phone);
+  if (!optResult.success || !optResult.options || !optResult.prospectiveUserId) {
+    return { success: false, error: optResult.error || 'Failed to start passkey sign-up' };
+  }
+
+  // Step 2: Browser WebAuthn ceremony (v13 expected call structure)
+  let credential: RegistrationResponseJSON;
+  try {
+    credential = await startRegistration({ optionsJSON: optResult.options as PublicKeyCredentialCreationOptionsJSON });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Passkey creation was cancelled';
+    return { success: false, error: msg };
+  }
+
+  // Step 3: Verify — creates the account + session atomically
+  const verifyResult = await passkeySignupVerify(optResult.prospectiveUserId, credential);
+  if (!verifyResult.success || !verifyResult.user || !verifyResult.session) {
+    return { success: false, error: verifyResult.error || 'Passkey verification failed' };
+  }
+
+  return {
+    success: true,
+    user: verifyResult.user,
+    session: verifyResult.session,
+  };
 }
