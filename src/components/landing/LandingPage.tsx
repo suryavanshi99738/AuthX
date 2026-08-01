@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Shield,
+  ShieldCheck,
   KeyRound,
   Fingerprint,
   QrCode,
@@ -30,7 +31,7 @@ const AUTH_ICONS = [
 
 const SECURITY_FEATURES = [
   { icon: Lock, label: 'Zero Passwords', desc: 'No passwords means no phishing, no brute-force, no credential leaks.' },
-  { icon: Shield, label: 'Bank-Grade Security', desc: 'FIDO2-compliant, end-to-end encrypted, and regulatory-ready.' },
+  { icon: ShieldCheck, label: 'Enterprise Security', desc: 'FIDO2-compliant, end-to-end encrypted, and regulatory-ready.' },
   { icon: CheckCircle2, label: 'Phishing Proof', desc: 'Passkeys and biometrics can\'t be stolen or reused on fake sites.' },
 ];
 
@@ -53,7 +54,6 @@ function InteractiveShield() {
   }, []);
 
   const handleMouseEnter = useCallback(() => setIsHovered(true), []);
-
   const handleClick = useCallback(() => setClickCount((c) => c + 1), []);
 
   const offsetX = (mousePos.x - 0.5) * 16;
@@ -66,11 +66,13 @@ function InteractiveShield() {
       onMouseLeave={handleMouseLeave}
       onMouseEnter={handleMouseEnter}
       onClick={handleClick}
+      suppressHydrationWarning
       className="relative w-full h-full flex items-center justify-center cursor-pointer select-none"
       style={{ perspective: '800px' }}
     >
       <div
         className="absolute inset-0 pointer-events-none"
+        suppressHydrationWarning
         style={{
           background: `radial-gradient(ellipse 60% 50% at 50% 45%, rgba(37, 99, 235, ${isHovered ? 0.15 : 0.08}) 0%, transparent 70%)`,
           transition: 'background 0.4s ease',
@@ -190,15 +192,15 @@ export function LandingPage() {
   const [demoOpen, setDemoOpen] = useState(false);
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-screen flex flex-col bg-background" suppressHydrationWarning>
       {/* ── Navbar ── */}
-      <nav className="px-6 md:px-12 lg:px-16 py-5">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
+      <nav className="px-6 md:px-12 lg:px-16 py-5" suppressHydrationWarning>
+        <div className="max-w-6xl mx-auto flex items-center justify-between" suppressHydrationWarning>
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Shield className="w-4.5 h-4.5 text-primary" />
+            <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20">
+              <ShieldCheck className="w-4.5 h-4.5 text-primary" />
             </div>
-            <span className="font-heading text-base font-semibold">BankShield</span>
+            <span className="font-heading text-base font-bold tracking-tight text-foreground">AuthX</span>
           </div>
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="sm" className="text-sm text-muted-foreground" onClick={() => setDemoOpen(true)}>
@@ -212,8 +214,8 @@ export function LandingPage() {
       </nav>
 
       {/* ── Hero: 2-Column ── */}
-      <section className="flex-1 flex items-center px-6 md:px-12 lg:px-16 py-8">
-        <div className="max-w-6xl mx-auto w-full grid grid-cols-1 lg:grid-cols-[45fr_55fr] gap-8 lg:gap-12 items-center">
+      <section className="flex-1 flex items-center px-6 md:px-12 lg:px-16 py-8" suppressHydrationWarning>
+        <div className="max-w-6xl mx-auto w-full grid grid-cols-1 lg:grid-cols-[45fr_55fr] gap-8 lg:gap-12 items-center" suppressHydrationWarning>
           {/* LEFT: 3D Shield */}
           <motion.div
             className="hidden lg:flex items-center justify-center min-h-[480px]"
@@ -225,12 +227,12 @@ export function LandingPage() {
           </motion.div>
 
           {/* RIGHT: Content */}
-          <motion.div className="flex flex-col justify-center" initial="hidden" animate="visible" variants={staggerContainer}>
-            <motion.div variants={fadeInUp} className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shadow-card">
-                <Shield className="w-6 h-6 text-primary" />
+          <motion.div className="flex flex-col justify-center" initial="hidden" animate="visible" variants={staggerContainer} suppressHydrationWarning>
+            <motion.div variants={fadeInUp} className="flex items-center gap-3 mb-6" suppressHydrationWarning>
+              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shadow-card border border-primary/20" suppressHydrationWarning>
+                <ShieldCheck className="w-6 h-6 text-primary" />
               </div>
-              <span className="text-sm font-medium text-primary/80 tracking-wide">BANKSHIELD</span>
+              <span className="text-sm font-bold text-primary tracking-wide">AUTHX</span>
             </motion.div>
 
             <SpotlightHeading />
@@ -264,26 +266,27 @@ export function LandingPage() {
             <motion.div variants={fadeInUp} className="flex items-center gap-6 mt-10 text-xs text-muted-foreground">
               <div className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-success" /><span>FIDO2 Compliant</span></div>
               <div className="flex items-center gap-2"><Lock className="w-4 h-4 text-primary" /><span>E2E Encrypted</span></div>
-              <div className="flex items-center gap-2"><Shield className="w-4 h-4 text-primary" /><span>Regulatory Ready</span></div>
+              <div className="flex items-center gap-2"><ShieldCheck className="w-4 h-4 text-primary" /><span>Regulatory Ready</span></div>
             </motion.div>
           </motion.div>
         </div>
       </section>
 
       {/* ── Auth Methods Showcase ── */}
-      <section className="px-6 md:px-12 lg:px-16 pb-20">
+      <section className="px-6 md:px-12 lg:px-16 pb-20" suppressHydrationWarning>
         <motion.div
           className="max-w-5xl mx-auto"
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: '-80px' }}
           variants={staggerContainer}
+          suppressHydrationWarning
         >
           <motion.div variants={fadeInUp} className="text-center mb-10">
             <h2 className="font-heading text-2xl md:text-3xl font-semibold mb-3">Multiple Ways to Authenticate</h2>
             <p className="text-muted-foreground max-w-lg mx-auto">Choose the method that works best for you. All are secure, all are passwordless.</p>
           </motion.div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" suppressHydrationWarning>
             {AUTH_ICONS.map((m) => {
               const descs: Record<string, string> = {
                 passkey: 'Login with device-stored passkeys using WebAuthn / FIDO2.',
@@ -317,19 +320,20 @@ export function LandingPage() {
       </section>
 
       {/* ── Security Benefits ── */}
-      <section className="px-6 md:px-12 lg:px-16 pb-20">
+      <section className="px-6 md:px-12 lg:px-16 pb-20" suppressHydrationWarning>
         <motion.div
           className="max-w-4xl mx-auto"
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: '-80px' }}
           variants={staggerContainer}
+          suppressHydrationWarning
         >
           <motion.div variants={fadeInUp} className="text-center mb-10">
             <h2 className="font-heading text-2xl md:text-3xl font-semibold mb-3">Why Passwordless?</h2>
-            <p className="text-muted-foreground max-w-lg mx-auto">Traditional passwords are vulnerable. BankShield Auth eliminates the risk entirely.</p>
+            <p className="text-muted-foreground max-w-lg mx-auto">Traditional passwords are vulnerable. AuthX eliminates the risk entirely.</p>
           </motion.div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6" suppressHydrationWarning>
             {SECURITY_FEATURES.map((f) => (
               <motion.div key={f.label} variants={scaleIn}>
                 <Card className="shadow-card hover:shadow-card-hover transition-smooth text-center py-8">
@@ -348,13 +352,13 @@ export function LandingPage() {
       </section>
 
       {/* ── Footer ── */}
-      <footer className="mt-auto bg-card border-t border-border py-8 px-6">
-        <div className="max-w-6xl mx-auto text-center">
+      <footer className="mt-auto bg-card border-t border-border py-8 px-6" suppressHydrationWarning>
+        <div className="max-w-6xl mx-auto text-center" suppressHydrationWarning>
           <div className="flex items-center justify-center gap-2 mb-3">
-            <Shield className="w-5 h-5 text-primary" />
-            <span className="text-sm font-semibold font-heading">BankShield Auth</span>
+            <ShieldCheck className="w-5 h-5 text-primary" />
+            <span className="text-sm font-bold font-heading">AuthX</span>
           </div>
-          <p className="text-xs text-muted-foreground">Passwordless Authentication Platform for Banking Systems</p>
+          <p className="text-xs text-muted-foreground">Passwordless Authentication Platform</p>
           <p className="text-xs text-muted-foreground mt-1">FIDO2 Compliant · End-to-End Encrypted · Regulatory Ready</p>
         </div>
       </footer>
