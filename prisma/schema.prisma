@@ -31,12 +31,30 @@ model User {
 }
 
 model Session {
-  id        String   @id @default(cuid())
-  userId    String
-  token     String   @unique
-  isDemo    Boolean  @default(false)
-  expiresAt DateTime
-  createdAt DateTime @default(now())
+  id                String   @id @default(cuid())
+  userId            String
+  token             String   @unique
+  isDemo            Boolean  @default(false)
+  deviceName        String?  @default("Windows 11 Laptop")
+  deviceType        String?  @default("Laptop")
+  browser           String?  @default("Chrome 124")
+  os                String?  @default("Windows 11")
+  deviceFingerprint String?  @default("dev_fp_windows_laptop")
+  loginMethod       String?  @default("Email OTP")
+  status            String   @default("active") // active, idle, expired, revoked
+  isTrusted         Boolean  @default(true)
+  ipAddress         String?  @default("10.17.87.25")
+  location          String?  @default("Pune, Maharashtra, India")
+  screenResolution  String?  @default("1920x1080")
+  timezone          String?  @default("Asia/Kolkata")
+  language          String?  @default("en-US")
+  platform          String?  @default("Win32")
+  userAgent         String?
+  networkType       String?  @default("Wi-Fi / 4G")
+  lastActivity      DateTime @default(now())
+  lastSeen          DateTime @default(now())
+  expiresAt         DateTime
+  createdAt         DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

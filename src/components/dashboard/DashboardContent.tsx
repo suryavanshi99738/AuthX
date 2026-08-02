@@ -48,6 +48,10 @@ import {
   Zap,
   Globe,
   SlidersHorizontal,
+  Info,
+  LogOut,
+  Laptop2,
+  Tv,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -65,6 +69,11 @@ import {
   getUserSettings,
   updateUserSettings,
   executeEmergencyLockdown,
+  getActiveSessions,
+  revokeSession,
+  revokeAllOtherSessions,
+  updateSessionActivity,
+  SessionItem,
 } from '@/services/auth-client';
 import { MobileQRScannerModal } from '@/components/auth/MobileQRScannerModal';
 import { fadeInUp, staggerContainer, scaleIn } from '@/lib/animations';
@@ -138,6 +147,20 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
   const [userSettingsState, setUserSettingsState] = useState<{ theme: string; deviceLimit: number; sessionTimeout: number; qrExpiry: number; securityAlerts: boolean; loginAlerts: boolean; qrDisabled: boolean; passkeysDisabled: boolean; requireOTPOnly: boolean } | null>(null);
   const [deviceLimitMsg, setDeviceLimitMsg] = useState<string | null>(null);
 
+  // Session Management States
+  const [sessionSummary, setSessionSummary] = useState<{ activeSessionsCount: number; totalSessionsCount: number; currentDeviceName: string; lastLoginTime: string } | null>(null);
+  const [sessionsList, setSessionsList] = useState<SessionItem[]>([]);
+  const [sessionSearch, setSessionSearch] = useState('');
+  const [sessionStatusFilter, setSessionStatusFilter] = useState('all');
+  const [sessionTrustFilter, setSessionTrustFilter] = useState('all');
+  const [sessionMethodFilter, setSessionMethodFilter] = useState('all');
+  const [sessionSortBy, setSessionSortBy] = useState<'latest' | 'oldest' | 'active'>('latest');
+
+  // Session Modals
+  const [selectedSessionModal, setSelectedSessionModal] = useState<SessionItem | null>(null);
+  const [logoutOthersModalOpen, setLogoutOthersModalOpen] = useState(false);
+  const [revokingOthers, setRevokingOthers] = useState(false);
+
   // Chart Interactive Active Hover Slices
   const [pieActiveIndex, setPieActiveIndex] = useState<number | null>(null);
 
@@ -160,10 +183,8 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
   const [lockdownSuccessMsg, setLockdownSuccessMsg] = useState('');
 
   // Initial Fetching
-  useEffect(() => {
-    setMounted(true);
+  const fetchAllData = () => {
     if (!user?.id) return;
-
     setLoading(true);
     Promise.all([
       getTrustedDevices(user.id),
@@ -171,7 +192,8 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
       getRiskAssessment(user.id),
       getSecurityAnalytics(user.id),
       getUserSettings(user.id),
-    ]).then(([devRes, histRes, riskRes, analyticsRes, settingsRes]) => {
+      getActiveSessions(user.id, sessionToken || undefined),
+    ]).then(([devRes, histRes, riskRes, analyticsRes, settingsRes, sessionRes]) => {
       if (devRes.success && devRes.devices) setTrustedDevices(devRes.devices);
       if (histRes.success && histRes.history) {
         setHistory(histRes.history);
@@ -188,9 +210,38 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
         setUserSettingsState(settingsRes.settings);
         if (settingsRes.deviceLimitMessage) setDeviceLimitMsg(settingsRes.deviceLimitMessage);
       }
+      if (sessionRes.success) {
+        if (sessionRes.summary) setSessionSummary(sessionRes.summary);
+        if (sessionRes.sessions) setSessionsList(sessionRes.sessions);
+      }
       setLoading(false);
     });
-  }, [user?.id]);
+  };
+
+  useEffect(() => {
+    setMounted(true);
+    fetchAllData();
+  }, [user?.id, sessionToken]);
+
+  // Activity Heartbeat Listener
+  useEffect(() => {
+    if (!sessionToken) return;
+    const handleUserAction = () => {
+      updateSessionActivity(sessionToken, true).catch(() => {});
+    };
+    window.addEventListener('click', handleUserAction, { passive: true });
+    window.addEventListener('keydown', handleUserAction, { passive: true });
+
+    const heartbeat = setInterval(() => {
+      updateSessionActivity(sessionToken, false).catch(() => {});
+    }, 60 * 1000);
+
+    return () => {
+      window.removeEventListener('click', handleUserAction);
+      window.removeEventListener('keydown', handleUserAction);
+      clearInterval(heartbeat);
+    };
+  }, [sessionToken]);
 
   const handleRegisterPasskey = async () => {
     if (!user?.id || !user?.email) return;
@@ -226,6 +277,34 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
       }
     } catch {
       // ignore
+    }
+  };
+
+  const handleRevokeSingleSession = async (sessionId: string) => {
+    if (!user?.id) return;
+    try {
+      const res = await revokeSession(user.id, sessionId, sessionToken || undefined);
+      if (res.success) {
+        fetchAllData();
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleRevokeAllOtherSessions = async () => {
+    if (!user?.id) return;
+    setRevokingOthers(true);
+    try {
+      const res = await revokeAllOtherSessions(user.id, sessionToken || undefined);
+      if (res.success) {
+        setLogoutOthersModalOpen(false);
+        fetchAllData();
+      }
+    } catch {
+      // ignore
+    } finally {
+      setRevokingOthers(false);
     }
   };
 
@@ -285,12 +364,52 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
     const now = new Date();
     const then = new Date(timestamp);
     const diffMs = now.getTime() - then.getTime();
-    const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
-    if (diffHrs < 1) return 'Just now';
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffHrs = Math.floor(diffMins / 60);
     if (diffHrs < 24) return `${diffHrs}h ago`;
     const diffDays = Math.floor(diffHrs / 24);
     return `${diffDays}d ago`;
   };
+
+  // Filtered & Sorted Sessions
+  const filteredSessions = useMemo(() => {
+    const result = sessionsList.filter((s) => {
+      const matchesSearch =
+        s.deviceName.toLowerCase().includes(sessionSearch.toLowerCase()) ||
+        s.browser.toLowerCase().includes(sessionSearch.toLowerCase()) ||
+        s.os.toLowerCase().includes(sessionSearch.toLowerCase()) ||
+        s.loginMethod.toLowerCase().includes(sessionSearch.toLowerCase()) ||
+        s.location.toLowerCase().includes(sessionSearch.toLowerCase()) ||
+        s.ipAddress.toLowerCase().includes(sessionSearch.toLowerCase()) ||
+        s.maskedIp.toLowerCase().includes(sessionSearch.toLowerCase());
+
+      const matchesStatus =
+        sessionStatusFilter === 'all' ||
+        (sessionStatusFilter === 'current' ? s.isCurrent : s.status === sessionStatusFilter);
+
+      const matchesTrust =
+        sessionTrustFilter === 'all' ||
+        (sessionTrustFilter === 'trusted' ? s.isTrusted : !s.isTrusted);
+
+      const matchesMethod =
+        sessionMethodFilter === 'all' ||
+        s.loginMethod.toLowerCase().includes(sessionMethodFilter.toLowerCase());
+
+      return matchesSearch && matchesStatus && matchesTrust && matchesMethod;
+    });
+
+    if (sessionSortBy === 'oldest') {
+      result.sort((a, b) => new Date(a.loginTime).getTime() - new Date(b.loginTime).getTime());
+    } else if (sessionSortBy === 'active') {
+      result.sort((a, b) => new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime());
+    } else {
+      result.sort((a, b) => new Date(b.loginTime).getTime() - new Date(a.loginTime).getTime());
+    }
+
+    return result;
+  }, [sessionsList, sessionSearch, sessionStatusFilter, sessionTrustFilter, sessionMethodFilter, sessionSortBy]);
 
   // Filtered Login History
   const filteredHistory = useMemo(() => {
@@ -482,9 +601,9 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
                   <div className="space-y-1">
                     <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Active Sessions</span>
                     <p className="text-3xl font-bold text-foreground">
-                      <AnimatedCounter value={2} /> <span className="text-xs text-muted-foreground font-normal">Active</span>
+                      <AnimatedCounter value={sessionSummary?.activeSessionsCount || 2} /> <span className="text-xs text-muted-foreground font-normal">Active</span>
                     </p>
-                    <p className="text-[11px] text-muted-foreground truncate">Windows PC & Mobile</p>
+                    <p className="text-[11px] text-muted-foreground truncate">{sessionSummary?.currentDeviceName || 'Windows 11 PC'}</p>
                   </div>
 
                   <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20 shrink-0">
@@ -1001,7 +1120,274 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
         </motion.div>
       )}
 
-      {/* ── 4. RISK CENTER VIEW (With Per-Device Risk Breakdown) ── */}
+      {/* ── 4. SESSION MANAGEMENT VIEW ── */}
+      {activeSection === 'sessions' && (
+        <motion.div variants={fadeInUp} className="space-y-6">
+          <div>
+            <h1 className="font-heading text-2xl font-bold text-foreground">Session Management</h1>
+            <p className="text-sm text-muted-foreground">Real-time monitoring and revocation control for active sessions across all your devices.</p>
+          </div>
+
+          {/* Top Summary Cards Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card className="shadow-card">
+              <CardContent className="p-5 flex items-center justify-between">
+                <div className="space-y-1">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Active Sessions</span>
+                  <p className="text-2xl font-bold text-foreground">
+                    <AnimatedCounter value={sessionSummary?.activeSessionsCount || filteredSessions.filter((s) => s.status === 'active' || s.status === 'idle').length} />
+                  </p>
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-success/10 flex items-center justify-center border border-success/20">
+                  <Radio className="w-5 h-5 text-success animate-pulse" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-card">
+              <CardContent className="p-5 flex items-center justify-between">
+                <div className="space-y-1">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Total Sessions</span>
+                  <p className="text-2xl font-bold text-foreground">
+                    <AnimatedCounter value={sessionSummary?.totalSessionsCount || filteredSessions.length} />
+                  </p>
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20">
+                  <Laptop className="w-5 h-5 text-primary" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-card">
+              <CardContent className="p-5 flex items-center justify-between">
+                <div className="space-y-1 min-w-0">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Current Device</span>
+                  <p className="text-base font-bold text-foreground truncate">{sessionSummary?.currentDeviceName || 'Windows 11 Laptop'}</p>
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20 shrink-0">
+                  <ShieldCheck className="w-5 h-5 text-primary" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-card">
+              <CardContent className="p-5 flex items-center justify-between">
+                <div className="space-y-1">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Last Login</span>
+                  <p className="text-base font-bold text-foreground">{sessionSummary?.lastLoginTime ? formatTimeAgo(sessionSummary.lastLoginTime) : 'Just now'}</p>
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20">
+                  <Clock className="w-5 h-5 text-primary" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Search, Filter & Sorting Bar */}
+          <Card className="shadow-card">
+            <CardContent className="p-4 flex flex-col md:flex-row items-center justify-between gap-3">
+              <div className="relative w-full md:w-64">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search device, OS, IP, location..."
+                  value={sessionSearch}
+                  onChange={(e) => setSessionSearch(e.target.value)}
+                  className="pl-9 h-9 text-xs rounded-xl"
+                />
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+                <select
+                  value={sessionStatusFilter}
+                  onChange={(e) => setSessionStatusFilter(e.target.value)}
+                  className="h-9 px-3 rounded-xl border border-border bg-background text-xs font-semibold"
+                >
+                  <option value="all">All Statuses</option>
+                  <option value="current">This Device</option>
+                  <option value="active">Active</option>
+                  <option value="idle">Idle</option>
+                  <option value="expired">Expired</option>
+                  <option value="revoked">Revoked</option>
+                </select>
+
+                <select
+                  value={sessionTrustFilter}
+                  onChange={(e) => setSessionTrustFilter(e.target.value)}
+                  className="h-9 px-3 rounded-xl border border-border bg-background text-xs font-semibold"
+                >
+                  <option value="all">All Trust Levels</option>
+                  <option value="trusted">Trusted Devices</option>
+                  <option value="untrusted">Untrusted</option>
+                </select>
+
+                <select
+                  value={sessionMethodFilter}
+                  onChange={(e) => setSessionMethodFilter(e.target.value)}
+                  className="h-9 px-3 rounded-xl border border-border bg-background text-xs font-semibold"
+                >
+                  <option value="all">All Methods</option>
+                  <option value="passkey">Passkey</option>
+                  <option value="qr">QR Login</option>
+                  <option value="otp">Email OTP</option>
+                </select>
+
+                <select
+                  value={sessionSortBy}
+                  onChange={(e) => setSessionSortBy(e.target.value as typeof sessionSortBy)}
+                  className="h-9 px-3 rounded-xl border border-border bg-background text-xs font-semibold"
+                >
+                  <option value="latest">Sort: Latest Login</option>
+                  <option value="oldest">Sort: Oldest Login</option>
+                  <option value="active">Sort: Most Active</option>
+                </select>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Session Cards Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {filteredSessions.length > 0 ? (
+              filteredSessions.map((s) => (
+                <Card key={s.id} className={`shadow-card transition-all duration-300 hover:shadow-card-hover ${s.isCurrent ? 'border-primary/40 bg-primary/5' : ''}`}>
+                  <CardContent className="p-5 space-y-4">
+                    {/* Header */}
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20 shrink-0">
+                          {s.deviceType?.toLowerCase().includes('phone') || s.deviceType?.toLowerCase().includes('mobile') ? (
+                            <Smartphone className="w-5 h-5 text-primary" />
+                          ) : (
+                            <Laptop className="w-5 h-5 text-primary" />
+                          )}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-heading text-sm font-bold text-foreground">{s.deviceName}</h3>
+                            {s.isCurrent && (
+                              <Badge className="bg-primary/20 text-primary hover:bg-primary/20 text-[10px] px-2 py-0.5 border border-primary/30 font-bold">
+                                This Device
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">{s.browser} • {s.os}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col items-end gap-1">
+                        <Badge
+                          variant={
+                            s.status === 'active'
+                              ? 'secondary'
+                              : s.status === 'idle'
+                              ? 'outline'
+                              : s.status === 'revoked'
+                              ? 'destructive'
+                              : 'outline'
+                          }
+                          className={
+                            s.status === 'active'
+                              ? 'bg-success/10 text-success border-success/30 text-[10px]'
+                              : s.status === 'idle'
+                              ? 'bg-warning/10 text-warning border-warning/30 text-[10px]'
+                              : 'text-[10px]'
+                          }
+                        >
+                          <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${s.status === 'active' ? 'bg-success animate-pulse' : s.status === 'idle' ? 'bg-warning' : 'bg-muted-foreground'}`} />
+                          {s.status.toUpperCase()}
+                        </Badge>
+                        <span className="text-[10px] text-muted-foreground font-medium">Duration: {s.duration}</span>
+                      </div>
+                    </div>
+
+                    {/* Metadata Grid */}
+                    <div className="grid grid-cols-2 gap-2 pt-3 border-t border-border/60 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1.5">
+                        <KeyRound className="w-3.5 h-3.5 text-primary shrink-0" />
+                        <span className="truncate">{s.loginMethod}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Globe className="w-3.5 h-3.5 text-primary shrink-0" />
+                        <span>{s.maskedIp}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <MapPin className="w-3.5 h-3.5 text-primary shrink-0" />
+                        <span className="truncate">{s.location}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-primary shrink-0" />
+                        <span>Activity: {formatTimeAgo(s.lastActivity)}</span>
+                      </div>
+                    </div>
+
+                    {/* Footer Actions */}
+                    <div className="flex items-center justify-between pt-2 border-t border-border/60">
+                      <Button
+                        onClick={() => setSelectedSessionModal(s)}
+                        variant="outline"
+                        size="sm"
+                        className="h-8 text-xs rounded-xl gap-1.5"
+                      >
+                        <Info className="w-3.5 h-3.5" />
+                        View Details
+                      </Button>
+
+                      {s.isCurrent ? (
+                        <Badge variant="outline" className="text-[10px] border-primary/30 text-primary bg-primary/5 py-1 px-3">
+                          Current Active Session
+                        </Badge>
+                      ) : (
+                        <Button
+                          onClick={() => handleRevokeSingleSession(s.id)}
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 text-xs text-danger hover:bg-danger/10 hover:text-danger rounded-xl gap-1.5"
+                        >
+                          <LogOut className="w-3.5 h-3.5" />
+                          Logout Session
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            ) : (
+              <Card className="shadow-card md:col-span-2">
+                <CardContent className="p-8 text-center text-xs text-muted-foreground">
+                  No matching sessions found for current filter criteria.
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          {/* Bottom Action: Logout All Other Devices */}
+          <Card className="shadow-card border-danger/30 bg-danger/5">
+            <CardContent className="p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-danger/10 flex items-center justify-center border border-danger/20 shrink-0">
+                  <Flame className="w-5 h-5 text-danger" />
+                </div>
+                <div>
+                  <h4 className="font-heading text-sm font-bold text-foreground">Bulk Session Termination</h4>
+                  <p className="text-xs text-muted-foreground">
+                    Revoke all active sessions on other phones, laptops, and tablets. Your current device will stay logged in.
+                  </p>
+                </div>
+              </div>
+
+              <Button
+                onClick={() => setLogoutOthersModalOpen(true)}
+                variant="destructive"
+                className="rounded-xl text-xs font-semibold h-10 shrink-0 gap-2 shadow-card"
+              >
+                <LogOut className="w-4 h-4" />
+                Logout All Other Devices
+              </Button>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
+      {/* ── 5. RISK CENTER VIEW (With Per-Device Risk Breakdown) ── */}
       {activeSection === 'risk_center' && (
         <motion.div variants={fadeInUp} className="space-y-6">
           <div>
@@ -1102,7 +1488,7 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
         </motion.div>
       )}
 
-      {/* ── 5. TRUSTED DEVICES VIEW ── */}
+      {/* ── 6. TRUSTED DEVICES VIEW ── */}
       {activeSection === 'trusted_devices' && (
         <motion.div variants={fadeInUp} className="space-y-4">
           <div>
@@ -1166,7 +1552,7 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
         </motion.div>
       )}
 
-      {/* ── 6. LOGIN HISTORY VIEW (Real DB Records with Location & Device ID) ── */}
+      {/* ── 7. LOGIN HISTORY VIEW (Real DB Records with Location & Device ID) ── */}
       {activeSection === 'history' && (
         <motion.div variants={fadeInUp} className="space-y-4">
           <div>
@@ -1294,7 +1680,7 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
         </motion.div>
       )}
 
-      {/* ── 7. EMERGENCY LOCKDOWN VIEW ── */}
+      {/* ── 8. EMERGENCY LOCKDOWN VIEW ── */}
       {activeSection === 'lockdown' && (
         <motion.div variants={fadeInUp} className="space-y-6">
           <div>
@@ -1390,7 +1776,7 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
         </motion.div>
       )}
 
-      {/* ── 8. SETTINGS VIEW (VERTICAL NAVIGATION PANEL) ── */}
+      {/* ── 9. SETTINGS VIEW (VERTICAL NAVIGATION PANEL) ── */}
       {activeSection === 'settings' && (
         <motion.div variants={fadeInUp} className="space-y-6">
           <div>
@@ -1398,9 +1784,7 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
             <p className="text-sm text-muted-foreground">Manage your portal preferences, device limits, and alert triggers.</p>
           </div>
 
-          {/* Vertical Settings Layout Container */}
           <div className="flex flex-col md:flex-row gap-6">
-            {/* Left Vertical Menu */}
             <Card className="shadow-card md:w-64 shrink-0 h-fit">
               <CardContent className="p-3 space-y-1">
                 {[
@@ -1423,7 +1807,6 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
               </CardContent>
             </Card>
 
-            {/* Right Side Content Panel */}
             <div className="flex-1">
               {settingsSection === 'appearance' && (
                 <Card className="shadow-card">
@@ -1558,7 +1941,7 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
         </motion.div>
       )}
 
-      {/* ── 9. PROFILE VIEW ── */}
+      {/* ── 10. PROFILE VIEW ── */}
       {activeSection === 'profile' && (
         <motion.div variants={fadeInUp} className="space-y-6">
           <div>
@@ -1600,7 +1983,7 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
         </motion.div>
       )}
 
-      {/* ── 10. LINK DEVICE VIEW (Mobile Only QR Launcher) ── */}
+      {/* ── 11. LINK DEVICE VIEW (Mobile Only QR Launcher) ── */}
       {activeSection === 'link_device' && (
         <motion.div variants={fadeInUp} className="space-y-4">
           <div>
@@ -1633,6 +2016,157 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
           </Card>
         </motion.div>
       )}
+
+      {/* SESSION DETAIL MODAL DIALOG */}
+      <AnimatePresence>
+        {selectedSessionModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 select-none">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="w-full max-w-lg bg-card border border-border rounded-2xl p-6 space-y-5 shadow-card"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20">
+                    <Info className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="font-heading text-base font-bold text-foreground">{selectedSessionModal.deviceName}</h3>
+                    <p className="text-xs text-muted-foreground">{selectedSessionModal.browser} • {selectedSessionModal.os}</p>
+                  </div>
+                </div>
+                <Button
+                  onClick={() => setSelectedSessionModal(null)}
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 rounded-full"
+                >
+                  ✕
+                </Button>
+              </div>
+
+              {/* Authentication Strength Rating Indicator */}
+              <div className="p-4 rounded-xl bg-muted/40 border border-border/60 space-y-2">
+                <div className="flex items-center justify-between text-xs font-semibold">
+                  <span className="text-muted-foreground">Authentication Strength</span>
+                  <Badge variant="outline" className={selectedSessionModal.authStrength.badgeColor}>
+                    {selectedSessionModal.authStrength.label}
+                  </Badge>
+                </div>
+                <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-primary rounded-full transition-all duration-500"
+                    style={{ width: `${selectedSessionModal.authStrength.score}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Detail Grid */}
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div className="p-3 rounded-xl bg-muted/30 border border-border/50 space-y-1">
+                  <span className="text-muted-foreground">Device Fingerprint</span>
+                  <p className="font-mono text-[11px] text-foreground font-semibold truncate">{selectedSessionModal.deviceFingerprint}</p>
+                </div>
+
+                <div className="p-3 rounded-xl bg-muted/30 border border-border/50 space-y-1">
+                  <span className="text-muted-foreground">IP Address & Location</span>
+                  <p className="font-semibold text-foreground truncate">{selectedSessionModal.ipAddress}</p>
+                  <p className="text-[10px] text-muted-foreground truncate">{selectedSessionModal.location}</p>
+                </div>
+
+                <div className="p-3 rounded-xl bg-muted/30 border border-border/50 space-y-1">
+                  <span className="text-muted-foreground">Platform & Resolution</span>
+                  <p className="font-semibold text-foreground">{selectedSessionModal.platform} ({selectedSessionModal.screenResolution})</p>
+                </div>
+
+                <div className="p-3 rounded-xl bg-muted/30 border border-border/50 space-y-1">
+                  <span className="text-muted-foreground">Timezone & Language</span>
+                  <p className="font-semibold text-foreground">{selectedSessionModal.timezone} ({selectedSessionModal.language})</p>
+                </div>
+
+                <div className="p-3 rounded-xl bg-muted/30 border border-border/50 space-y-1">
+                  <span className="text-muted-foreground">Login Time</span>
+                  <p className="font-semibold text-foreground">{new Date(selectedSessionModal.loginTime).toLocaleString()}</p>
+                </div>
+
+                <div className="p-3 rounded-xl bg-muted/30 border border-border/50 space-y-1">
+                  <span className="text-muted-foreground">Last Activity</span>
+                  <p className="font-semibold text-foreground">{new Date(selectedSessionModal.lastActivity).toLocaleString()}</p>
+                </div>
+
+                <div className="p-3 rounded-xl bg-muted/30 border border-border/50 space-y-1">
+                  <span className="text-muted-foreground">Session Expiry</span>
+                  <p className="font-semibold text-foreground">{new Date(selectedSessionModal.expiresAt).toLocaleString()}</p>
+                </div>
+
+                <div className="p-3 rounded-xl bg-muted/30 border border-border/50 space-y-1">
+                  <span className="text-muted-foreground">Network Type</span>
+                  <p className="font-semibold text-foreground">{selectedSessionModal.networkType}</p>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-muted/30 border border-border/50 text-[11px] space-y-1">
+                <span className="text-muted-foreground font-semibold">User Agent</span>
+                <p className="font-mono text-muted-foreground break-all">{selectedSessionModal.userAgent}</p>
+              </div>
+
+              <div className="flex items-center justify-end">
+                <Button
+                  onClick={() => setSelectedSessionModal(null)}
+                  className="rounded-xl text-xs h-9 px-6 font-semibold"
+                >
+                  Close Details
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* LOGOUT ALL OTHER SESSIONS CONFIRMATION MODAL */}
+      <AnimatePresence>
+        {logoutOthersModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 select-none">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="w-full max-w-sm bg-card border border-border rounded-2xl p-6 space-y-4 shadow-card"
+            >
+              <div className="flex items-center gap-3 text-danger">
+                <ShieldAlert className="w-6 h-6 shrink-0" />
+                <h3 className="font-heading text-base font-bold">Logout All Other Devices</h3>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Are you sure you want to terminate all active sessions on other devices? You will remain logged in on this device, but all other phones, laptops, and browser sessions will be invalidated immediately.
+              </p>
+
+              <div className="flex items-center gap-2 pt-2">
+                <Button
+                  onClick={() => setLogoutOthersModalOpen(false)}
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 rounded-xl text-xs h-9"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleRevokeAllOtherSessions}
+                  disabled={revokingOthers}
+                  variant="destructive"
+                  size="sm"
+                  className="flex-1 rounded-xl text-xs h-9"
+                >
+                  {revokingOthers ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Confirm Termination'}
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Lockdown Confirmation Modal Dialog */}
       <AnimatePresence>

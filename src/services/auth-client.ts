@@ -398,3 +398,66 @@ export async function executeEmergencyLockdown(userId: string, action: string, c
     body: JSON.stringify({ userId, action, currentToken }),
   });
 }
+
+/* ── Session Management APIs ── */
+
+export interface SessionItem {
+  id: string;
+  token: string;
+  userId: string;
+  deviceName: string;
+  deviceType: string;
+  browser: string;
+  os: string;
+  deviceFingerprint: string;
+  loginMethod: string;
+  status: 'active' | 'idle' | 'expired' | 'revoked';
+  isTrusted: boolean;
+  isCurrent: boolean;
+  ipAddress: string;
+  maskedIp: string;
+  location: string;
+  screenResolution: string;
+  timezone: string;
+  language: string;
+  platform: string;
+  userAgent: string;
+  networkType: string;
+  loginTime: string;
+  lastActivity: string;
+  lastSeen: string;
+  expiresAt: string;
+  duration: string;
+  authStrength: {
+    score: number;
+    label: string;
+    badgeColor: string;
+  };
+  isDemo?: boolean;
+}
+
+export async function getActiveSessions(userId: string, currentToken?: string): Promise<ApiResult & { summary?: { activeSessionsCount: number; totalSessionsCount: number; currentDeviceName: string; lastLoginTime: string }; sessions?: SessionItem[] }> {
+  const url = `/api/auth/sessions?userId=${encodeURIComponent(userId)}${currentToken ? `&currentToken=${encodeURIComponent(currentToken)}` : ''}`;
+  return apiCall(url);
+}
+
+export async function revokeSession(userId: string, sessionId: string, currentToken?: string): Promise<ApiResult> {
+  return apiCall('/api/auth/sessions', {
+    method: 'DELETE',
+    body: JSON.stringify({ userId, sessionId, action: 'single', currentToken }),
+  });
+}
+
+export async function revokeAllOtherSessions(userId: string, currentToken?: string): Promise<ApiResult> {
+  return apiCall('/api/auth/sessions', {
+    method: 'DELETE',
+    body: JSON.stringify({ userId, action: 'revoke_others', currentToken }),
+  });
+}
+
+export async function updateSessionActivity(sessionToken: string, isUserInteraction = true): Promise<ApiResult> {
+  return apiCall('/api/auth/sessions/activity', {
+    method: 'POST',
+    body: JSON.stringify({ sessionToken, isUserInteraction }),
+  });
+}
