@@ -17,7 +17,6 @@ const MAX_ATTEMPTS = 3;
  *
  * Verifies the 6-digit login OTP against the latest unverified, non-expired
  * record for the email. Enforces expiry (5 min) and a maximum of 3 attempts.
- * Never returns the OTP.
  */
 export async function POST(request: NextRequest) {
   let body: unknown;
@@ -72,7 +71,7 @@ export async function POST(request: NextRequest) {
 
     await db.oTPCode.update({ where: { id: otp.id }, data: { verified: true } });
 
-    // Record real login history entry in DB with stable device fingerprinting
+    // Record login history entry in DB with stable device fingerprinting
     if (otp.userId) {
       const userAgent = request.headers.get('user-agent');
       const { deviceName, browser, deviceFingerprint, location } = getDeviceDetails(userAgent, ip);
@@ -90,6 +89,7 @@ export async function POST(request: NextRequest) {
             deviceFingerprint,
             location,
             status: 'trusted',
+            isDemo: otp.isDemo,
           },
         });
       } else {
@@ -110,6 +110,7 @@ export async function POST(request: NextRequest) {
           ipAddress: ip,
           location,
           deviceId: `dev_${deviceFingerprint}`,
+          isDemo: otp.isDemo,
         },
       });
 
@@ -124,7 +125,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    return successResponse({ verified: true, userId: otp.userId });
+    return successResponse({ verified: true, userId: otp.userId, isDemo: otp.isDemo });
   } catch (err) {
     console.error('OTP verify error:', err);
     return errorResponse('Something went wrong. Please try again.', 500);

@@ -106,7 +106,7 @@ function AuthInteractiveShield() {
 
 /* ── Auth Page Component ── */
 export function AuthPage() {
-  const { setPageView, authTab, setAuthTab, authMethod, setAuthMethod, setSignupDraft, setLoginEmailDraft } = useAuth();
+  const { setPageView, authTab, setAuthTab, authMethod, setAuthMethod, setSignupDraft, setLoginEmailDraft, isDemo } = useAuth();
   const [loginEmail, setLoginEmail] = useState('');
   const [signupName, setSignupName] = useState('');
   const [signupEmail, setSignupEmail] = useState('');
@@ -117,8 +117,6 @@ export function AuthPage() {
   const [signupError, setSignupError] = useState('');
   const [signupChecking, setSignupChecking] = useState(false);
   const [loginError, setLoginError] = useState('');
-  // Email that was found to already exist — carried into the login-style
-  // method forms (Passkey/OTP) so the user can sign in to their account.
   const [existingEmail, setExistingEmail] = useState('');
   const [existingUserMethods, setExistingUserMethods] = useState<{
     otp: boolean;
@@ -135,12 +133,13 @@ export function AuthPage() {
   const router = useRouter();
   const [scannerModalOpen, setScannerModalOpen] = useState(false);
 
+  const visibleAuthMethods = AUTH_METHODS.filter((m) => !isDemo || m.id !== 'passkey');
+
   const handleMethodClick = (methodId: string) => {
     if (methodId === 'passkey' || methodId === 'otp' || methodId === 'qr') {
       setAuthMethod(methodId as 'passkey' | 'otp' | 'qr');
     } else {
-      // Show under development modal for biometric
-      setUnderDevFeature('Biometric');
+      setUnderDevFeature('Biometric Authentication');
       setUnderDevOpen(true);
     }
   };
@@ -424,12 +423,12 @@ export function AuthPage() {
                         </div>
 
                         {/* Auth Method Icons */}
-                        <div className="grid grid-cols-4 gap-3">
-                          {AUTH_METHODS.map((method) => (
+                        <div className={`grid gap-3 ${visibleAuthMethods.length === 3 ? 'grid-cols-3' : 'grid-cols-4'}`}>
+                          {visibleAuthMethods.map((method) => (
                             <button
                               key={method.id}
                               onClick={() => handleMethodClick(method.id)}
-                              className="flex flex-col items-center gap-2 p-3 rounded-xl border border-border hover:border-primary/30 hover:bg-primary/5 transition-smooth group"
+                              className="flex flex-col items-center gap-2 p-3 rounded-xl border border-border hover:border-primary/30 hover:bg-primary/5 transition-smooth group cursor-pointer"
                             >
                               <method.icon className={`w-5 h-5 ${method.color} group-hover:scale-110 transition-smooth`} />
                               <span className="text-[10px] text-muted-foreground font-medium">{method.label}</span>

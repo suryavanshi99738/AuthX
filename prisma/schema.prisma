@@ -62,6 +62,7 @@ model OTPCode {
   codeHash  String
   attempts  Int      @default(0)
   verified  Boolean  @default(false)
+  isDemo    Boolean  @default(false)
   expiresAt DateTime
   createdAt DateTime @default(now())
 
@@ -80,6 +81,7 @@ model QRLoginRequest {
   ipAddress    String?  // e.g., 10.17.87.25
   userId       String?
   sessionToken String?
+  isDemo       Boolean  @default(false)
   expiresAt    DateTime
   createdAt    DateTime @default(now())
 
@@ -98,6 +100,7 @@ model TrustedDevice {
   deviceFingerprint String
   location          String?  @default("Local Network")
   status            String   @default("trusted") // trusted, pending_verification, revoked
+  isDemo            Boolean  @default(false)
   lastActive        DateTime @default(now())
   createdAt         DateTime @default(now())
 
@@ -118,6 +121,7 @@ model LoginHistory {
   ipAddress String?
   location  String?  @default("Local Network")
   deviceId  String?
+  isDemo    Boolean  @default(false)
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

@@ -116,6 +116,11 @@ export const useAuth = create<AuthState>((set, get) => ({
   setLoginEmailDraft: (email) => set({ loginEmailDraft: email }),
 
   logout: () => {
+    const state = get();
+    if (state.isDemo) {
+      state.cleanupDemo();
+      return;
+    }
     clearStorage();
     set({
       pageView: 'landing',

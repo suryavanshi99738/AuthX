@@ -1,32 +1,41 @@
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
-export async function POST(request: NextRequest) {
+/**
+ * POST /api/demo/cleanup
+ * Automatically purges all temporary Demo accounts, sessions, OTP codes,
+ * QR requests, trusted devices, and login history records.
+ */
+export async function POST() {
   try {
-    // Delete all demo users (cascade will delete sessions, passkeys, otpCodes)
-    const result = await db.user.deleteMany({
-      where: { isDemo: true },
-    });
+    const deletedUsers = await db.user.deleteMany({ where: { isDemo: true } });
+    const deletedSessions = await db.session.deleteMany({ where: { isDemo: true } });
+    const deletedOtps = await db.oTPCode.deleteMany({ where: { isDemo: true } });
+    const deletedQrs = await db.qRLoginRequest.deleteMany({ where: { isDemo: true } });
+    const deletedDevices = await db.trustedDevice.deleteMany({ where: { isDemo: true } });
+    const deletedHistory = await db.loginHistory.deleteMany({ where: { isDemo: true } });
 
     return NextResponse.json({
       success: true,
-      message: 'Demo data cleaned up',
-      deletedCount: result.count,
+      message: 'Demo temporary data cleaned up successfully.',
+      purged: {
+        users: deletedUsers.count,
+        sessions: deletedSessions.count,
+        otps: deletedOtps.count,
+        qrs: deletedQrs.count,
+        devices: deletedDevices.count,
+        history: deletedHistory.count,
+      },
     });
   } catch (error) {
     console.error('Error cleaning up demo data:', error);
-    return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
   }
 }
 
 export async function GET() {
-  return NextResponse.json(
-    { success: false, error: 'Method not allowed' },
-    { status: 405 }
-  );
+  return POST();
 }

@@ -13,11 +13,11 @@ const OTP_TTL_MS = 5 * 60 * 1000; // 5 minutes
 /**
  * POST /api/auth/otp/generate
  *
- * Body: { email }
+ * Body: { email, isDemo }
  *
- * Login flow: finds (or creates) the user and issues a 6-digit OTP. The OTP is
- * hashed before storage and emailed to the user. The plaintext OTP is NEVER
- * returned in the response.
+ * Generates a 6-digit OTP code.
+ * If isDemo === true, skips email sending and returns the OTP code in response so frontend
+ * can display it ONLY as a toast notification.
  */
 export async function POST(request: NextRequest) {
   let body: unknown;
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     return errorResponse('Invalid request.', 400);
   }
 
-  const { email } = (body ?? {}) as { email?: string };
+  const { email, isDemo = false } = (body ?? {}) as { email?: string; isDemo?: boolean };
   if (!email || typeof email !== 'string') {
     return errorResponse('Email is required.', 400);
   }
@@ -37,16 +37,14 @@ export async function POST(request: NextRequest) {
   }
 
   const ip = getClientIp(request);
-  const ipRl = rateLimit(`login:otp:ip:${ip}`, 5, 10 * 60 * 1000);
+  const ipRl = rateLimit(`login:otp:ip:${ip}`, 10, 10 * 60 * 1000);
   if (!ipRl.allowed) return rateLimitedResponse(ipRl.resetAt);
-  const emailRl = rateLimit(`login:otp:email:${normalizedEmail}`, 3, 10 * 60 * 1000);
-  if (!emailRl.allowed) return rateLimitedResponse(emailRl.resetAt);
 
   try {
-    // Find or create the user (existing login behaviour).
+    // Find or create the user
     let user = await db.user.findUnique({ where: { email: normalizedEmail } });
     if (!user) {
-      user = await db.user.create({ data: { email: normalizedEmail } });
+      user = await db.user.create({ data: { email: normalizedEmail, isDemo: Boolean(isDemo) } });
     }
 
     const code = generateOtpCode();
@@ -54,23 +52,28 @@ export async function POST(request: NextRequest) {
     const expiresAt = new Date(Date.now() + OTP_TTL_MS);
 
     await db.oTPCode.create({
-      data: { userId: user.id, email: normalizedEmail, codeHash, expiresAt },
+      data: { userId: user.id, email: normalizedEmail, codeHash, isDemo: Boolean(isDemo), expiresAt },
     });
 
-    // Lazy cleanup of expired OTPs for this email.
+    // Lazy cleanup of expired OTPs for this email
     await db.oTPCode.deleteMany({
       where: { email: normalizedEmail, expiresAt: { lt: new Date() } },
     });
 
-    console.log(`\n================================================\n🔑 [OTP CODE] For: ${normalizedEmail}\n👉 VERIFICATION CODE: ${code}\n================================================\n`);
+    console.log(`\n================================================\n🔑 [OTP CODE] (${isDemo ? 'DEMO MODE' : 'REAL MODE'}) For: ${normalizedEmail}\n👉 VERIFICATION CODE: ${code}\n================================================\n`);
 
-    // Send the email — fallback gracefully in development/test environments
+    // If Demo Mode, DO NOT send real email — return code for Toast display ONLY
+    if (isDemo) {
+      return successResponse({ userId: user.id, isDemo: true, otpCode: code });
+    }
+
+    // Real Mode: Send verification email
     const emailResult = await sendVerificationEmail({ to: normalizedEmail, code, recipientName: user.name ?? undefined });
     if (!emailResult.success) {
       console.warn(`[email] Resend API Notice for ${normalizedEmail}: ${emailResult.error}`);
     }
 
-    return successResponse({ userId: user.id });
+    return successResponse({ userId: user.id, isDemo: false });
   } catch (err) {
     console.error('OTP generate route error:', err);
     return errorResponse('Something went wrong generating OTP code. Please try again.', 500);

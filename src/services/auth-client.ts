@@ -97,14 +97,14 @@ export async function verifyPasskeyAuth(
   });
 }
 
-export async function generateOTP(email: string): Promise<ApiResult & { userId?: string }> {
+export async function generateOTP(email: string, isDemo = false): Promise<ApiResult & { userId?: string; isDemo?: boolean; otpCode?: string }> {
   return apiCall('/api/auth/otp/generate', {
     method: 'POST',
-    body: JSON.stringify({ email }),
+    body: JSON.stringify({ email, isDemo }),
   });
 }
 
-export async function verifyOTP(email: string, code: string): Promise<ApiResult & { userId?: string }> {
+export async function verifyOTP(email: string, code: string): Promise<ApiResult & { userId?: string; isDemo?: boolean }> {
   return apiCall('/api/auth/otp/verify', {
     method: 'POST',
     body: JSON.stringify({ email, code }),

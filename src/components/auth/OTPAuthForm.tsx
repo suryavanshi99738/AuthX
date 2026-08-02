@@ -23,6 +23,7 @@ import {
   signupVerify,
 } from '@/services/auth-client';
 import { AuthLoadingOverlay } from './AuthLoadingOverlay';
+import { toast } from '@/hooks/use-toast';
 
 type Step = 'email' | 'otp-input';
 
@@ -91,16 +92,24 @@ export function OTPAuthForm() {
         }
         setUserId(userResult.user.id);
 
-        const otpResult = await generateOTP(targetEmail);
+        const otpResult = await generateOTP(targetEmail, isDemo);
         if (!otpResult.success) {
           setOverlayStatus('error');
           setErrorMessage(otpResult.error || 'Failed to generate OTP');
           return;
         }
+
+        if (isDemo && otpResult.otpCode) {
+          toast({
+            title: 'Demo Mode — Verification Code',
+            description: `Demo Mode — Verification Code: ${otpResult.otpCode}`,
+            duration: 10000,
+          });
+        }
       }
 
       setOverlayStatus('success');
-      setOverlayMessage('Verification code sent!');
+      setOverlayMessage(isDemo ? 'Demo OTP generated (Check Toast)!' : 'Verification code sent!');
       startCooldown();
 
       setTimeout(() => {
@@ -129,14 +138,21 @@ export function OTPAuthForm() {
     try {
       const result = isSignup
         ? await signupResend(targetEmail)
-        : await generateOTP(targetEmail);
+        : await generateOTP(targetEmail, isDemo);
       if (!result.success) {
         setOverlayStatus('error');
         setErrorMessage(result.error || 'Failed to resend code');
         return;
       }
+      if (isDemo && result.otpCode) {
+        toast({
+          title: 'Demo Mode — Verification Code',
+          description: `Demo Mode — Verification Code: ${result.otpCode}`,
+          duration: 10000,
+        });
+      }
       setOverlayStatus('success');
-      setOverlayMessage('New code sent!');
+      setOverlayMessage('New code generated!');
       startCooldown();
       setOtpCode('');
       setTimeout(() => setOverlayVisible(false), 800);

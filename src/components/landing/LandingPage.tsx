@@ -188,8 +188,18 @@ function InteractiveShield() {
 
 /* ── Landing Page ── */
 export function LandingPage() {
-  const { setPageView } = useAuth();
+  const { setPageView, setIsDemo } = useAuth();
   const [demoOpen, setDemoOpen] = useState(false);
+
+  const handleStartReal = () => {
+    setIsDemo(false);
+    setPageView('auth');
+  };
+
+  const handleStartDemo = () => {
+    setIsDemo(true);
+    setPageView('auth');
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-background" suppressHydrationWarning>
@@ -203,10 +213,10 @@ export function LandingPage() {
             <span className="font-heading text-base font-bold tracking-tight text-foreground">AuthX</span>
           </div>
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" className="text-sm text-muted-foreground" onClick={() => setDemoOpen(true)}>
+            <Button variant="ghost" size="sm" className="text-sm text-muted-foreground" onClick={handleStartDemo}>
               Demo
             </Button>
-            <Button size="sm" className="text-sm rounded-lg" onClick={() => setPageView('auth')}>
+            <Button size="sm" className="text-sm rounded-lg" onClick={handleStartReal}>
               Get Started
             </Button>
           </div>
@@ -247,7 +257,7 @@ export function LandingPage() {
               <Button
                 size="lg"
                 className="text-base px-8 py-3 rounded-xl shadow-card hover:shadow-card-hover transition-smooth"
-                onClick={() => setPageView('auth')}
+                onClick={handleStartReal}
               >
                 Get Started
                 <ArrowRight className="w-4 h-4 ml-2" />
@@ -256,7 +266,7 @@ export function LandingPage() {
                 size="lg"
                 variant="outline"
                 className="text-base px-8 py-3 rounded-xl transition-smooth"
-                onClick={() => setPageView('demoAuth')}
+                onClick={handleStartDemo}
               >
                 <Play className="w-4 h-4 mr-2" />
                 Get Demo
