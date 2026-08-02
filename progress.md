@@ -1,23 +1,19 @@
-# AuthX Development Progress & Hardening Summary
+# AuthX Development Progress & Deduplication Summary
 
-## 🛡️ OTP Verification & Auth Flow Hardening
+## 🛡️ Parallel Active Sessions & Trusted Device Deduplication
 
-### 1. Resolved OTP Verification 500 Error Cause
-- **Foreign Key Insulated User Resolution**:
-  - `POST /api/auth/otp/verify` now resolves the canonical `User` record (via `otp.userId` or `email`) and guarantees user existence before executing audit logging.
-  - Insulated `trustedDevice`, `loginHistory`, and `riskAssessment` creation inside a safe `try/catch` block so audit table write warnings will **never block or throw 500 errors during OTP verification**.
-- **Frontend User-Session Resilience**:
-  - `OTPAuthForm` uses the verified user ID or resolves `createUserOrGet` gracefully, preventing any mismatch when calling `createSession`.
+### 1. Parallel Active Sessions Logic
+- **Single Active Session per Physical Device**:
+  - `POST /api/auth/session` now deletes any previous session for the same `userId` + `deviceFingerprint` before creating a new session, ensuring that logging in multiple times on the same laptop/browser does **NOT** generate duplicate active session records.
+- **Physical Device Deduplication**:
+  - `GET /api/auth/sessions` cleans up expired sessions (`expiresAt < now`) and deduplicates active sessions by physical device.
+  - **Active Sessions Counter** now represents the exact number of **parallel active physical devices** currently logged in (`1` if testing on 1 laptop, `2` if parallel logged in on mobile + laptop).
 
 ---
 
-### 2. Verified & Hardened All 6 Authentication Flows
-1. **Email OTP Login Flow**: Verified 100% active, zero 500 errors, populates session metadata.
-2. **Email OTP Sign-up Flow**: Verified 100% active, atomic account + session creation.
-3. **Passkey WebAuthn Login & Sign-up**: Updated `passkey/auth-verify` to record `loginMethod: 'Passkey WebAuthn'`.
-4. **QR Code Cross-Device Flow**: Updated `qr/approve` to record `loginMethod: 'QR Login'`.
-5. **Isolated Demo Mode**: Intact with toast-only OTP display and temporary data cleanup.
-6. **Session Management & Device Detection**: Real-time tracking, dual timestamps, friendly device naming (*Windows 11 Laptop*, *iPhone 15 Pro*), and single/bulk revocation with DB invalidation on logout.
+### 2. Trusted Device Deduplication
+- `GET /api/auth/devices` now deduplicates trusted devices by `deviceFingerprint` / `deviceName`, keeping only the latest active entry and deleting duplicate entries in SQLite.
+- Each physical device appears **EXACTLY ONCE** in Trusted Devices.
 
 ---
 

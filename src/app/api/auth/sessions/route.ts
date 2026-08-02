@@ -73,6 +73,11 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    // Lazy cleanup of expired sessions
+    await db.session.deleteMany({
+      where: { expiresAt: { lt: new Date() } },
+    }).catch(() => {});
+
     const rawSessions = await db.session.findMany({
       where: currentToken ? { OR: [{ userId }, { token: currentToken }] } : { userId },
       orderBy: { createdAt: 'desc' },
@@ -82,8 +87,37 @@ export async function GET(request: NextRequest) {
       where: { userId },
     });
 
+    // Deduplicate sessions per physical device (keeping current session or latest session per deviceFingerprint)
+    const uniqueDeviceMap = new Map<string, typeof rawSessions[0]>();
+    const duplicateIdsToDelete: string[] = [];
+
+    for (const s of rawSessions) {
+      const isCurrent = Boolean(currentToken && s.token === currentToken);
+      const key = s.deviceFingerprint || s.deviceName || 'default_device';
+
+      if (!uniqueDeviceMap.has(key)) {
+        uniqueDeviceMap.set(key, s);
+      } else {
+        const existing = uniqueDeviceMap.get(key)!;
+        if (isCurrent && existing.token !== s.token) {
+          duplicateIdsToDelete.push(existing.id);
+          uniqueDeviceMap.set(key, s);
+        } else if (existing.token !== s.token) {
+          duplicateIdsToDelete.push(s.id);
+        }
+      }
+    }
+
+    if (duplicateIdsToDelete.length > 0) {
+      await db.session.deleteMany({
+        where: { id: { in: duplicateIdsToDelete } },
+      }).catch(() => {});
+    }
+
+    const uniqueSessions = Array.from(uniqueDeviceMap.values());
+
     let activeCount = 0;
-    const mappedSessions = rawSessions.map((s) => {
+    const mappedSessions = uniqueSessions.map((s) => {
       const isCurrent = Boolean(currentToken && s.token === currentToken);
       const computedStatus = calculateSessionStatus(s.status, s.expiresAt, s.lastActivity);
       if (computedStatus === 'active' || computedStatus === 'idle') {

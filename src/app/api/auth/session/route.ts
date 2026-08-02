@@ -36,6 +36,17 @@ export async function POST(request: NextRequest) {
     const token = uuidv4();
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
+    // Replace older sessions for the SAME device to prevent duplicate session records
+    await db.session.deleteMany({
+      where: {
+        userId,
+        OR: [
+          { deviceFingerprint: deviceDetails.deviceFingerprint },
+          { deviceName: deviceDetails.deviceName },
+        ],
+      },
+    }).catch(() => {});
+
     const session = await db.session.create({
       data: {
         userId,

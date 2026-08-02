@@ -18,12 +18,30 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const devices = await db.trustedDevice.findMany({
+    const rawDevices = await db.trustedDevice.findMany({
       where: { userId },
       orderBy: { lastActive: 'desc' },
     });
 
-    return successResponse({ devices });
+    const uniqueMap = new Map<string, typeof rawDevices[0]>();
+    const dupIds: string[] = [];
+
+    for (const d of rawDevices) {
+      const key = d.deviceFingerprint || d.deviceName;
+      if (!uniqueMap.has(key)) {
+        uniqueMap.set(key, d);
+      } else {
+        dupIds.push(d.id);
+      }
+    }
+
+    if (dupIds.length > 0) {
+      await db.trustedDevice.deleteMany({
+        where: { id: { in: dupIds } },
+      }).catch(() => {});
+    }
+
+    return successResponse({ devices: Array.from(uniqueMap.values()) });
   } catch (err) {
     console.error('Get Devices Error:', err);
     return errorResponse('Failed to fetch devices.', 500);
