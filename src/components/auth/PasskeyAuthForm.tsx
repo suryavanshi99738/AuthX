@@ -125,7 +125,7 @@ export function PasskeyAuthForm() {
         setOverlayMessage('Passkey Registered Successfully!');
 
         // Create session
-        const sessionResult = await createSession(user.id);
+        const sessionResult = await createSession(user.id, 'Passkey WebAuthn', isDemo);
         if (sessionResult.success && sessionResult.session) {
           setUser({ id: user.id, email: user.email, name: user.name });
           setSession(sessionResult.session.token);

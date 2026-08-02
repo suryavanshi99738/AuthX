@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const rawSessions = await db.session.findMany({
-      where: { userId },
+      where: currentToken ? { OR: [{ userId }, { token: currentToken }] } : { userId },
       orderBy: { createdAt: 'desc' },
     });
 

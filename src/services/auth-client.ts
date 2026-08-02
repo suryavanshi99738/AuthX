@@ -150,10 +150,10 @@ export async function signupVerify(email: string, code: string): Promise<ApiResu
   });
 }
 
-export async function createSession(userId: string): Promise<ApiResult & { session?: SessionResult }> {
+export async function createSession(userId: string, loginMethod = 'Email OTP', isDemo = false): Promise<ApiResult & { session?: SessionResult }> {
   return apiCall('/api/auth/session', {
     method: 'POST',
-    body: JSON.stringify({ userId }),
+    body: JSON.stringify({ userId, loginMethod, isDemo }),
   });
 }
 

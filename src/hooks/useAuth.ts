@@ -1,6 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
+import { deleteSession } from '@/services/auth-client';
 
 /* ── Types ── */
 export type PageView = 'landing' | 'auth' | 'dashboard' | 'demoAuth' | 'demoDashboard';
@@ -117,6 +118,9 @@ export const useAuth = create<AuthState>((set, get) => ({
 
   logout: () => {
     const state = get();
+    if (state.sessionToken) {
+      deleteSession(state.sessionToken).catch(() => {});
+    }
     if (state.isDemo) {
       state.cleanupDemo();
       return;

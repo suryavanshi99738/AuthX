@@ -200,14 +200,15 @@ export function OTPAuthForm() {
           return;
         }
 
-        const sessionUserId = verifyResult.userId || userId;
-        if (!sessionUserId) {
+        const userResult = await createUserOrGet(targetEmail);
+        if (!userResult.success || !userResult.user) {
           setOverlayStatus('error');
-          setErrorMessage('Session could not be established');
+          setErrorMessage('User record could not be established');
           return;
         }
 
-        const sessionResult = await createSession(sessionUserId);
+        const canonicalUserId = userResult.user.id;
+        const sessionResult = await createSession(canonicalUserId, 'Email OTP', isDemo);
         if (!sessionResult.success || !sessionResult.session) {
           setOverlayStatus('error');
           setErrorMessage(sessionResult.error || 'Failed to create session');
@@ -216,12 +217,8 @@ export function OTPAuthForm() {
 
         setOverlayStatus('success');
         setOverlayMessage('Verified Successfully!');
-
-        const userResult = await createUserOrGet(targetEmail);
-        if (userResult.success && userResult.user) {
-          setUser({ id: userResult.user.id, email: userResult.user.email, name: userResult.user.name });
-          setSession(sessionResult.session.token);
-        }
+        setUser({ id: userResult.user.id, email: userResult.user.email, name: userResult.user.name });
+        setSession(sessionResult.session.token);
 
         setTimeout(() => {
           setOverlayVisible(false);

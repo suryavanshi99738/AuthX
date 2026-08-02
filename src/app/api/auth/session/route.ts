@@ -1,34 +1,38 @@
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 import { db } from '@/lib/db';
+import { getClientIp, errorResponse, successResponse } from '@/lib/auth-api';
+import { getDeviceDetails } from '@/lib/device';
 
+/**
+ * POST /api/auth/session
+ * Body: { userId, loginMethod?, isDemo? }
+ * Creates a new active session with auto-detected device details.
+ */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { userId } = body as { userId: string };
+    const { userId, loginMethod = 'Email OTP', isDemo = false } = body as { userId: string; loginMethod?: string; isDemo?: boolean };
 
     if (!userId) {
-      return NextResponse.json(
-        { success: false, error: 'userId is required' },
-        { status: 400 }
-      );
+      return errorResponse('userId is required', 400);
     }
 
-    // Verify user exists
     const user = await db.user.findUnique({
       where: { id: userId },
     });
 
     if (!user) {
-      return NextResponse.json(
-        { success: false, error: 'User not found' },
-        { status: 404 }
-      );
+      return errorResponse('User not found', 404);
     }
 
-    // Create session with 24-hour expiry
+    const ip = getClientIp(request);
+    const userAgent = request.headers.get('user-agent');
+    const deviceDetails = getDeviceDetails(userAgent, ip);
+
     const token = uuidv4();
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
@@ -36,89 +40,133 @@ export async function POST(request: NextRequest) {
       data: {
         userId,
         token,
+        isDemo,
+        deviceName: deviceDetails.deviceName,
+        deviceType: deviceDetails.deviceType,
+        browser: deviceDetails.browser,
+        os: deviceDetails.os,
+        deviceFingerprint: deviceDetails.deviceFingerprint,
+        loginMethod,
+        status: 'active',
+        isTrusted: true,
+        ipAddress: ip,
+        location: deviceDetails.location,
+        screenResolution: '1920x1080',
+        timezone: 'Asia/Kolkata',
+        language: 'en-US',
+        platform: deviceDetails.isMobile ? 'Mobile' : 'Win32',
+        userAgent: userAgent || 'Mozilla/5.0',
+        networkType: 'Wi-Fi / 4G',
+        lastActivity: new Date(),
+        lastSeen: new Date(),
         expiresAt,
       },
     });
 
-    return NextResponse.json({
-      success: true,
+    return successResponse({
       session: {
         token: session.token,
         expiresAt: session.expiresAt,
+        deviceName: session.deviceName,
+        status: session.status,
       },
     });
   } catch (error) {
     console.error('Error creating session:', error);
-    return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500 }
-    );
+    return errorResponse('Internal server error', 500);
   }
 }
 
+/**
+ * GET /api/auth/session?token=...
+ * Verifies active session token.
+ */
 export async function GET(request: NextRequest) {
   try {
     const token = request.nextUrl.searchParams.get('token');
 
     if (!token) {
-      return NextResponse.json(
-        { success: false, error: 'Token is required' },
-        { status: 400 }
-      );
+      return errorResponse('Token is required', 400);
     }
 
-    // Find session by token
     const session = await db.session.findUnique({
       where: { token },
+      include: { user: true },
     });
 
-    if (!session) {
-      return NextResponse.json({ success: false, error: 'Session not found' });
+    if (!session || session.status === 'revoked') {
+      return errorResponse('Session not found or revoked', 401);
     }
 
-    // Check if expired
     if (new Date() > session.expiresAt) {
-      // Clean up expired session
-      await db.session.delete({ where: { id: session.id } });
-      return NextResponse.json({ success: false, error: 'Session expired' });
+      await db.session.delete({ where: { id: session.id } }).catch(() => {});
+      return errorResponse('Session expired', 401);
     }
 
-    return NextResponse.json({
-      success: true,
+    // Refresh lastSeen timestamp
+    await db.session.update({
+      where: { id: session.id },
+      data: { lastSeen: new Date() },
+    }).catch(() => {});
+
+    return successResponse({
       userId: session.userId,
+      user: {
+        id: session.user.id,
+        email: session.user.email,
+        name: session.user.name,
+      },
+      isDemo: session.isDemo,
     });
   } catch (error) {
     console.error('Error verifying session:', error);
-    return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500 }
-    );
+    return errorResponse('Internal server error', 500);
   }
 }
 
+/**
+ * DELETE /api/auth/session
+ * Body: { token }
+ * Explicitly terminates and deletes session from DB on logout.
+ */
 export async function DELETE(request: NextRequest) {
   try {
     const body = await request.json();
     const { token } = body as { token: string };
 
     if (!token) {
-      return NextResponse.json(
-        { success: false, error: 'Token is required' },
-        { status: 400 }
-      );
+      return errorResponse('Token is required', 400);
     }
 
-    // Delete session by token
-    await db.session.deleteMany({
+    const existingSession = await db.session.findUnique({
       where: { token },
     });
 
-    return NextResponse.json({ success: true });
+    if (existingSession) {
+      const ip = getClientIp(request);
+      await db.loginHistory.create({
+        data: {
+          userId: existingSession.userId,
+          method: 'Session Logout',
+          device: existingSession.deviceName || 'Device',
+          browser: existingSession.browser || 'Browser',
+          status: 'logout',
+          riskLevel: 'Low',
+          ipAddress: ip,
+          location: existingSession.location || 'Pune, Maharashtra, India',
+          deviceId: existingSession.deviceFingerprint || 'dev_logout',
+          isDemo: existingSession.isDemo,
+        },
+      }).catch(() => {});
+
+      await db.session.deleteMany({
+        where: { token },
+      });
+    }
+
+    return successResponse({ message: 'Session logged out and invalidated successfully.' });
   } catch (error) {
     console.error('Error deleting session:', error);
-    return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500 }
-    );
+    return errorResponse('Internal server error', 500);
   }
 }
