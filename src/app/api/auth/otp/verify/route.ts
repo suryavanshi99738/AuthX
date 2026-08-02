@@ -14,9 +14,7 @@ const MAX_ATTEMPTS = 3;
  * POST /api/auth/otp/verify
  *
  * Body: { email, code }
- *
- * Verifies the 6-digit login OTP against the latest unverified, non-expired
- * record for the email. Enforces expiry (5 min) and a maximum of 3 attempts.
+ * Verifies the 6-digit login OTP against the latest unverified, non-expired record.
  */
 export async function POST(request: NextRequest) {
   let body: unknown;
@@ -69,21 +67,31 @@ export async function POST(request: NextRequest) {
       return errorResponse(`Incorrect code. ${remaining} attempt${remaining === 1 ? '' : 's'} remaining.`, 400, 'OTP_INVALID');
     }
 
+    // Mark OTP verified
     await db.oTPCode.update({ where: { id: otp.id }, data: { verified: true } });
 
-    // Record login history entry in DB with stable device fingerprinting
-    if (otp.userId) {
+    // Guarantee User record existence (resolve via otp.userId or email)
+    let user = otp.userId ? await db.user.findUnique({ where: { id: otp.userId } }) : null;
+    if (!user) {
+      user = await db.user.findUnique({ where: { email: normalizedEmail } });
+    }
+    if (!user) {
+      user = await db.user.create({ data: { email: normalizedEmail, isDemo: Boolean(otp.isDemo) } });
+    }
+
+    // Safely perform trust and history logging (isolated catch so audit logging never breaks auth)
+    try {
       const userAgent = request.headers.get('user-agent');
       const { deviceName, browser, deviceFingerprint, location } = getDeviceDetails(userAgent, ip);
 
       let trusted = await db.trustedDevice.findFirst({
-        where: { userId: otp.userId, deviceFingerprint },
+        where: { userId: user.id, deviceFingerprint },
       });
 
       if (!trusted) {
-        trusted = await db.trustedDevice.create({
+        await db.trustedDevice.create({
           data: {
-            userId: otp.userId,
+            userId: user.id,
             deviceName,
             browser,
             deviceFingerprint,
@@ -101,7 +109,7 @@ export async function POST(request: NextRequest) {
 
       await db.loginHistory.create({
         data: {
-          userId: otp.userId,
+          userId: user.id,
           method: 'Email OTP',
           device: deviceName,
           browser,
@@ -116,16 +124,18 @@ export async function POST(request: NextRequest) {
 
       await db.riskAssessment.create({
         data: {
-          userId: otp.userId,
+          userId: user.id,
           score: 10,
           level: 'Low',
           reasons: JSON.stringify(['Trusted Device Verified', 'Geographic Location Verified']),
           ipAddress: ip,
         },
       });
+    } catch (auditErr) {
+      console.warn('Non-blocking audit log warning during OTP verify:', auditErr);
     }
 
-    return successResponse({ verified: true, userId: otp.userId, isDemo: otp.isDemo });
+    return successResponse({ verified: true, userId: user.id, isDemo: otp.isDemo });
   } catch (err) {
     console.error('OTP verify error:', err);
     return errorResponse('Something went wrong. Please try again.', 500);

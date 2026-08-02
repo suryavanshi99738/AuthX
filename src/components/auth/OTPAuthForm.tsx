@@ -201,13 +201,15 @@ export function OTPAuthForm() {
         }
 
         const userResult = await createUserOrGet(targetEmail);
-        if (!userResult.success || !userResult.user) {
+        const resolvedUser = userResult.user || { id: verifyResult.userId as string, email: targetEmail, name: null };
+        const canonicalUserId = verifyResult.userId as string || resolvedUser.id;
+
+        if (!canonicalUserId) {
           setOverlayStatus('error');
           setErrorMessage('User record could not be established');
           return;
         }
 
-        const canonicalUserId = userResult.user.id;
         const sessionResult = await createSession(canonicalUserId, 'Email OTP', isDemo);
         if (!sessionResult.success || !sessionResult.session) {
           setOverlayStatus('error');
@@ -217,7 +219,7 @@ export function OTPAuthForm() {
 
         setOverlayStatus('success');
         setOverlayMessage('Verified Successfully!');
-        setUser({ id: userResult.user.id, email: userResult.user.email, name: userResult.user.name });
+        setUser({ id: canonicalUserId, email: targetEmail, name: resolvedUser.name || null });
         setSession(sessionResult.session.token);
 
         setTimeout(() => {

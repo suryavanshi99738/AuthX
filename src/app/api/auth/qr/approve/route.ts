@@ -90,6 +90,8 @@ export async function POST(request: NextRequest) {
         userId: user.id,
         token: sessionToken,
         expiresAt,
+        loginMethod: 'QR Login',
+        isTrusted: true,
       },
     });
 

@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
     const token = uuidv4();
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
     await db.session.create({
-      data: { userId, token, expiresAt },
+      data: { userId, token, expiresAt, loginMethod: 'Passkey WebAuthn', isTrusted: true },
     });
 
     return successResponse({
