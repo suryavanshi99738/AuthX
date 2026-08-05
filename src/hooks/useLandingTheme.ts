@@ -4,14 +4,17 @@ type ThemePreference = 'light' | 'dark' | 'system';
 type ResolvedTheme = 'light' | 'dark';
 
 export function useLandingTheme() {
-  const [themePref, setThemePref] = useState<ThemePreference>('system');
+  // Default theme preference is 'light' unless explicitly saved otherwise
+  const [themePref, setThemePref] = useState<ThemePreference>('light');
   const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>('light');
 
   // Initialize theme from localStorage on mount
   useEffect(() => {
     const saved = localStorage.getItem('authx_landing_theme') as ThemePreference | null;
-    if (saved) {
+    if (saved && (saved === 'light' || saved === 'dark' || saved === 'system')) {
       setThemePref(saved);
+    } else {
+      setThemePref('light');
     }
   }, []);
 
