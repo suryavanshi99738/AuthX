@@ -8,7 +8,7 @@ import { getDemoDashboard, verifySession, getTrustedDevices } from '@/services/a
 import { Sidebar } from './Sidebar';
 import { DashboardContent } from './DashboardContent';
 import { NewDeviceModal } from './NewDeviceModal';
-import { Badge } from '@/components/ui/badge';
+import { StatusBadge } from '@/components/ui/status-badge';
 
 export function Dashboard() {
   const { user, sessionToken, isDemo, logout } = useAuth();
@@ -84,9 +84,10 @@ export function Dashboard() {
       {/* Mobile sidebar overlay */}
       {mobileSidebarOpen && (
         <motion.div
-          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm lg:hidden"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
+          transition={{ duration: 0.3 }}
           onClick={() => setMobileSidebarOpen(false)}
         />
       )}
@@ -106,36 +107,40 @@ export function Dashboard() {
       </div>
 
       {/* Main content */}
-      <div className="flex-1 min-w-0 flex flex-col min-h-screen transition-all duration-300">
+      <div className="flex-1 flex flex-col min-w-0 transition-all duration-300">
         {/* Top bar */}
-        <header className="flex items-center justify-between p-4 border-b border-border bg-card">
+        <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-sm border-b border-border flex items-center justify-between px-4 py-3 h-14">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setMobileSidebarOpen(true)}
-              className="lg:hidden flex items-center justify-center w-8 h-8 rounded-lg hover:bg-muted transition-smooth"
+              className="lg:hidden flex items-center justify-center w-8 h-8 rounded-lg hover:bg-muted/50 transition-smooth text-muted-foreground"
             >
-              <PanelLeft className="w-5 h-5 text-muted-foreground" />
+              <PanelLeft className="w-5 h-5" />
             </button>
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20">
-                <ShieldCheck className="w-4 h-4 text-primary" />
-              </div>
-              <span className="font-heading text-base font-bold tracking-tight text-foreground">AuthX</span>
-              {isDemo && (
-                <Badge className="bg-warning/10 text-warning text-xs hover:bg-warning/10">Demo Mode</Badge>
-              )}
+            <div className="hidden lg:flex items-center gap-2">
+              <ShieldCheck className="w-6 h-6 text-primary" />
+              <span className="font-heading text-base font-semibold tracking-tight text-foreground">AuthX</span>
             </div>
+            {/* Breadcrumb section name */}
+            <span className="text-sm text-muted-foreground capitalize lg:ml-4 font-medium">
+              {activeItem.replace('_', ' ')}
+            </span>
           </div>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground font-medium">
-            <span>{user?.email}</span>
+          <div className="flex items-center gap-3">
+            {isDemo && (
+              <StatusBadge variant="warning">Demo Mode</StatusBadge>
+            )}
+            <div className="text-sm bg-muted/50 rounded-full px-3 py-1 text-muted-foreground font-medium">
+              <span>{user?.email}</span>
+            </div>
           </div>
         </header>
 
         {/* Demo Mode subtle banner */}
         {isDemo && (
-          <div className="bg-warning/10 border-b border-warning/20 px-4 py-2 text-center text-xs font-semibold text-warning flex items-center justify-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-warning animate-pulse" />
-            <span>Demo Mode – Temporary data. Changes will be reset upon session exit.</span>
+          <div className="bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-800 px-4 py-2 text-center text-xs font-medium text-amber-700 dark:text-amber-400 flex items-center justify-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+            <span>Demo Mode — Temporary data will be cleared on exit</span>
           </div>
         )}
 

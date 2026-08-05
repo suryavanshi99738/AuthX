@@ -29,6 +29,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { startDemo, demoPasskey, demoOTP, verifyOTP, createSession } from '@/services/auth-client';
 import { AuthLoadingOverlay } from '@/components/auth/AuthLoadingOverlay';
 import { fadeInUp, staggerContainer } from '@/lib/animations';
+import { StatusBadge } from '@/components/ui/status-badge';
+import { InfoCallout } from '@/components/ui/info-callout';
 
 type DemoStep = 'select' | 'passkey' | 'otp' | 'otp-verify';
 
@@ -211,80 +213,62 @@ export function DemoAuthPage() {
 
   return (
     <div className="min-h-screen flex flex-col lg:flex-row">
-      {/* ── LEFT: Blue Info Panel ── */}
+      {/* ── LEFT: Dark Panel ── */}
       <div
-        className="hidden lg:flex lg:flex-[1_1_50%] flex-col items-center justify-center p-12 xl:p-16 order-1"
-        style={{ background: 'linear-gradient(135deg, #2563EB 0%, #1E40AF 100%)' }}
+        className="hidden lg:flex lg:flex-[1_1_45%] flex-col items-center justify-center p-12 xl:p-16 order-1 relative bg-zinc-950 overflow-hidden"
       >
+        <div className="absolute inset-0 pointer-events-none opacity-20 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.1)_0%,transparent_100%)]" style={{ backgroundImage: 'radial-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px)', backgroundSize: '24px 24px' }}></div>
         <motion.div
-          className="flex flex-col items-center text-center"
+          className="flex flex-col items-start w-full max-w-md z-10"
           initial="hidden"
           animate="visible"
           variants={staggerContainer}
         >
-          <motion.div variants={fadeInUp} className="flex items-center gap-2 mb-8">
-            <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
-              <Shield className="w-4 h-4 text-white" />
-            </div>
-            <span className="text-sm font-semibold text-white/90">BankShield</span>
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-white/20 text-white">Demo</span>
+          {/* Logo */}
+          <motion.div variants={fadeInUp} className="flex items-center gap-2 mb-12">
+            <Shield className="w-8 h-8 text-white" />
+            <span className="font-heading text-2xl font-bold text-white">AuthX</span>
+            <StatusBadge variant="warning">Demo</StatusBadge>
           </motion.div>
 
+          {/* Heading */}
           <motion.div variants={fadeInUp}>
-            <h2 className="font-heading text-2xl md:text-3xl font-bold text-white mb-4">
-              Try BankShield Auth
+            <h2 className="font-heading text-3xl font-bold text-white mb-4">
+              Demo Environment
             </h2>
-            <p className="text-sm text-white/70 leading-relaxed max-w-sm">
+            <p className="text-sm text-zinc-400 leading-relaxed mb-12">
               Experience passwordless authentication in a safe demo environment. No real data is stored.
             </p>
           </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4, duration: 0.5 }}
-            className="flex flex-wrap gap-2 mb-6 lg:mb-8 justify-center w-full max-w-sm"
-          >
-            {['Passkeys', 'OTP', 'FIDO2'].map((label) => (
-              <span
-                key={label}
-                className="px-3 py-1.5 rounded-full text-xs font-medium text-white/90"
-                style={{ background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)' }}
-              >
-                {label}
-              </span>
-            ))}
+          {/* Feature list */}
+          <motion.div variants={fadeInUp} className="flex flex-col gap-6 w-full mb-12">
+            <div className="flex items-center gap-4">
+              <KeyRound className="w-5 h-5 text-indigo-400" />
+              <span className="text-sm font-medium text-zinc-300">Simulated Passkeys</span>
+            </div>
+            <div className="flex items-center gap-4">
+              <Mail className="w-5 h-5 text-indigo-400" />
+              <span className="text-sm font-medium text-zinc-300">Mock Email OTP</span>
+            </div>
           </motion.div>
 
-          <DemoShield />
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6, duration: 0.5 }}
-            className="mt-6 lg:mt-8 w-full max-w-sm p-5 rounded-2xl"
-            style={{ background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.15)' }}
-          >
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
-                <Sparkles className="w-4 h-4 text-white" />
-              </div>
-              <span className="text-sm font-semibold text-white">Safe Demo Mode</span>
-            </div>
-            <p className="text-xs text-white/70 leading-relaxed">
-              No real data is stored. All demo data is cleaned up when you exit.
+          {/* Footer */}
+          <motion.div variants={fadeInUp} className="mt-auto pt-8 border-t border-zinc-800/50 w-full">
+            <p className="text-xs text-zinc-500 font-medium tracking-wide uppercase">
+              Safe Demo Mode · Auto Cleanup
             </p>
           </motion.div>
         </motion.div>
       </div>
 
       {/* ── RIGHT: Auth Panel ── */}
-      <div className="flex-1 lg:flex-[1_1_50%] bg-white flex items-center justify-center p-6 md:p-12 lg:p-16 order-2">
+      <div className="flex-1 lg:flex-[1_1_55%] bg-background flex items-center justify-center p-6 md:p-12 lg:p-16 order-2">
         <motion.div
-          className="w-full max-w-md"
+          className="w-full max-w-md mx-auto"
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
+          transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
         >
           {/* Back button */}
           <button
@@ -297,15 +281,13 @@ export function DemoAuthPage() {
 
           {/* Logo + Demo badge */}
           <div className="flex items-center gap-3 mb-8">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-              <Shield className="w-5 h-5 text-primary" />
-            </div>
-            <span className="font-heading text-lg font-semibold">BankShield</span>
-            <Badge className="bg-warning/10 text-warning text-xs hover:bg-warning/10">Demo</Badge>
+            <Shield className="w-8 h-8 text-primary" />
+            <span className="font-heading text-xl font-bold text-foreground">AuthX</span>
+            <StatusBadge variant="warning">Demo</StatusBadge>
           </div>
 
           {/* Heading */}
-          <h1 className="font-heading text-2xl md:text-3xl font-semibold text-foreground mb-2">
+          <h1 className="font-heading text-2xl font-semibold text-foreground mb-2">
             Demo Authentication
           </h1>
           <p className="text-sm text-muted-foreground mb-8">
@@ -315,47 +297,31 @@ export function DemoAuthPage() {
           <AnimatePresence mode="wait">
             {step === 'select' && (
               <motion.div key="select" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
                   {/* Passkey option */}
                   <button
                     onClick={handleDemoPasskey}
-                    className="w-full flex items-center gap-4 p-4 rounded-xl border border-border hover:border-primary/30 hover:bg-primary/5 transition-smooth group text-left"
+                    className="flex flex-col items-center gap-2 p-3 bg-card border border-border rounded-lg hover:border-primary/30 hover:bg-primary/5 transition-smooth cursor-pointer text-center"
                   >
-                    <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 group-hover:scale-105 transition-smooth">
-                      <KeyRound className="w-6 h-6 text-primary" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-semibold text-foreground">Passkey Demo</p>
-                      <p className="text-xs text-muted-foreground">Simulated passkey authentication</p>
-                    </div>
-                    <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-smooth" />
+                    <KeyRound className="w-5 h-5 text-primary" />
+                    <span className="text-sm font-medium text-foreground">Passkey Demo</span>
                   </button>
 
                   {/* OTP option */}
                   <button
                     onClick={handleDemoOTP}
-                    className="w-full flex items-center gap-4 p-4 rounded-xl border border-border hover:border-primary/30 hover:bg-primary/5 transition-smooth group text-left"
+                    className="flex flex-col items-center gap-2 p-3 bg-card border border-border rounded-lg hover:border-primary/30 hover:bg-primary/5 transition-smooth cursor-pointer text-center"
                   >
-                    <div className="w-12 h-12 rounded-xl bg-warning/10 flex items-center justify-center shrink-0 group-hover:scale-105 transition-smooth">
-                      <Mail className="w-6 h-6 text-warning" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-semibold text-foreground">OTP Demo</p>
-                      <p className="text-xs text-muted-foreground">Email one-time password (code: 123456)</p>
-                    </div>
-                    <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-smooth" />
+                    <Mail className="w-5 h-5 text-primary" />
+                    <span className="text-sm font-medium text-foreground">OTP Demo</span>
                   </button>
                 </div>
 
                 {/* Demo notice */}
-                <div className="mt-6 p-4 rounded-xl bg-primary/5 border border-primary/20">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Eye className="w-4 h-4 text-primary" />
-                    <p className="text-sm font-semibold text-foreground">Demo Mode</p>
-                  </div>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
+                <div className="mt-8">
+                  <InfoCallout variant="info" title="Demo Mode">
                     This is a simulated environment. No real authentication is performed. Demo data is cleaned up when you exit.
-                  </p>
+                  </InfoCallout>
                 </div>
               </motion.div>
             )}
@@ -374,21 +340,17 @@ export function DemoAuthPage() {
 
                   {/* Method header */}
                   <div className="flex items-center gap-3 mb-5">
-                    <div className="w-8 h-8 rounded-lg bg-warning/10 flex items-center justify-center">
-                      <Mail className="w-4 h-4 text-warning" />
+                    <div className="w-10 h-10 rounded-lg bg-warning/10 flex items-center justify-center">
+                      <Mail className="w-5 h-5 text-warning" />
                     </div>
-                    <span className="font-semibold text-foreground">Demo OTP Verification</span>
+                    <span className="font-heading text-xl font-semibold text-foreground">Demo OTP Verification</span>
                   </div>
 
                   {/* Show the OTP code */}
-                  <div className="p-4 rounded-xl bg-success/5 border border-success/20">
-                    <div className="flex items-center gap-2 mb-2">
-                      <CheckCircle2 className="w-4 h-4 text-success" />
-                      <p className="text-sm font-semibold text-foreground">Your Demo OTP Code</p>
-                    </div>
-                    <p className="text-3xl font-bold text-foreground tracking-widest font-mono">{demoOtpCode}</p>
-                    <p className="text-xs text-muted-foreground mt-1">Enter this code below to verify</p>
-                  </div>
+                  <InfoCallout variant="success" title="Your Demo OTP Code">
+                    <span className="text-3xl font-bold tracking-widest font-mono text-success">{demoOtpCode}</span>
+                    <p className="text-xs mt-1 text-success/80">Enter this code below to verify</p>
+                  </InfoCallout>
 
                   {/* OTP input */}
                   <div className="space-y-2">
@@ -414,7 +376,7 @@ export function DemoAuthPage() {
                   </div>
 
                   <Button
-                    className="w-full h-12 rounded-xl text-base shadow-card hover:shadow-card-hover transition-smooth"
+                    className="w-full h-11 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm transition-smooth"
                     disabled={otpCode.length !== 6}
                     onClick={handleVerifyDemoOTP}
                   >

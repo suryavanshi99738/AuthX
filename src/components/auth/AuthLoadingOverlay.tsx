@@ -31,7 +31,7 @@ export function AuthLoadingOverlay({
         >
           {/* Backdrop */}
           <motion.div
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -40,7 +40,7 @@ export function AuthLoadingOverlay({
 
           {/* Content card */}
           <motion.div
-            className="relative z-10 bg-card rounded-2xl shadow-modal p-8 flex flex-col items-center text-center max-w-sm mx-4"
+            className="relative z-10 bg-card rounded-xl shadow-xl p-8 flex flex-col items-center text-center max-w-sm mx-4"
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
@@ -61,7 +61,7 @@ export function AuthLoadingOverlay({
             {status === 'success' && (
               <motion.div variants={scaleInBounce} initial="hidden" animate="visible" className="mb-4">
                 <motion.div
-                  className="w-16 h-16 rounded-full bg-success/10 flex items-center justify-center"
+                  className="w-16 h-16 rounded-full bg-emerald-50 dark:bg-emerald-950 flex items-center justify-center"
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ type: 'spring', stiffness: 300, damping: 20, delay: 0.1 }}
@@ -71,7 +71,7 @@ export function AuthLoadingOverlay({
                     animate={{ scale: 1 }}
                     transition={{ type: 'spring', stiffness: 400, damping: 15, delay: 0.3 }}
                   >
-                    <CheckCircle2 className="w-8 h-8 text-success" />
+                    <CheckCircle2 className="w-8 h-8 text-emerald-600" />
                   </motion.div>
                 </motion.div>
               </motion.div>
@@ -86,12 +86,12 @@ export function AuthLoadingOverlay({
                 className="mb-4"
               >
                 <motion.div
-                  className="w-16 h-16 rounded-full bg-danger/10 flex items-center justify-center"
+                  className="w-16 h-16 rounded-full bg-red-50 dark:bg-red-950 flex items-center justify-center"
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ type: 'spring', stiffness: 300, damping: 20 }}
                 >
-                  <XCircle className="w-8 h-8 text-danger" />
+                  <XCircle className="w-8 h-8 text-red-600" />
                 </motion.div>
               </motion.div>
             )}

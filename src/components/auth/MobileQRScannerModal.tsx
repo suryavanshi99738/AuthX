@@ -142,46 +142,48 @@ export function MobileQRScannerModal({ isOpen, onClose, onScanSuccess }: MobileQ
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.95 }}
-          className="w-full max-w-sm bg-card rounded-3xl border border-border shadow-2xl overflow-hidden p-5 flex flex-col items-center"
+          transition={{ duration: 0.2 }}
+          className="w-full max-w-sm bg-card rounded-2xl border border-border shadow-xl overflow-hidden flex flex-col"
         >
           {/* Header */}
-          <div className="w-full flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
-                <Camera className="w-4 h-4 text-primary" />
+          <div className="p-5 relative border-b border-border/40">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                <Camera className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <h3 className="font-heading text-sm font-bold text-foreground">Scan Laptop QR Code</h3>
-                <p className="text-[11px] text-muted-foreground">Align QR inside frame to approve</p>
+                <h3 className="font-heading text-lg font-semibold">Scan QR Code</h3>
               </div>
             </div>
-            <button
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={() => { stopCamera(); onClose(); }}
-              className="w-8 h-8 rounded-xl hover:bg-muted flex items-center justify-center text-muted-foreground transition-smooth"
+              className="absolute top-4 right-4 rounded-full"
             >
-              <X className="w-4 h-4" />
-            </button>
+              <X className="w-5 h-5" />
+            </Button>
           </div>
 
-          {/* Camera Viewfinder with Laser Scanner Animation */}
-          <div className="w-full aspect-square rounded-2xl bg-black relative overflow-hidden flex flex-col items-center justify-center mb-3 border border-border shadow-inner">
+          {/* Camera Viewfinder */}
+          <div className="mx-5 mb-5 mt-5 aspect-square rounded-xl bg-zinc-950 relative overflow-hidden flex flex-col items-center justify-center border border-border shadow-inner">
             {hasPermission === null && (
               <div className="flex flex-col items-center gap-3 text-white">
                 <Loader2 className="w-7 h-7 animate-spin text-primary" />
-                <span className="text-xs font-medium">Opening camera...</span>
+                <span className="text-sm font-medium">Opening camera...</span>
               </div>
             )}
 
             {hasPermission === false && (
-              <div className="p-4 text-center text-white flex flex-col items-center gap-2">
+              <div className="absolute inset-0 bg-zinc-950/90 flex flex-col items-center justify-center gap-2 p-4 text-center z-10">
                 <AlertCircle className="w-8 h-8 text-warning" />
-                <span className="text-xs text-muted-foreground">{errorMsg || 'Camera access denied'}</span>
-                <Button onClick={startCamera} size="sm" variant="outline" className="mt-2 text-xs gap-1 rounded-xl">
+                <span className="text-sm text-muted-foreground">{errorMsg || 'Camera access denied'}</span>
+                <Button onClick={startCamera} size="sm" variant="outline" className="mt-2 text-xs gap-1">
                   <RefreshCw className="w-3.5 h-3.5" /> Try Again
                 </Button>
               </div>
@@ -191,24 +193,23 @@ export function MobileQRScannerModal({ isOpen, onClose, onScanSuccess }: MobileQ
               ref={videoRef}
               playsInline
               muted
-              className={`w-full h-full object-cover ${hasPermission ? 'block' : 'hidden'}`}
+              className={`absolute inset-0 w-full h-full object-cover ${hasPermission ? 'block' : 'hidden'}`}
             />
             <canvas ref={canvasRef} className="hidden" />
 
             {/* Viewfinder Target & Laser Scanning Bar Animation */}
             {hasPermission && !scanned && (
-              <div className="absolute inset-0 pointer-events-none p-8 flex items-center justify-center">
-                {/* Outer Target Box with Corner Accents */}
-                <div className="w-full h-full relative border border-white/20 rounded-2xl overflow-hidden">
+              <div className="absolute inset-0 pointer-events-none p-6 flex items-center justify-center">
+                <div className="w-full h-full relative">
                   {/* Corner brackets */}
-                  <div className="absolute top-0 left-0 w-6 h-6 border-t-3 border-l-3 border-primary rounded-tl-xl" />
-                  <div className="absolute top-0 right-0 w-6 h-6 border-t-3 border-r-3 border-primary rounded-tr-xl" />
-                  <div className="absolute bottom-0 left-0 w-6 h-6 border-b-3 border-l-3 border-primary rounded-bl-xl" />
-                  <div className="absolute bottom-0 right-0 w-6 h-6 border-b-3 border-r-3 border-primary rounded-br-xl" />
+                  <div className="absolute top-2 left-2 w-6 h-6 border-t-2 border-l-2 border-primary rounded-tl-lg" />
+                  <div className="absolute top-2 right-2 w-6 h-6 border-t-2 border-r-2 border-primary rounded-tr-lg" />
+                  <div className="absolute bottom-2 left-2 w-6 h-6 border-b-2 border-l-2 border-primary rounded-bl-lg" />
+                  <div className="absolute bottom-2 right-2 w-6 h-6 border-b-2 border-r-2 border-primary rounded-br-lg" />
 
                   {/* Animated Glowing Laser Beam */}
                   <motion.div
-                    className="w-full h-1 bg-gradient-to-r from-transparent via-primary to-transparent shadow-[0_0_15px_#3b82f6] absolute left-0"
+                    className="w-full h-1 bg-gradient-to-r from-transparent via-primary/60 to-transparent absolute left-0"
                     animate={{ top: ['5%', '90%', '5%'] }}
                     transition={{
                       duration: 2.2,
@@ -222,41 +223,35 @@ export function MobileQRScannerModal({ isOpen, onClose, onScanSuccess }: MobileQ
 
             {/* Scanned Success Overlay */}
             {scanned && (
-              <div className="absolute inset-0 bg-primary/80 backdrop-blur-sm flex flex-col items-center justify-center gap-2 text-white">
+              <div className="absolute inset-0 bg-primary/80 backdrop-blur-sm flex flex-col items-center justify-center gap-2 text-white z-20">
                 <CheckCircle2 className="w-12 h-12 text-white animate-bounce" />
                 <span className="text-sm font-bold">QR Scanned!</span>
-                <span className="text-xs text-white/80">Opening approval page…</span>
               </div>
             )}
           </div>
 
-          {/* Scanner Guidance & Manual Option */}
-          <div className="w-full space-y-2 text-center">
-            <p className="text-[11px] text-muted-foreground flex items-center justify-center gap-1.5">
-              <QrCode className="w-3.5 h-3.5 text-primary shrink-0" />
-              <span>Scanning happens automatically when aligned.</span>
-            </p>
-
+          {/* Manual Option */}
+          <div className="p-5 border-t border-border bg-muted/10">
             {!manualInputOpen ? (
               <button
                 onClick={() => setManualInputOpen(true)}
-                className="text-[11px] text-primary hover:underline font-medium pt-1"
+                className="w-full text-sm text-muted-foreground hover:text-foreground font-medium transition-colors"
               >
                 Or enter approval URL manually
               </button>
             ) : (
-              <form onSubmit={handleManualSubmit} className="pt-2 space-y-2">
+              <form onSubmit={handleManualSubmit} className="space-y-3">
                 <input
                   name="qrInput"
                   type="text"
                   placeholder="Paste URL or requestId..."
-                  className="w-full h-9 rounded-xl px-3 bg-muted text-xs border border-border outline-none focus:border-primary"
+                  className="w-full h-10 rounded-lg px-3 bg-background text-sm border border-border outline-none focus:border-primary"
                 />
                 <div className="flex gap-2">
-                  <Button type="button" variant="ghost" size="sm" onClick={() => setManualInputOpen(false)} className="flex-1 h-8 text-xs">
+                  <Button type="button" variant="ghost" onClick={() => setManualInputOpen(false)} className="flex-1 h-10 text-sm">
                     Cancel
                   </Button>
-                  <Button type="submit" size="sm" className="flex-1 h-8 text-xs rounded-xl">
+                  <Button type="submit" className="flex-1 bg-primary text-primary-foreground rounded-lg h-10 text-sm">
                     Submit
                   </Button>
                 </div>

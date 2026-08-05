@@ -15,6 +15,7 @@ import {
   createSession,
 } from '@/services/auth-client';
 import { AuthLoadingOverlay } from './AuthLoadingOverlay';
+import { InfoCallout } from '@/components/ui/info-callout';
 
 export function PasskeyAuthForm() {
   const { setUser, setSession, setPageView, setAuthMethod, setLoading, isDemo, authTab, signupDraft, loginEmailDraft, setLoginEmailDraft } = useAuth();
@@ -172,10 +173,10 @@ export function PasskeyAuthForm() {
 
         {/* Method header */}
         <div className="flex items-center gap-3 mb-5">
-          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-            <KeyRound className="w-4 h-4 text-primary" />
+          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+            <KeyRound className="w-5 h-5 text-primary" />
           </div>
-          <span className="font-semibold text-foreground">
+          <span className="font-heading text-xl font-semibold text-foreground">
             {isSignup ? 'Passkey Sign Up' : 'Passkey Login'}
           </span>
         </div>
@@ -190,30 +191,19 @@ export function PasskeyAuthForm() {
             onChange={(e) => setEmail(e.target.value)}
             disabled={isSignup || hasPrefilledEmail}
             readOnly={isSignup || hasPrefilledEmail}
-            className="h-12 rounded-xl"
+            className="h-11 rounded-lg border-border"
             onKeyDown={(e) => e.key === 'Enter' && handleContinue()}
           />
         </div>
 
         {/* Passkey info */}
-        <div className="p-4 rounded-xl bg-primary/5 border border-primary/20">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-              <KeyRound className="w-5 h-5 text-primary" />
-            </div>
-            <div>
-              <p className="font-semibold text-foreground text-sm">Passkey Authentication</p>
-              <p className="text-xs text-muted-foreground">WebAuthn / FIDO2 Standard</p>
-            </div>
-          </div>
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            Passkeys are stored securely on your device. No server-side credential storage —
-            eliminating phishing and credential theft entirely.
-          </p>
-        </div>
+        <InfoCallout variant="info" title="Passkey Authentication">
+          Passkeys are stored securely on your device. No server-side credential storage —
+          eliminating phishing and credential theft entirely.
+        </InfoCallout>
 
         <Button
-          className="w-full h-12 rounded-xl text-base shadow-card hover:shadow-card-hover transition-smooth"
+          className="w-full h-11 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-smooth"
           disabled={isSignup ? false : !email.trim()}
           onClick={handleContinue}
         >

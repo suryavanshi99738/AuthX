@@ -7,7 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { getDemoDashboard } from '@/services/auth-client';
 import { Sidebar } from '@/components/dashboard/Sidebar';
 import { DashboardContent } from '@/components/dashboard/DashboardContent';
-import { Badge } from '@/components/ui/badge';
+import { StatusBadge } from '@/components/ui/status-badge';
 import { Button } from '@/components/ui/button';
 
 export function DemoDashboard() {
@@ -41,9 +41,10 @@ export function DemoDashboard() {
       {/* Mobile sidebar overlay */}
       {mobileSidebarOpen && (
         <motion.div
-          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+          className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm lg:hidden"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
+          transition={{ duration: 0.3 }}
           onClick={() => setMobileSidebarOpen(false)}
         />
       )}
@@ -63,43 +64,45 @@ export function DemoDashboard() {
       </div>
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col min-h-screen">
+      <div className="flex-1 flex flex-col min-w-0 transition-all duration-300">
         {/* Top bar */}
-        <header className="flex items-center justify-between p-4 border-b border-border bg-card">
+        <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-sm border-b border-border flex items-center justify-between px-4 py-3 h-14">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setMobileSidebarOpen(true)}
-              className="lg:hidden flex items-center justify-center w-8 h-8 rounded-lg hover:bg-muted transition-smooth"
+              className="lg:hidden flex items-center justify-center w-8 h-8 rounded-lg hover:bg-muted/50 transition-smooth text-muted-foreground"
             >
-              <PanelLeft className="w-5 h-5 text-muted-foreground" />
+              <PanelLeft className="w-5 h-5" />
             </button>
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Shield className="w-4 h-4 text-primary" />
-              </div>
-              <span className="font-heading text-sm font-semibold">BankShield Auth</span>
-              <Badge className="bg-warning/10 text-warning text-xs hover:bg-warning/10">Demo Mode</Badge>
+            <div className="hidden lg:flex items-center gap-2">
+              <Shield className="w-6 h-6 text-primary" />
+              <span className="font-heading text-base font-semibold tracking-tight text-foreground">AuthX</span>
             </div>
+            {/* Breadcrumb section name */}
+            <span className="text-sm text-muted-foreground capitalize lg:ml-4 font-medium">
+              {activeItem.replace('_', ' ')}
+            </span>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-xs text-muted-foreground hidden sm:block">{user?.email}</span>
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-xs rounded-lg text-danger border-danger/30 hover:bg-danger/10 hover:text-danger"
+            <StatusBadge variant="warning">Demo Mode</StatusBadge>
+            <div className="hidden sm:block text-sm bg-muted/50 rounded-full px-3 py-1 text-muted-foreground font-medium">
+              <span>{user?.email}</span>
+            </div>
+            <button
+              className="text-sm text-red-600 hover:text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800 rounded-lg px-3 py-1.5 flex items-center gap-1.5 transition-smooth"
               onClick={handleExitDemo}
             >
-              <LogOut className="w-3 h-3 mr-1" />
+              <LogOut className="w-4 h-4" />
               Exit Demo
-            </Button>
+            </button>
           </div>
         </header>
 
         {/* Demo banner */}
-        <div className="bg-warning/5 border-b border-warning/20 px-6 py-2 flex items-center justify-center gap-2">
-          <Badge className="bg-warning/10 text-warning text-xs hover:bg-warning/10">Demo</Badge>
-          <span className="text-xs text-muted-foreground">
-            You are viewing demo data. All data will be cleaned up when you exit.
+        <div className="bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-800 px-4 py-2 flex items-center justify-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+          <span className="text-xs font-medium text-amber-700 dark:text-amber-400">
+            Demo Mode — Temporary data will be cleared on exit
           </span>
         </div>
 

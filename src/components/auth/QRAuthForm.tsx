@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { generateQRRequest, checkQRStatus } from '@/services/auth-client';
 import { AuthLoadingOverlay } from './AuthLoadingOverlay';
+import { StatusBadge } from '@/components/ui/status-badge';
 
 export function QRAuthForm() {
   const { setUser, setSession, setPageView, setAuthMethod, isDemo } = useAuth();
@@ -121,22 +122,22 @@ export function QRAuthForm() {
         {/* Method header */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-info/10 flex items-center justify-center">
-              <QrCode className="w-4 h-4 text-info" />
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <QrCode className="w-5 h-5 text-primary" />
             </div>
-            <span className="font-semibold text-foreground">QR Code Authentication</span>
+            <span className="font-heading text-xl font-semibold text-foreground">QR Code Authentication</span>
           </div>
 
           {status === 'pending' && (
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted text-xs font-medium text-muted-foreground">
-              <Clock className="w-3.5 h-3.5 text-warning" />
-              <span>{timeLeft}s</span>
-            </div>
+            <StatusBadge variant="neutral">
+              <Clock className="w-3.5 h-3.5 mr-1" />
+              {timeLeft}s
+            </StatusBadge>
           )}
         </div>
 
         {/* QR Code Card Display */}
-        <div className="p-6 rounded-2xl bg-card border border-border flex flex-col items-center justify-center text-center relative overflow-hidden min-h-[260px]">
+        <div className="p-6 rounded-xl bg-card border border-border shadow-card flex flex-col items-center justify-center text-center relative overflow-hidden min-h-[260px]">
           {status === 'loading' && (
             <div className="flex flex-col items-center gap-3">
               <Loader2 className="w-8 h-8 text-primary animate-spin" />
@@ -146,7 +147,7 @@ export function QRAuthForm() {
 
           {status === 'pending' && qrUrl && (
             <div className="flex flex-col items-center gap-4">
-              <div className="p-3 bg-white rounded-xl shadow-md border border-border">
+              <div className="p-3 bg-white rounded-xl shadow-sm border border-border">
                 <QRCodeSVG
                   value={qrUrl}
                   size={180}
@@ -169,16 +170,14 @@ export function QRAuthForm() {
 
           {status === 'expired' && (
             <div className="flex flex-col items-center gap-3 py-4">
-              <div className="w-12 h-12 rounded-xl bg-warning/10 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-xl bg-warning/10 flex items-center justify-center mb-1">
                 <Clock className="w-6 h-6 text-warning" />
               </div>
-              <div>
-                <p className="text-sm font-semibold text-foreground">QR Request Expired</p>
-                <p className="text-xs text-muted-foreground mt-1 max-w-xs">
-                  QR codes expire after 60 seconds to ensure strict security.
-                </p>
-              </div>
-              <Button onClick={createQR} className="mt-2 rounded-xl h-10 px-4 gap-2">
+              <StatusBadge variant="warning">QR Request Expired</StatusBadge>
+              <p className="text-xs text-muted-foreground mt-1 max-w-xs">
+                QR codes expire after 60 seconds to ensure strict security.
+              </p>
+              <Button onClick={createQR} className="mt-2 rounded-lg h-10 px-4 gap-2 bg-primary">
                 <RefreshCw className="w-4 h-4" />
                 Generate New QR Code
               </Button>
@@ -187,16 +186,14 @@ export function QRAuthForm() {
 
           {status === 'rejected' && (
             <div className="flex flex-col items-center gap-3 py-4">
-              <div className="w-12 h-12 rounded-xl bg-danger/10 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-xl bg-danger/10 flex items-center justify-center mb-1">
                 <Lock className="w-6 h-6 text-danger" />
               </div>
-              <div>
-                <p className="text-sm font-semibold text-foreground">Approval Rejected</p>
-                <p className="text-xs text-muted-foreground mt-1 max-w-xs">
-                  The login request was declined on the mobile device.
-                </p>
-              </div>
-              <Button onClick={createQR} className="mt-2 rounded-xl h-10 px-4 gap-2">
+              <StatusBadge variant="danger">Approval Rejected</StatusBadge>
+              <p className="text-xs text-muted-foreground mt-1 max-w-xs">
+                The login request was declined on the mobile device.
+              </p>
+              <Button onClick={createQR} className="mt-2 rounded-lg h-10 px-4 gap-2 bg-primary">
                 <RefreshCw className="w-4 h-4" />
                 Try Again
               </Button>
@@ -205,10 +202,10 @@ export function QRAuthForm() {
 
           {status === 'approved' && (
             <div className="flex flex-col items-center gap-3 py-4">
-              <div className="w-12 h-12 rounded-xl bg-success/10 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-xl bg-success/10 flex items-center justify-center mb-1">
                 <ShieldCheck className="w-6 h-6 text-success" />
               </div>
-              <p className="text-sm font-semibold text-success">Authentication Approved!</p>
+              <StatusBadge variant="success">Authentication Approved!</StatusBadge>
             </div>
           )}
         </div>

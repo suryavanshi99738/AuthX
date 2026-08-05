@@ -24,6 +24,7 @@ import {
 } from '@/services/auth-client';
 import { AuthLoadingOverlay } from './AuthLoadingOverlay';
 import { toast } from '@/hooks/use-toast';
+import { InfoCallout } from '@/components/ui/info-callout';
 
 type Step = 'email' | 'otp-input';
 
@@ -268,10 +269,10 @@ export function OTPAuthForm() {
 
         {/* Method header */}
         <div className="flex items-center gap-3 mb-5">
-          <div className="w-8 h-8 rounded-lg bg-warning/10 flex items-center justify-center">
-            <Mail className="w-4 h-4 text-warning" />
+          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+            <Mail className="w-5 h-5 text-primary" />
           </div>
-          <span className="font-semibold text-foreground">
+          <span className="font-heading text-xl font-semibold text-foreground">
             {isSignup ? 'Email Verification' : 'OTP Login'}
           </span>
         </div>
@@ -288,30 +289,19 @@ export function OTPAuthForm() {
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={isSignup || hasPrefilledEmail}
                 readOnly={isSignup || hasPrefilledEmail}
-                className="h-12 rounded-xl"
+                className="h-11 rounded-lg border-border"
                 onKeyDown={(e) => e.key === 'Enter' && handleSendOtp()}
               />
             </div>
 
             {/* OTP info */}
-            <div className="p-4 rounded-xl bg-warning/5 border border-warning/20">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-xl bg-warning/10 flex items-center justify-center">
-                  <Hash className="w-5 h-5 text-warning" />
-                </div>
-                <div>
-                  <p className="font-semibold text-foreground text-sm">One-Time Password</p>
-                  <p className="text-xs text-muted-foreground">6-digit code sent to email</p>
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                A 6-digit verification code will be sent to your email. Enter it below to verify your identity.
-                The code expires in 5 minutes.
-              </p>
-            </div>
+            <InfoCallout variant="info" title="One-Time Password">
+              A 6-digit verification code will be sent to your email. Enter it below to verify your identity.
+              The code expires in 5 minutes.
+            </InfoCallout>
 
             <Button
-              className="w-full h-12 rounded-xl text-base shadow-card hover:shadow-card-hover transition-smooth"
+              className="w-full h-11 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm transition-smooth"
               disabled={!email.trim() || sending}
               onClick={handleSendOtp}
             >
@@ -354,7 +344,7 @@ export function OTPAuthForm() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-xs text-muted-foreground"
+                className="text-sm text-primary hover:text-primary/80"
                 disabled={resendIn > 0 || sending}
                 onClick={handleResendOtp}
               >
@@ -363,7 +353,7 @@ export function OTPAuthForm() {
             </div>
 
             <Button
-              className="w-full h-12 rounded-xl text-base shadow-card hover:shadow-card-hover transition-smooth"
+              className="w-full h-11 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm transition-smooth"
               disabled={otpCode.length !== 6 || sending}
               onClick={handleVerifyOtp}
             >

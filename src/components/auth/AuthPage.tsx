@@ -34,6 +34,8 @@ import { UnderDevelopmentModal } from './UnderDevelopmentModal';
 import { fadeInUp, staggerContainer, scaleIn } from '@/lib/animations';
 import { signupCheck } from '@/services/auth-client';
 import { useRouter } from 'next/navigation';
+import { InfoCallout } from '@/components/ui/info-callout';
+import { StatusBadge } from '@/components/ui/status-badge';
 
 /* ── Auth Method Icons (for login selector) ── */
 const AUTH_METHODS = [
@@ -239,84 +241,69 @@ export function AuthPage() {
 
   return (
     <div className="min-h-screen flex flex-col lg:flex-row">
-      {/* ── LEFT: Blue Info Panel ── */}
+      {/* ── LEFT: Dark Panel ── */}
       <div
-        className="hidden lg:flex lg:flex-[1_1_50%] flex-col items-center justify-center p-12 xl:p-16 order-1"
-        style={{ background: 'linear-gradient(135deg, #2563EB 0%, #1E40AF 100%)' }}
+        className="hidden lg:flex lg:flex-[1_1_45%] flex-col items-center justify-center p-12 xl:p-16 order-1 relative bg-zinc-950 overflow-hidden"
       >
+        <div className="absolute inset-0 pointer-events-none opacity-20 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.1)_0%,transparent_100%)]" style={{ backgroundImage: 'radial-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px)', backgroundSize: '24px 24px' }}></div>
         <motion.div
-          className="flex flex-col items-center text-center"
+          className="flex flex-col items-start w-full max-w-md z-10"
           initial="hidden"
           animate="visible"
           variants={staggerContainer}
         >
           {/* Logo */}
-          <motion.div variants={fadeInUp} className="flex items-center gap-2 mb-8">
-            <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
-              <Shield className="w-4 h-4 text-white" />
-            </div>
-            <span className="text-sm font-semibold text-white/90">BankShield</span>
+          <motion.div variants={fadeInUp} className="flex items-center gap-2 mb-12">
+            <ShieldCheck className="w-8 h-8 text-white" />
+            <span className="font-heading text-2xl font-bold text-white">AuthX</span>
           </motion.div>
 
           {/* Heading */}
           <motion.div variants={fadeInUp}>
-            <h2 className="font-heading text-2xl md:text-3xl font-bold text-white mb-4">
-              Welcome to BankShield Auth
+            <h2 className="font-heading text-3xl font-bold text-white mb-4">
+              Secure your identity
             </h2>
-            <p className="text-sm text-white/70 leading-relaxed max-w-sm">
-              The next generation of authentication — built for banks, designed for people.
+            <p className="text-sm text-zinc-400 leading-relaxed mb-12">
+              Enterprise-grade passwordless authentication powered by FIDO2 WebAuthn standards.
             </p>
           </motion.div>
 
-          {/* Feature pills */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4, duration: 0.5 }}
-            className="flex flex-wrap gap-2 mb-6 lg:mb-8 justify-center w-full max-w-sm"
-          >
-            {['Passkeys', 'Biometrics', 'QR Auth', 'FIDO2'].map((label) => (
-              <span
-                key={label}
-                className="px-3 py-1.5 rounded-full text-xs font-medium text-white/90"
-                style={{ background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)' }}
-              >
-                {label}
-              </span>
-            ))}
+          {/* Feature list */}
+          <motion.div variants={fadeInUp} className="flex flex-col gap-6 w-full mb-12">
+            <div className="flex items-center gap-4">
+              <KeyRound className="w-5 h-5 text-indigo-400" />
+              <span className="text-sm font-medium text-zinc-300">Hardware-bound passkeys</span>
+            </div>
+            <div className="flex items-center gap-4">
+              <Mail className="w-5 h-5 text-indigo-400" />
+              <span className="text-sm font-medium text-zinc-300">One-time email verification</span>
+            </div>
+            <div className="flex items-center gap-4">
+              <QrCode className="w-5 h-5 text-indigo-400" />
+              <span className="text-sm font-medium text-zinc-300">Cross-device QR login</span>
+            </div>
+            <div className="flex items-center gap-4">
+              <Shield className="w-5 h-5 text-indigo-400" />
+              <span className="text-sm font-medium text-zinc-300">Adaptive risk detection</span>
+            </div>
           </motion.div>
 
-          {/* Central interactive shield */}
-          <AuthInteractiveShield />
-
-          {/* Glassmorphism card */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6, duration: 0.5 }}
-            className="mt-6 lg:mt-8 w-full max-w-sm p-5 rounded-2xl"
-            style={{ background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.15)' }}
-          >
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
-                <Sparkles className="w-4 h-4 text-white" />
-              </div>
-              <span className="text-sm font-semibold text-white">FIDO2 Certified</span>
-            </div>
-            <p className="text-xs text-white/70 leading-relaxed">
-              Built on the WebAuthn standard trusted by the world&apos;s largest financial institutions.
+          {/* Footer */}
+          <motion.div variants={fadeInUp} className="mt-auto pt-8 border-t border-zinc-800/50 w-full">
+            <p className="text-xs text-zinc-500 font-medium tracking-wide uppercase">
+              FIDO2 Certified · WebAuthn Standard
             </p>
           </motion.div>
         </motion.div>
       </div>
 
-      {/* ── RIGHT: Auth Panel (White) ── */}
-      <div className="flex-1 lg:flex-[1_1_50%] bg-white flex items-center justify-center p-6 md:p-12 lg:p-16 order-2">
+      {/* ── RIGHT: Auth Panel ── */}
+      <div className="flex-1 lg:flex-[1_1_55%] bg-background flex items-center justify-center p-6 md:p-12 lg:p-16 order-2">
         <motion.div
-          className="w-full max-w-md"
+          className="w-full max-w-md mx-auto"
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
+          transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
         >
           {/* Back button */}
           <button
@@ -329,40 +316,36 @@ export function AuthPage() {
 
           {/* Logo */}
           <div className="flex items-center gap-3 mb-8">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20">
-              <ShieldCheck className="w-5 h-5 text-primary" />
-            </div>
-            <span className="font-heading text-xl font-bold tracking-tight text-foreground">AuthX</span>
+            <ShieldCheck className="w-8 h-8 text-primary" />
+            <span className="font-heading text-xl font-bold text-foreground">AuthX</span>
           </div>
 
           {/* Heading */}
-          <h1 className="font-heading text-2xl md:text-3xl font-bold text-foreground mb-2">
-            Welcome to AuthX
+          <h1 className="font-heading text-2xl font-semibold text-foreground mb-2">
+            {authTab === 'login' ? 'Welcome back' : 'Create your account'}
           </h1>
           <p className="text-sm text-muted-foreground mb-8">
-            Choose your preferred method to continue — no passwords required.
+            {authTab === 'login' ? 'Sign in to your account' : 'Get started with secure authentication'}
           </p>
 
           {/* ── Tab Selector ── */}
-          <div className="relative flex p-1 bg-muted rounded-xl mb-8">
+          <div className="relative flex p-1 bg-muted/50 rounded-lg mb-8">
             <motion.div
-              className="absolute top-1 bottom-1 bg-white rounded-lg shadow-card"
+              className="absolute top-1 bottom-1 bg-background shadow-sm rounded-md"
               style={{ width: 'calc(50% - 4px)' }}
               animate={{ left: authTab === 'login' ? '4px' : 'calc(50% + 0px)' }}
               transition={{ type: 'spring', stiffness: 300, damping: 30 }}
             />
             <button
               onClick={() => setAuthTab('login')}
-              className={`relative z-10 flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-colors ${authTab === 'login' ? 'text-foreground' : 'text-muted-foreground'}`}
+              className={`relative z-10 flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-medium transition-colors ${authTab === 'login' ? 'text-foreground' : 'text-muted-foreground'}`}
             >
-              <Lock className="w-4 h-4" />
               Login
             </button>
             <button
               onClick={() => { setAuthTab('signup'); setSignupStep('form'); setSignupError(''); }}
-              className={`relative z-10 flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-colors ${authTab === 'signup' ? 'text-foreground' : 'text-muted-foreground'}`}
+              className={`relative z-10 flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-medium transition-colors ${authTab === 'signup' ? 'text-foreground' : 'text-muted-foreground'}`}
             >
-              <User className="w-4 h-4" />
               Sign Up
             </button>
           </div>
@@ -389,7 +372,7 @@ export function AuthPage() {
                             placeholder="you@example.com"
                             value={loginEmail}
                             onChange={(e) => { setLoginEmail(e.target.value); setLoginError(''); }}
-                            className="h-12 rounded-xl"
+                            className="h-11 rounded-lg border-border focus:border-primary focus:ring-2 focus:ring-primary/20"
                             onKeyDown={(e) => e.key === 'Enter' && handleLoginContinue()}
                           />
                         </div>
@@ -399,7 +382,7 @@ export function AuthPage() {
                         )}
 
                         <Button
-                          className="w-full h-12 rounded-xl text-base shadow-card hover:shadow-card-hover transition-smooth"
+                          className="w-full h-11 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-smooth"
                           disabled={!loginEmail.trim() || signupChecking}
                           onClick={handleLoginContinue}
                         >
@@ -409,35 +392,32 @@ export function AuthPage() {
                               Checking…
                             </>
                           ) : (
-                            <>
-                              Continue
-                              <ArrowRight className="w-4 h-4 ml-2" />
-                            </>
+                            'Continue'
                           )}
                         </Button>
 
                         {/* Divider */}
                         <div className="relative my-6">
                           <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border" /></div>
-                          <div className="relative flex justify-center text-xs"><span className="bg-white px-3 text-muted-foreground">or authenticate with</span></div>
+                          <div className="relative flex justify-center text-xs"><span className="bg-background px-3 text-muted-foreground">or continue with</span></div>
                         </div>
 
                         {/* Auth Method Icons */}
-                        <div className={`grid gap-3 ${visibleAuthMethods.length === 3 ? 'grid-cols-3' : 'grid-cols-4'}`}>
+                        <div className="grid grid-cols-2 gap-3">
                           {visibleAuthMethods.map((method) => (
                             <button
                               key={method.id}
                               onClick={() => handleMethodClick(method.id)}
-                              className="flex flex-col items-center gap-2 p-3 rounded-xl border border-border hover:border-primary/30 hover:bg-primary/5 transition-smooth group cursor-pointer"
+                              className="flex items-center gap-3 p-3 bg-card border border-border rounded-lg hover:border-primary/30 hover:bg-primary/5 transition-smooth cursor-pointer"
                             >
-                              <method.icon className={`w-5 h-5 ${method.color} group-hover:scale-110 transition-smooth`} />
-                              <span className="text-[10px] text-muted-foreground font-medium">{method.label}</span>
+                              <method.icon className="w-5 h-5 text-primary shrink-0" />
+                              <span className="text-sm font-medium text-foreground">{method.label}</span>
                             </button>
                           ))}
                         </div>
 
                         {/* Security notice */}
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground justify-center pt-2">
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground justify-center pt-4">
                           <Lock className="w-3 h-3" />
                           <span>Your data is encrypted and never stored on our servers.</span>
                         </div>
@@ -469,7 +449,7 @@ export function AuthPage() {
                             <Label htmlFor="signup-name" className="text-sm font-medium">Full Name</Label>
                             <div className="relative">
                               <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                              <Input id="signup-name" type="text" placeholder="John Doe" value={signupName} onChange={(e) => { setSignupName(e.target.value); setSignupError(''); }} className="h-12 rounded-xl pl-10" />
+                              <Input id="signup-name" type="text" placeholder="John Doe" value={signupName} onChange={(e) => { setSignupName(e.target.value); setSignupError(''); }} className="h-11 rounded-lg pl-10 border-border focus:border-primary focus:ring-2 focus:ring-primary/20" />
                             </div>
                           </div>
 
@@ -477,7 +457,7 @@ export function AuthPage() {
                             <Label htmlFor="signup-email" className="text-sm font-medium">Email Address</Label>
                             <div className="relative">
                               <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                              <Input id="signup-email" type="email" placeholder="you@example.com" value={signupEmail} onChange={(e) => { setSignupEmail(e.target.value); setSignupError(''); }} className="h-12 rounded-xl pl-10" />
+                              <Input id="signup-email" type="email" placeholder="you@example.com" value={signupEmail} onChange={(e) => { setSignupEmail(e.target.value); setSignupError(''); }} className="h-11 rounded-lg pl-10 border-border focus:border-primary focus:ring-2 focus:ring-primary/20" />
                             </div>
                           </div>
 
@@ -485,7 +465,7 @@ export function AuthPage() {
                             <Label htmlFor="signup-phone" className="text-sm font-medium">Phone Number</Label>
                             <div className="relative">
                               <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                              <Input id="signup-phone" type="tel" placeholder="+1 (555) 000-0000" value={signupPhone} onChange={(e) => { setSignupPhone(e.target.value); setSignupError(''); }} className="h-12 rounded-xl pl-10" />
+                              <Input id="signup-phone" type="tel" placeholder="+1 (555) 000-0000" value={signupPhone} onChange={(e) => { setSignupPhone(e.target.value); setSignupError(''); }} className="h-11 rounded-lg pl-10 border-border focus:border-primary focus:ring-2 focus:ring-primary/20" />
                             </div>
                           </div>
 
@@ -494,7 +474,7 @@ export function AuthPage() {
                           )}
 
                           <Button
-                            className="w-full h-12 rounded-xl text-base shadow-card hover:shadow-card-hover transition-smooth"
+                            className="w-full h-11 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-smooth"
                             disabled={!signupName.trim() || !signupEmail.trim() || !signupPhone.trim() || signupChecking}
                             onClick={handleSignupContinue}
                           >
@@ -504,31 +484,12 @@ export function AuthPage() {
                                 Checking…
                               </>
                             ) : (
-                              <>
-                                Continue
-                                <ArrowRight className="w-4 h-4 ml-2" />
-                              </>
+                              'Continue'
                             )}
                           </Button>
-
-                          {/* Security benefits */}
-                          <div className="space-y-3 pt-4">
-                            {SIGNUP_BENEFITS.map((b) => (
-                              <div key={b.label} className="flex items-start gap-3">
-                                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                                  <b.icon className="w-4 h-4 text-primary" />
-                                </div>
-                                <div>
-                                  <p className="text-sm font-medium text-foreground">{b.label}</p>
-                                  <p className="text-xs text-muted-foreground">{b.desc}</p>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
                         </div>
                       ) : signupStep === 'exists' ? (
                         <div className="space-y-5">
-                          {/* Back button */}
                           <button
                             onClick={() => { setSignupStep('form'); setAuthMethod('default'); setLoginEmailDraft(null); setExistingEmail(''); }}
                             className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-smooth mb-2"
@@ -537,48 +498,34 @@ export function AuthPage() {
                             Back to details
                           </button>
 
-                          {/* Warning card */}
-                          <div className="flex items-start gap-3 p-4 rounded-xl bg-warning/10 border border-warning/30">
-                            <div className="w-10 h-10 rounded-xl bg-warning/15 flex items-center justify-center shrink-0">
-                              <AlertCircle className="w-5 h-5 text-warning" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-semibold text-foreground text-sm">Account already exists</p>
-                              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                                Account already exists. Authenticate using available methods for{' '}
-                                <span className="font-medium text-foreground break-all">{existingEmail}</span>.
-                              </p>
-                            </div>
-                          </div>
+                          <InfoCallout variant="warning" title="Account already exists">
+                            Authenticate using available methods for {existingEmail}.
+                          </InfoCallout>
 
-                          {/* Method header */}
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                              <Lock className="w-4 h-4 text-primary" />
-                            </div>
+                            <Lock className="w-5 h-5 text-primary" />
                             <span className="font-semibold text-foreground">Available Authentication Methods</span>
                           </div>
 
-                          {/* Method list with status badges */}
                           <div className="space-y-2 pt-1">
                             {AUTH_METHODS.map((method) => {
                               let status: 'available' | 'not_registered' | 'under_dev' = 'under_dev';
                               let badgeLabel = 'Under Development';
-                              let badgeClass = 'bg-muted text-muted-foreground border-transparent';
+                              let badgeVariant: 'default' | 'success' | 'warning' | 'danger' | 'info' | 'neutral' = 'neutral';
 
                               if (method.id === 'otp') {
                                 status = 'available';
                                 badgeLabel = 'Available';
-                                badgeClass = 'bg-success/10 text-success border-success/20';
+                                badgeVariant = 'success';
                               } else if (method.id === 'passkey') {
                                 if (existingUserMethods.passkey) {
                                   status = 'available';
                                   badgeLabel = 'Available';
-                                  badgeClass = 'bg-success/10 text-success border-success/20';
+                                  badgeVariant = 'success';
                                 } else {
                                   status = 'not_registered';
                                   badgeLabel = 'Not registered';
-                                  badgeClass = 'bg-muted/80 text-muted-foreground border-border';
+                                  badgeVariant = 'neutral';
                                 }
                               }
 
@@ -589,42 +536,22 @@ export function AuthPage() {
                                   key={method.id}
                                   disabled={!isClickable}
                                   onClick={() => handleSignupMethodClick(method.id, true)}
-                                  className={`w-full flex items-center justify-between p-3.5 rounded-xl border transition-smooth text-left ${
+                                  className={`w-full flex items-center justify-between p-3.5 rounded-lg border transition-smooth text-left ${
                                     isClickable
-                                      ? 'border-border hover:border-primary/40 hover:bg-primary/5 cursor-pointer shadow-sm'
+                                      ? 'bg-card border-border hover:border-primary/40 hover:bg-primary/5 cursor-pointer'
                                       : 'border-border/50 bg-muted/30 opacity-65 cursor-not-allowed'
                                   }`}
                                 >
                                   <div className="flex items-center gap-3">
-                                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${isClickable ? 'bg-primary/10' : 'bg-muted'}`}>
-                                      <method.icon className={`w-4 h-4 ${isClickable ? method.color : 'text-muted-foreground'}`} />
-                                    </div>
-                                    <div>
-                                      <p className="text-sm font-medium text-foreground">{method.label}</p>
-                                      <p className="text-[11px] text-muted-foreground">
-                                        {status === 'available'
-                                          ? 'Ready for authentication'
-                                          : status === 'not_registered'
-                                          ? 'Setup required after login'
-                                          : 'Feature coming soon'}
-                                      </p>
-                                    </div>
+                                    <method.icon className={`w-5 h-5 ${isClickable ? 'text-primary' : 'text-muted-foreground'}`} />
+                                    <span className="text-sm font-medium text-foreground">{method.label}</span>
                                   </div>
-                                  <span className={`px-2.5 py-1 rounded-full text-[10px] font-semibold border ${badgeClass}`}>
-                                    {badgeLabel}
-                                  </span>
+                                  <StatusBadge variant={badgeVariant}>{badgeLabel}</StatusBadge>
                                 </button>
                               );
                             })}
                           </div>
 
-                          {/* Hint */}
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground justify-center pt-1">
-                            <Lock className="w-3 h-3" />
-                            <span>Select an available method to access your account securely.</span>
-                          </div>
-
-                          {/* Use a different email */}
                           <button
                             onClick={() => { setSignupStep('form'); setAuthMethod('default'); setLoginEmailDraft(null); setExistingEmail(''); setSignupEmail(''); setSignupName(''); setSignupPhone(''); }}
                             className="w-full text-center text-xs text-primary hover:underline pt-1"
@@ -643,9 +570,7 @@ export function AuthPage() {
                           </button>
 
                           <div className="flex items-center gap-3 mb-2">
-                            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                              <CheckCircle2 className="w-4 h-4 text-primary" />
-                            </div>
+                            <CheckCircle2 className="w-5 h-5 text-primary" />
                             <span className="font-semibold text-foreground">Verify your email</span>
                           </div>
 
@@ -654,23 +579,17 @@ export function AuthPage() {
                           </p>
 
                           {/* Auth Method Icons */}
-                          <div className="grid grid-cols-4 gap-3 pt-2">
+                          <div className="grid grid-cols-2 gap-3 pt-2">
                             {AUTH_METHODS.map((method) => (
                               <button
                                 key={method.id}
                                 onClick={() => handleSignupMethodClick(method.id)}
-                                className="flex flex-col items-center gap-2 p-3 rounded-xl border border-border hover:border-primary/30 hover:bg-primary/5 transition-smooth group"
+                                className="flex items-center gap-3 p-3 bg-card border border-border rounded-lg hover:border-primary/30 hover:bg-primary/5 transition-smooth cursor-pointer"
                               >
-                                <method.icon className={`w-5 h-5 ${method.color} group-hover:scale-110 transition-smooth`} />
-                                <span className="text-[10px] text-muted-foreground font-medium">{method.label}</span>
+                                <method.icon className="w-5 h-5 text-primary shrink-0" />
+                                <span className="text-sm font-medium text-foreground">{method.label}</span>
                               </button>
                             ))}
-                          </div>
-
-                          {/* Hint */}
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground justify-center pt-1">
-                            <Lock className="w-3 h-3" />
-                            <span>Passkey and Email OTP are available. Other methods are coming soon.</span>
                           </div>
                         </div>
                       )}

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Sora, Plus_Jakarta_Sans } from "next/font/google";
+import { Inter, Sora } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 
@@ -18,17 +18,9 @@ const sora = Sora({
   weight: ["400", "600", "700", "800"],
 });
 
-/* ── Plus Jakarta Sans (Hero Display) ── */
-const plusJakarta = Plus_Jakarta_Sans({
-  variable: "--font-jakarta",
-  subsets: ["latin"],
-  display: "swap",
-  weight: ["400", "500", "600", "700", "800"],
-});
-
 /* ── AuthX Metadata ── */
 export const metadata: Metadata = {
-  title: "AuthX — Passwordless Authentication Platform",
+  title: "AuthX — Enterprise Passwordless Authentication",
   description:
     "Modern passwordless authentication platform. Secure login with passkeys, biometrics, QR codes, and trusted devices.",
   keywords: [
@@ -48,7 +40,7 @@ export const metadata: Metadata = {
     icon: "/logo.svg",
   },
   openGraph: {
-    title: "AuthX",
+    title: "AuthX — Enterprise Passwordless Authentication",
     description: "Passwordless authentication platform",
     siteName: "AuthX",
     type: "website",
@@ -66,10 +58,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning className="scroll-smooth">
       <body
         suppressHydrationWarning
-        className={`${inter.variable} ${sora.variable} ${plusJakarta.variable} antialiased bg-background text-foreground min-h-screen flex flex-col`}
+        className={`${inter.variable} ${sora.variable} antialiased bg-background text-foreground min-h-screen flex flex-col font-sans`}
       >
         {children}
         <Toaster />
