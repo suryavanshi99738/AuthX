@@ -11,10 +11,10 @@ export interface InfoCalloutProps {
 }
 
 const variantStyles = {
-  info: 'bg-blue-50/50 dark:bg-blue-950/20 border-l-blue-500 text-blue-800 dark:text-blue-300',
-  warning: 'bg-amber-50/50 dark:bg-amber-950/20 border-l-amber-500 text-amber-800 dark:text-amber-300',
-  success: 'bg-emerald-50/50 dark:bg-emerald-950/20 border-l-emerald-500 text-emerald-800 dark:text-emerald-300',
-  danger: 'bg-red-50/50 dark:bg-red-950/20 border-l-red-500 text-red-800 dark:text-red-300',
+  info: 'bg-info/10 border-l-info text-info',
+  warning: 'bg-warning/10 border-l-warning text-warning',
+  success: 'bg-success/10 border-l-success text-success',
+  danger: 'bg-danger/10 border-l-danger text-danger',
 };
 
 const iconMap = {

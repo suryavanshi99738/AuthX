@@ -28,8 +28,8 @@ export function UnderDevelopmentModal({ open, onClose, featureName }: UnderDevel
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.2 }}
           >
-            <div className="w-14 h-14 rounded-2xl bg-amber-50 dark:bg-amber-950 flex items-center justify-center">
-              <Construction className="w-7 h-7 text-amber-600 dark:text-amber-400" />
+            <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
+              <Construction className="w-7 h-7 text-primary" />
             </div>
           </motion.div>
 

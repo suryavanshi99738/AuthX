@@ -289,19 +289,19 @@ export function OTPAuthForm() {
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={isSignup || hasPrefilledEmail}
                 readOnly={isSignup || hasPrefilledEmail}
-                className="h-11 rounded-lg border-border"
+                className="h-11 rounded-lg border-[#E5D7C3] focus:border-[#428475] focus:ring-2 focus:ring-[#428475]/20 bg-white"
                 onKeyDown={(e) => e.key === 'Enter' && handleSendOtp()}
               />
             </div>
 
             {/* OTP info */}
-            <InfoCallout variant="info" title="One-Time Password">
+            <InfoCallout variant="info" title="One-Time Password" className="bg-[#FFF4E1] border-[#428475] border-l-[#428475] text-[#1A312C]">
               A 6-digit verification code will be sent to your email. Enter it below to verify your identity.
               The code expires in 5 minutes.
             </InfoCallout>
 
             <Button
-              className="w-full h-11 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm transition-smooth"
+              className="w-full h-11 rounded-lg bg-[#428475] hover:bg-[#356B5F] text-white shadow-sm transition-smooth"
               disabled={!email.trim() || sending}
               onClick={handleSendOtp}
             >
@@ -344,7 +344,7 @@ export function OTPAuthForm() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-sm text-primary hover:text-primary/80"
+                className="text-sm text-[#428475] hover:text-[#356B5F]"
                 disabled={resendIn > 0 || sending}
                 onClick={handleResendOtp}
               >
@@ -353,7 +353,7 @@ export function OTPAuthForm() {
             </div>
 
             <Button
-              className="w-full h-11 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm transition-smooth"
+              className="w-full h-11 rounded-lg bg-[#428475] hover:bg-[#356B5F] text-white shadow-sm transition-smooth"
               disabled={otpCode.length !== 6 || sending}
               onClick={handleVerifyOtp}
             >

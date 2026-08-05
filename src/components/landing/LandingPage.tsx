@@ -54,17 +54,7 @@ export function LandingPage() {
     setDemoOpen(true);
   };
 
-  // Right column cards for Hero
-  const heroCards = [
-    { icon: Mail, title: 'Email OTP', desc: 'Secure email links', delay: 0 },
-    { icon: KeyRound, title: 'Passkeys', desc: 'Hardware bound', delay: 0.2 },
-    { icon: QrCode, title: 'QR Login', desc: 'Cross-device auth', delay: 0.4 },
-    { icon: Shield, title: 'Trusted Devices', desc: 'Device fingerprinting', delay: 0.1 },
-    { icon: BarChart3, title: 'Security Analytics', desc: 'Real-time insights', delay: 0.5 },
-    { icon: Monitor, title: 'Session Management', desc: 'Active sessions', delay: 0.3 },
-    { icon: AlertTriangle, title: 'Risk Detection', desc: 'Anomaly scoring', delay: 0.7 },
-    { icon: Clock, title: 'Login History', desc: 'Audit trails', delay: 0.6 }
-  ];
+
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground" suppressHydrationWarning>
@@ -120,21 +110,30 @@ export function LandingPage() {
             </div>
           </div>
           
-          <div className="hidden lg:grid grid-cols-2 gap-4">
-            {heroCards.map((card, idx) => (
+          <div className="hidden lg:flex relative w-full h-full min-h-[400px]">
+            {[
+              { icon: KeyRound, title: 'Passkeys Authentication' },
+              { icon: Fingerprint, icon2: QrCode, title: 'Biometric & QR Verification' },
+              { icon: ShieldCheck, title: 'Encrypted Session Security' }
+            ].map((card, idx) => (
               <motion.div
                 key={idx}
-                className="bg-card border border-border shadow-card rounded-xl p-4 flex flex-col gap-2"
-                animate={{ y: [0, -10, 0] }}
-                transition={{ duration: 4, repeat: Infinity, delay: card.delay, ease: 'easeInOut' }}
+                className={`bg-card border border-border shadow-elevated rounded-xl p-5 flex items-center gap-4 w-72 absolute z-10 ${
+                  idx === 0 ? 'top-10 left-0' : idx === 1 ? 'top-1/2 -translate-y-1/2 right-0' : 'bottom-10 left-12'
+                }`}
+                animate={{ y: [0, -15, 0] }}
+                transition={{ duration: 4, repeat: Infinity, delay: idx * 0.3, ease: 'easeInOut' }}
               >
-                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary mb-2">
-                  <card.icon className="w-4 h-4" />
+                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0 gap-1">
+                  <card.icon className="w-5 h-5" />
+                  {card.icon2 && <card.icon2 className="w-5 h-5" />}
                 </div>
-                <h4 className="font-semibold text-sm">{card.title}</h4>
-                <p className="text-xs text-muted-foreground">{card.desc}</p>
+                <h4 className="font-semibold text-sm leading-tight text-card-foreground">{card.title}</h4>
               </motion.div>
             ))}
+            {/* Decorative background shadow elements */}
+            <div className="absolute top-20 left-20 w-40 h-40 bg-accent/30 rounded-full blur-3xl -z-10" />
+            <div className="absolute bottom-20 right-20 w-40 h-40 bg-primary/20 rounded-full blur-3xl -z-10" />
           </div>
         </div>
       </section>
@@ -326,57 +325,57 @@ export function LandingPage() {
       </section>
 
       {/* 8. Enterprise Footer */}
-      <footer className="bg-zinc-950 text-zinc-400 py-16 px-6 lg:px-8 border-t border-zinc-900 mt-auto">
+      <footer className="bg-[#1A312C] text-[#89D7B7]/70 py-16 px-6 lg:px-8 border-t border-[#428475]/30 mt-auto">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-10 mb-16">
             <div>
-              <h4 className="text-zinc-100 font-semibold mb-4">Product</h4>
+              <h4 className="text-[#FFF4E1] font-semibold mb-4">Product</h4>
               <ul className="space-y-2 text-sm">
-                <li><span className="hover:text-zinc-100 cursor-pointer transition-colors">Home</span></li>
-                <li><span className="hover:text-zinc-100 cursor-pointer transition-colors">Features</span></li>
-                <li><span className="hover:text-zinc-100 cursor-pointer transition-colors">Pricing</span></li>
-                <li><span className="hover:text-zinc-100 cursor-pointer transition-colors">Demo</span></li>
+                <li><span className="hover:text-[#FFF4E1] cursor-pointer transition-colors">Home</span></li>
+                <li><span className="hover:text-[#FFF4E1] cursor-pointer transition-colors">Features</span></li>
+                <li><span className="hover:text-[#FFF4E1] cursor-pointer transition-colors">Pricing</span></li>
+                <li><span className="hover:text-[#FFF4E1] cursor-pointer transition-colors">Demo</span></li>
               </ul>
             </div>
             <div>
-              <h4 className="text-zinc-100 font-semibold mb-4">Security</h4>
+              <h4 className="text-[#FFF4E1] font-semibold mb-4">Security</h4>
               <ul className="space-y-2 text-sm">
-                <li><span className="hover:text-zinc-100 cursor-pointer transition-colors">Passkeys</span></li>
-                <li><span className="hover:text-zinc-100 cursor-pointer transition-colors">OTP</span></li>
-                <li><span className="hover:text-zinc-100 cursor-pointer transition-colors">QR Login</span></li>
-                <li><span className="hover:text-zinc-100 cursor-pointer transition-colors">Risk Engine</span></li>
+                <li><span className="hover:text-[#FFF4E1] cursor-pointer transition-colors">Passkeys</span></li>
+                <li><span className="hover:text-[#FFF4E1] cursor-pointer transition-colors">OTP</span></li>
+                <li><span className="hover:text-[#FFF4E1] cursor-pointer transition-colors">QR Login</span></li>
+                <li><span className="hover:text-[#FFF4E1] cursor-pointer transition-colors">Risk Engine</span></li>
               </ul>
             </div>
             <div>
-              <h4 className="text-zinc-100 font-semibold mb-4">Resources</h4>
+              <h4 className="text-[#FFF4E1] font-semibold mb-4">Resources</h4>
               <ul className="space-y-2 text-sm">
-                <li><span className="hover:text-zinc-100 cursor-pointer transition-colors">Documentation</span></li>
-                <li><span className="hover:text-zinc-100 cursor-pointer transition-colors">API Reference</span></li>
-                <li><span className="hover:text-zinc-100 cursor-pointer transition-colors">Changelog</span></li>
-                <li><span className="hover:text-zinc-100 cursor-pointer transition-colors">Status</span></li>
+                <li><span className="hover:text-[#FFF4E1] cursor-pointer transition-colors">Documentation</span></li>
+                <li><span className="hover:text-[#FFF4E1] cursor-pointer transition-colors">API Reference</span></li>
+                <li><span className="hover:text-[#FFF4E1] cursor-pointer transition-colors">Changelog</span></li>
+                <li><span className="hover:text-[#FFF4E1] cursor-pointer transition-colors">Status</span></li>
               </ul>
             </div>
             <div>
-              <h4 className="text-zinc-100 font-semibold mb-4">Company</h4>
+              <h4 className="text-[#FFF4E1] font-semibold mb-4">Company</h4>
               <ul className="space-y-2 text-sm">
-                <li><span className="hover:text-zinc-100 cursor-pointer transition-colors">About</span></li>
-                <li><span className="hover:text-zinc-100 cursor-pointer transition-colors">Blog</span></li>
-                <li><span className="hover:text-zinc-100 cursor-pointer transition-colors">Careers</span></li>
-                <li><span className="hover:text-zinc-100 cursor-pointer transition-colors">Contact</span></li>
+                <li><span className="hover:text-[#FFF4E1] cursor-pointer transition-colors">About</span></li>
+                <li><span className="hover:text-[#FFF4E1] cursor-pointer transition-colors">Blog</span></li>
+                <li><span className="hover:text-[#FFF4E1] cursor-pointer transition-colors">Careers</span></li>
+                <li><span className="hover:text-[#FFF4E1] cursor-pointer transition-colors">Contact</span></li>
               </ul>
             </div>
           </div>
           
-          <div className="flex flex-col md:flex-row items-center justify-between pt-8 border-t border-zinc-800 gap-4">
-            <div className="flex items-center gap-2 text-zinc-100">
-              <ShieldCheck className="w-5 h-5 text-indigo-500" />
+          <div className="flex flex-col md:flex-row items-center justify-between pt-8 border-t border-[#428475]/30 gap-4">
+            <div className="flex items-center gap-2 text-[#FFF4E1]">
+              <ShieldCheck className="w-5 h-5 text-[#89D7B7]" />
               <span className="font-heading font-bold">AuthX</span>
             </div>
             <p className="text-sm">© {new Date().getFullYear()} AuthX Inc. All rights reserved.</p>
             <div className="flex items-center gap-4">
-              <span className="hover:text-zinc-100 cursor-pointer"><Github className="w-5 h-5" /></span>
-              <span className="hover:text-zinc-100 cursor-pointer"><Twitter className="w-5 h-5" /></span>
-              <span className="hover:text-zinc-100 cursor-pointer"><Linkedin className="w-5 h-5" /></span>
+              <span className="hover:text-[#FFF4E1] cursor-pointer"><Github className="w-5 h-5" /></span>
+              <span className="hover:text-[#FFF4E1] cursor-pointer"><Twitter className="w-5 h-5" /></span>
+              <span className="hover:text-[#FFF4E1] cursor-pointer"><Linkedin className="w-5 h-5" /></span>
             </div>
           </div>
         </div>

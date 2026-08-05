@@ -80,7 +80,7 @@ export function Sidebar({ activeItem, onItemClick, isDemo }: SidebarProps) {
   return (
     <motion.aside
       className={cn(
-        'h-screen flex flex-col bg-card border-r border-border transition-all duration-300 select-none shrink-0 overflow-hidden sticky top-0 z-20',
+        'h-screen flex flex-col bg-[#1A312C] border-r border-[#24423C] text-[#E2E8F0] transition-all duration-300 select-none shrink-0 overflow-hidden sticky top-0 z-20',
         collapsed ? 'w-16' : 'w-64'
       )}
       initial={{ opacity: 0, x: -20 }}
@@ -91,20 +91,20 @@ export function Sidebar({ activeItem, onItemClick, isDemo }: SidebarProps) {
       <div className={cn('p-4 flex items-center justify-between', collapsed && 'p-3 flex-col justify-center gap-4')}>
         {!collapsed ? (
           <div className="flex items-center gap-2.5">
-            <ShieldCheck className="w-7 h-7 text-primary" />
-            <span className="font-heading text-lg font-semibold tracking-tight text-foreground">AuthX</span>
+            <ShieldCheck className="w-7 h-7 text-[#89D7B7]" />
+            <span className="font-heading text-lg font-semibold tracking-tight text-[#E2E8F0]">AuthX</span>
             {isDemo && (
               <StatusBadge variant="warning">Demo</StatusBadge>
             )}
           </div>
         ) : (
-          <ShieldCheck className="w-7 h-7 text-primary" />
+          <ShieldCheck className="w-7 h-7 text-[#89D7B7]" />
         )}
 
         {!collapsed ? (
           <button
             onClick={() => setCollapsed(true)}
-            className="w-8 h-8 rounded-lg hover:bg-muted/50 flex items-center justify-center text-muted-foreground hover:text-foreground transition-smooth"
+            className="w-8 h-8 rounded-lg hover:bg-[#24423C] flex items-center justify-center text-[#E2E8F0]/70 hover:text-[#E2E8F0] transition-smooth"
             title="Collapse sidebar"
           >
             <PanelLeftClose className="w-5 h-5" />
@@ -112,7 +112,7 @@ export function Sidebar({ activeItem, onItemClick, isDemo }: SidebarProps) {
         ) : (
           <button
             onClick={() => setCollapsed(false)}
-            className="w-8 h-8 rounded-lg hover:bg-muted/50 flex items-center justify-center text-muted-foreground hover:text-foreground transition-smooth"
+            className="w-8 h-8 rounded-lg hover:bg-[#24423C] flex items-center justify-center text-[#E2E8F0]/70 hover:text-[#E2E8F0] transition-smooth"
             title="Expand sidebar"
           >
             <PanelLeft className="w-5 h-5" />
@@ -135,21 +135,21 @@ export function Sidebar({ activeItem, onItemClick, isDemo }: SidebarProps) {
                 'w-full flex items-center gap-3 rounded-lg transition-smooth relative group cursor-pointer',
                 collapsed ? 'justify-center p-2' : 'px-3 py-2 text-sm',
                 isActive
-                  ? 'bg-primary/10 text-primary font-medium border-l-[3px] border-primary'
-                  : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground border-l-[3px] border-transparent'
+                  ? 'bg-[#428475] text-white font-medium border-l-4 border-[#89D7B7]'
+                  : 'text-[#E2E8F0]/70 hover:bg-[#24423C] hover:text-[#E2E8F0] border-l-4 border-transparent'
               )}
               whileHover={{ x: collapsed ? 0 : 2 }}
               whileTap={{ scale: 0.98 }}
             >
-              <item.icon className={cn('w-5 h-5 shrink-0', isActive && 'text-primary')} />
+              <item.icon className={cn('w-5 h-5 shrink-0', isActive && 'text-white')} />
               {!collapsed && (
-                <span className={cn('font-medium tracking-tight', isActive && 'text-primary font-medium')}>
+                <span className={cn('font-medium tracking-tight', isActive && 'text-white font-medium')}>
                   {item.label}
                 </span>
               )}
               {isActive && !collapsed && (
                 <motion.div
-                  className="ml-auto w-1.5 h-1.5 rounded-full bg-primary"
+                  className="ml-auto w-1.5 h-1.5 rounded-full bg-[#89D7B7]"
                   layoutId="sidebarActiveDot"
                   transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                 />
@@ -172,21 +172,21 @@ export function Sidebar({ activeItem, onItemClick, isDemo }: SidebarProps) {
                 'w-full flex items-center gap-3 rounded-lg transition-smooth group cursor-pointer',
                 collapsed ? 'justify-center p-2' : 'px-3 py-2 text-sm',
                 isActive
-                  ? 'bg-primary/10 text-primary font-medium border-l-[3px] border-primary'
-                  : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground border-l-[3px] border-transparent'
+                  ? 'bg-[#428475] text-white font-medium border-l-4 border-[#89D7B7]'
+                  : 'text-[#E2E8F0]/70 hover:bg-[#24423C] hover:text-[#E2E8F0] border-l-4 border-transparent'
               )}
               whileHover={{ x: collapsed ? 0 : 2 }}
               whileTap={{ scale: 0.98 }}
             >
-              <item.icon className={cn('w-5 h-5 shrink-0', isActive && 'text-primary')} />
+              <item.icon className={cn('w-5 h-5 shrink-0', isActive && 'text-white')} />
               {!collapsed && (
-                <span className={cn('font-medium tracking-tight', isActive && 'text-primary font-medium')}>
+                <span className={cn('font-medium tracking-tight', isActive && 'text-white font-medium')}>
                   {item.label}
                 </span>
               )}
               {isActive && !collapsed && (
                 <motion.div
-                  className="ml-auto w-1.5 h-1.5 rounded-full bg-primary"
+                  className="ml-auto w-1.5 h-1.5 rounded-full bg-[#89D7B7]"
                   layoutId="sidebarBottomActiveDot"
                   transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                 />
@@ -201,7 +201,7 @@ export function Sidebar({ activeItem, onItemClick, isDemo }: SidebarProps) {
           onClick={handleLogout}
           title={collapsed ? (isDemo ? 'Exit Demo' : 'Logout') : undefined}
           className={cn(
-            'w-full flex items-center gap-3 rounded-lg transition-smooth cursor-pointer text-muted-foreground hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950 dark:hover:text-red-400 border-l-[3px] border-transparent',
+            'w-full flex items-center gap-3 rounded-lg transition-smooth cursor-pointer text-[#E2E8F0]/70 hover:bg-[#24423C] hover:text-[#E2E8F0] border-l-4 border-transparent',
             collapsed ? 'justify-center p-2' : 'px-3 py-2 text-sm'
           )}
           whileHover={{ x: collapsed ? 0 : 2 }}

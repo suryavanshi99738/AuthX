@@ -14,11 +14,11 @@ export interface StatCardProps {
 }
 
 const accentColors = {
-  primary: 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400',
-  success: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400',
-  warning: 'bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400',
-  danger: 'bg-red-50 text-red-600 dark:bg-red-950/50 dark:text-red-400',
-  info: 'bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-400',
+  primary: 'bg-primary/10 text-primary',
+  success: 'bg-success/10 text-success',
+  warning: 'bg-warning/10 text-warning',
+  danger: 'bg-danger/10 text-danger',
+  info: 'bg-info/10 text-info',
 };
 
 export function StatCard({ label, value, icon, trend, accentColor = 'primary', animate = false, className }: StatCardProps) {
@@ -67,7 +67,7 @@ export function StatCard({ label, value, icon, trend, accentColor = 'primary', a
         {trend && (
           <div className={cn(
             "flex items-center text-xs font-medium px-2 py-1 rounded-md",
-            trend.isPositive ? "text-emerald-700 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-950/50" : "text-red-700 bg-red-50 dark:text-red-400 dark:bg-red-950/50"
+            trend.isPositive ? "text-success bg-success/10" : "text-danger bg-danger/10"
           )}>
             {trend.isPositive ? <TrendingUp className="w-3 h-3 mr-1" /> : <TrendingDown className="w-3 h-3 mr-1" />}
             {Math.abs(trend.value)}%

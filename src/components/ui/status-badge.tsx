@@ -10,21 +10,21 @@ export interface StatusBadgeProps {
 }
 
 const variantStyles = {
-  success: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400',
-  warning: 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-400',
-  danger: 'bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-400',
-  info: 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-400',
-  neutral: 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400',
-  primary: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-400',
+  success: 'bg-success/10 text-success',
+  warning: 'bg-warning/10 text-warning',
+  danger: 'bg-danger/10 text-danger',
+  info: 'bg-info/10 text-info',
+  neutral: 'bg-muted text-muted-foreground',
+  primary: 'bg-primary/10 text-primary',
 };
 
 const dotColors = {
-  success: 'bg-emerald-500',
-  warning: 'bg-amber-500',
-  danger: 'bg-red-500',
-  info: 'bg-blue-500',
-  neutral: 'bg-zinc-500',
-  primary: 'bg-indigo-500',
+  success: 'bg-success',
+  warning: 'bg-warning',
+  danger: 'bg-danger',
+  info: 'bg-info',
+  neutral: 'bg-muted-foreground',
+  primary: 'bg-primary',
 };
 
 export function StatusBadge({ variant, children, size = 'md', dot = false, className }: StatusBadgeProps) {

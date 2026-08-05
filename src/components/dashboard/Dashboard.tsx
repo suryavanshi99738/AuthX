@@ -80,7 +80,7 @@ export function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen flex bg-background">
+    <div className="min-h-screen flex bg-[#FFF4E1] dark:bg-[#0D1513]">
       {/* Mobile sidebar overlay */}
       {mobileSidebarOpen && (
         <motion.div
@@ -109,7 +109,7 @@ export function Dashboard() {
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0 transition-all duration-300">
         {/* Top bar */}
-        <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-sm border-b border-border flex items-center justify-between px-4 py-3 h-14">
+        <header className="sticky top-0 z-30 bg-[#FFF4E1] dark:bg-[#0D1513] border-b border-[#E5D7C3] dark:border-[#1A312C] flex items-center justify-between px-4 py-3 h-14">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setMobileSidebarOpen(true)}
@@ -138,8 +138,8 @@ export function Dashboard() {
 
         {/* Demo Mode subtle banner */}
         {isDemo && (
-          <div className="bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-800 px-4 py-2 text-center text-xs font-medium text-amber-700 dark:text-amber-400 flex items-center justify-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+          <div className="bg-[#F4E7D3] dark:bg-[#1F332D] border-b border-[#E5D7C3] dark:border-[#24423C] px-4 py-2 text-center text-xs font-medium text-[#428475] dark:text-[#89D7B7] flex items-center justify-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-[#428475] dark:bg-[#89D7B7] animate-pulse" />
             <span>Demo Mode — Temporary data will be cleared on exit</span>
           </div>
         )}

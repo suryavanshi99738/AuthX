@@ -243,7 +243,7 @@ export function AuthPage() {
     <div className="min-h-screen flex flex-col lg:flex-row">
       {/* ── LEFT: Dark Panel ── */}
       <div
-        className="hidden lg:flex lg:flex-[1_1_45%] flex-col items-center justify-center p-12 xl:p-16 order-1 relative bg-zinc-950 overflow-hidden"
+        className="hidden lg:flex lg:flex-[1_1_45%] flex-col items-center justify-center p-12 xl:p-16 order-1 relative bg-[#1A312C] overflow-hidden"
       >
         <div className="absolute inset-0 pointer-events-none opacity-20 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.1)_0%,transparent_100%)]" style={{ backgroundImage: 'radial-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px)', backgroundSize: '24px 24px' }}></div>
         <motion.div
@@ -271,20 +271,20 @@ export function AuthPage() {
           {/* Feature list */}
           <motion.div variants={fadeInUp} className="flex flex-col gap-6 w-full mb-12">
             <div className="flex items-center gap-4">
-              <KeyRound className="w-5 h-5 text-indigo-400" />
-              <span className="text-sm font-medium text-zinc-300">Hardware-bound passkeys</span>
+              <KeyRound className="w-5 h-5 text-[#89D7B7]" />
+              <span className="text-sm font-medium text-white/90">Hardware-bound passkeys</span>
             </div>
             <div className="flex items-center gap-4">
-              <Mail className="w-5 h-5 text-indigo-400" />
-              <span className="text-sm font-medium text-zinc-300">One-time email verification</span>
+              <Mail className="w-5 h-5 text-[#89D7B7]" />
+              <span className="text-sm font-medium text-white/90">One-time email verification</span>
             </div>
             <div className="flex items-center gap-4">
-              <QrCode className="w-5 h-5 text-indigo-400" />
-              <span className="text-sm font-medium text-zinc-300">Cross-device QR login</span>
+              <QrCode className="w-5 h-5 text-[#89D7B7]" />
+              <span className="text-sm font-medium text-white/90">Cross-device QR login</span>
             </div>
             <div className="flex items-center gap-4">
-              <Shield className="w-5 h-5 text-indigo-400" />
-              <span className="text-sm font-medium text-zinc-300">Adaptive risk detection</span>
+              <Shield className="w-5 h-5 text-[#89D7B7]" />
+              <span className="text-sm font-medium text-white/90">Adaptive risk detection</span>
             </div>
           </motion.div>
 
@@ -298,7 +298,7 @@ export function AuthPage() {
       </div>
 
       {/* ── RIGHT: Auth Panel ── */}
-      <div className="flex-1 lg:flex-[1_1_55%] bg-background flex items-center justify-center p-6 md:p-12 lg:p-16 order-2">
+      <div className="flex-1 lg:flex-[1_1_55%] bg-[#FFF4E1] flex items-center justify-center p-6 md:p-12 lg:p-16 order-2">
         <motion.div
           className="w-full max-w-md mx-auto"
           initial={{ opacity: 0, x: 20 }}
@@ -329,22 +329,22 @@ export function AuthPage() {
           </p>
 
           {/* ── Tab Selector ── */}
-          <div className="relative flex p-1 bg-muted/50 rounded-lg mb-8">
+          <div className="relative flex p-1 bg-[#1A312C] rounded-lg mb-8">
             <motion.div
-              className="absolute top-1 bottom-1 bg-background shadow-sm rounded-md"
+              className="absolute top-1 bottom-1 bg-[#428475] shadow-sm rounded-md"
               style={{ width: 'calc(50% - 4px)' }}
               animate={{ left: authTab === 'login' ? '4px' : 'calc(50% + 0px)' }}
               transition={{ type: 'spring', stiffness: 300, damping: 30 }}
             />
             <button
               onClick={() => setAuthTab('login')}
-              className={`relative z-10 flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-medium transition-colors ${authTab === 'login' ? 'text-foreground' : 'text-muted-foreground'}`}
+              className={`relative z-10 flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-medium transition-colors ${authTab === 'login' ? 'text-white' : 'text-[#89D7B7]'}`}
             >
               Login
             </button>
             <button
               onClick={() => { setAuthTab('signup'); setSignupStep('form'); setSignupError(''); }}
-              className={`relative z-10 flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-medium transition-colors ${authTab === 'signup' ? 'text-foreground' : 'text-muted-foreground'}`}
+              className={`relative z-10 flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-medium transition-colors ${authTab === 'signup' ? 'text-white' : 'text-[#89D7B7]'}`}
             >
               Sign Up
             </button>
@@ -372,7 +372,7 @@ export function AuthPage() {
                             placeholder="you@example.com"
                             value={loginEmail}
                             onChange={(e) => { setLoginEmail(e.target.value); setLoginError(''); }}
-                            className="h-11 rounded-lg border-border focus:border-primary focus:ring-2 focus:ring-primary/20"
+                            className="h-11 rounded-lg border-[#E5D7C3] focus:border-[#428475] focus:ring-2 focus:ring-[#428475]/20 bg-white"
                             onKeyDown={(e) => e.key === 'Enter' && handleLoginContinue()}
                           />
                         </div>
@@ -382,7 +382,7 @@ export function AuthPage() {
                         )}
 
                         <Button
-                          className="w-full h-11 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-smooth"
+                          className="w-full h-11 rounded-lg bg-[#428475] text-white hover:bg-[#356B5F] transition-smooth"
                           disabled={!loginEmail.trim() || signupChecking}
                           onClick={handleLoginContinue}
                         >
@@ -408,9 +408,9 @@ export function AuthPage() {
                             <button
                               key={method.id}
                               onClick={() => handleMethodClick(method.id)}
-                              className="flex items-center gap-3 p-3 bg-card border border-border rounded-lg hover:border-primary/30 hover:bg-primary/5 transition-smooth cursor-pointer"
+                              className="flex items-center gap-3 p-3 bg-white border border-[#E5D7C3] rounded-lg hover:border-[#428475] hover:bg-[#428475]/5 transition-smooth cursor-pointer"
                             >
-                              <method.icon className="w-5 h-5 text-primary shrink-0" />
+                              <method.icon className="w-5 h-5 text-[#428475] shrink-0" />
                               <span className="text-sm font-medium text-foreground">{method.label}</span>
                             </button>
                           ))}
@@ -449,7 +449,7 @@ export function AuthPage() {
                             <Label htmlFor="signup-name" className="text-sm font-medium">Full Name</Label>
                             <div className="relative">
                               <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                              <Input id="signup-name" type="text" placeholder="John Doe" value={signupName} onChange={(e) => { setSignupName(e.target.value); setSignupError(''); }} className="h-11 rounded-lg pl-10 border-border focus:border-primary focus:ring-2 focus:ring-primary/20" />
+                              <Input id="signup-name" type="text" placeholder="John Doe" value={signupName} onChange={(e) => { setSignupName(e.target.value); setSignupError(''); }} className="h-11 rounded-lg pl-10 border-[#E5D7C3] focus:border-[#428475] focus:ring-2 focus:ring-[#428475]/20 bg-white" />
                             </div>
                           </div>
 
@@ -457,7 +457,7 @@ export function AuthPage() {
                             <Label htmlFor="signup-email" className="text-sm font-medium">Email Address</Label>
                             <div className="relative">
                               <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                              <Input id="signup-email" type="email" placeholder="you@example.com" value={signupEmail} onChange={(e) => { setSignupEmail(e.target.value); setSignupError(''); }} className="h-11 rounded-lg pl-10 border-border focus:border-primary focus:ring-2 focus:ring-primary/20" />
+                              <Input id="signup-email" type="email" placeholder="you@example.com" value={signupEmail} onChange={(e) => { setSignupEmail(e.target.value); setSignupError(''); }} className="h-11 rounded-lg pl-10 border-[#E5D7C3] focus:border-[#428475] focus:ring-2 focus:ring-[#428475]/20 bg-white" />
                             </div>
                           </div>
 
@@ -465,7 +465,7 @@ export function AuthPage() {
                             <Label htmlFor="signup-phone" className="text-sm font-medium">Phone Number</Label>
                             <div className="relative">
                               <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                              <Input id="signup-phone" type="tel" placeholder="+1 (555) 000-0000" value={signupPhone} onChange={(e) => { setSignupPhone(e.target.value); setSignupError(''); }} className="h-11 rounded-lg pl-10 border-border focus:border-primary focus:ring-2 focus:ring-primary/20" />
+                              <Input id="signup-phone" type="tel" placeholder="+1 (555) 000-0000" value={signupPhone} onChange={(e) => { setSignupPhone(e.target.value); setSignupError(''); }} className="h-11 rounded-lg pl-10 border-[#E5D7C3] focus:border-[#428475] focus:ring-2 focus:ring-[#428475]/20 bg-white" />
                             </div>
                           </div>
 
@@ -474,7 +474,7 @@ export function AuthPage() {
                           )}
 
                           <Button
-                            className="w-full h-11 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-smooth"
+                            className="w-full h-11 rounded-lg bg-[#428475] text-white hover:bg-[#356B5F] transition-smooth"
                             disabled={!signupName.trim() || !signupEmail.trim() || !signupPhone.trim() || signupChecking}
                             onClick={handleSignupContinue}
                           >
@@ -538,12 +538,12 @@ export function AuthPage() {
                                   onClick={() => handleSignupMethodClick(method.id, true)}
                                   className={`w-full flex items-center justify-between p-3.5 rounded-lg border transition-smooth text-left ${
                                     isClickable
-                                      ? 'bg-card border-border hover:border-primary/40 hover:bg-primary/5 cursor-pointer'
+                                      ? 'bg-white border-[#E5D7C3] hover:border-[#428475] hover:bg-[#428475]/5 cursor-pointer'
                                       : 'border-border/50 bg-muted/30 opacity-65 cursor-not-allowed'
                                   }`}
                                 >
                                   <div className="flex items-center gap-3">
-                                    <method.icon className={`w-5 h-5 ${isClickable ? 'text-primary' : 'text-muted-foreground'}`} />
+                                    <method.icon className={`w-5 h-5 ${isClickable ? 'text-[#428475]' : 'text-muted-foreground'}`} />
                                     <span className="text-sm font-medium text-foreground">{method.label}</span>
                                   </div>
                                   <StatusBadge variant={badgeVariant}>{badgeLabel}</StatusBadge>
@@ -584,9 +584,9 @@ export function AuthPage() {
                               <button
                                 key={method.id}
                                 onClick={() => handleSignupMethodClick(method.id)}
-                                className="flex items-center gap-3 p-3 bg-card border border-border rounded-lg hover:border-primary/30 hover:bg-primary/5 transition-smooth cursor-pointer"
+                                className="flex items-center gap-3 p-3 bg-white border border-[#E5D7C3] rounded-lg hover:border-[#428475] hover:bg-[#428475]/5 transition-smooth cursor-pointer"
                               >
-                                <method.icon className="w-5 h-5 text-primary shrink-0" />
+                                <method.icon className="w-5 h-5 text-[#428475] shrink-0" />
                                 <span className="text-sm font-medium text-foreground">{method.label}</span>
                               </button>
                             ))}

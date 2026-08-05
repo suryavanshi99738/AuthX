@@ -121,8 +121,8 @@ export function NewDeviceModal({
         >
           {/* Header */}
           <div className="flex flex-col items-center text-center">
-            <div className="w-12 h-12 rounded-xl bg-amber-50 dark:bg-amber-950 flex items-center justify-center">
-              <ShieldAlert className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+              <ShieldAlert className="w-6 h-6 text-primary" />
             </div>
             <h3 className="font-heading text-xl font-semibold mt-4">New Login Detected</h3>
             <p className="text-sm text-muted-foreground mt-1 mb-4">Unregistered device accessed your account</p>

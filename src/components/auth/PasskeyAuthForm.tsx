@@ -191,19 +191,19 @@ export function PasskeyAuthForm() {
             onChange={(e) => setEmail(e.target.value)}
             disabled={isSignup || hasPrefilledEmail}
             readOnly={isSignup || hasPrefilledEmail}
-            className="h-11 rounded-lg border-border"
+            className="h-11 rounded-lg border-[#E5D7C3] focus:border-[#428475] focus:ring-2 focus:ring-[#428475]/20 bg-white"
             onKeyDown={(e) => e.key === 'Enter' && handleContinue()}
           />
         </div>
 
         {/* Passkey info */}
-        <InfoCallout variant="info" title="Passkey Authentication">
+        <InfoCallout variant="info" title="Passkey Authentication" className="bg-[#FFF4E1] border-[#428475] border-l-[#428475] text-[#1A312C]">
           Passkeys are stored securely on your device. No server-side credential storage —
           eliminating phishing and credential theft entirely.
         </InfoCallout>
 
         <Button
-          className="w-full h-11 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-smooth"
+          className="w-full h-11 rounded-lg bg-[#428475] text-white hover:bg-[#356B5F] transition-smooth"
           disabled={isSignup ? false : !email.trim()}
           onClick={handleContinue}
         >

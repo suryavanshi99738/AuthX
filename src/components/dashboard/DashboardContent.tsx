@@ -784,9 +784,9 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
                     <PieChart>
                       <Pie
                         data={analyticsData?.authUsagePie || [
-                          { name: 'Email OTP', value: 4, percentage: '44.4%', lastUsed: 'Just now', fill: '#3B82F6' },
-                          { name: 'Passkey WebAuthn', value: 2, percentage: '22.2%', lastUsed: '1h ago', fill: '#10B981' },
-                          { name: 'QR Cross-Device', value: 3, percentage: '33.3%', lastUsed: '3h ago', fill: '#6366F1' },
+                          { name: 'Email OTP', value: 4, percentage: '44.4%', lastUsed: 'Just now', fill: '#428475' },
+                          { name: 'Passkey WebAuthn', value: 2, percentage: '22.2%', lastUsed: '1h ago', fill: '#89D7B7' },
+                          { name: 'QR Cross-Device', value: 3, percentage: '33.3%', lastUsed: '3h ago', fill: '#1A312C' },
                         ]}
                         cx="50%"
                         cy="50%"
@@ -836,9 +836,9 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
 
                 <div className="flex flex-wrap items-center justify-center gap-4 pt-2 border-t border-border/60 text-xs">
                   {(analyticsData?.authUsagePie || [
-                    { name: 'Email OTP', value: 4, percentage: '44.4%', fill: '#3B82F6' },
-                    { name: 'Passkey WebAuthn', value: 2, percentage: '22.2%', fill: '#10B981' },
-                    { name: 'QR Cross-Device', value: 3, percentage: '33.3%', fill: '#6366F1' },
+                    { name: 'Email OTP', value: 4, percentage: '44.4%', fill: '#428475' },
+                    { name: 'Passkey WebAuthn', value: 2, percentage: '22.2%', fill: '#89D7B7' },
+                    { name: 'QR Cross-Device', value: 3, percentage: '33.3%', fill: '#1A312C' },
                   ]).map((item, idx) => (
                     <div
                       key={idx}
@@ -860,7 +860,7 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
                 <div className="h-64 w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={analyticsData?.riskDistributionBar || [
-                      { level: 'Low Risk', count: 8, percentage: '80%', factor: 'Trusted Device Verified', fill: '#10B981' },
+                      { level: 'Low Risk', count: 8, percentage: '80%', factor: 'Trusted Device Verified', fill: '#428475' },
                       { level: 'Medium Risk', count: 2, percentage: '20%', factor: 'New Browser UserAgent', fill: '#F59E0B' },
                       { level: 'High Risk', count: 0, percentage: '0%', factor: 'Multiple Failed Attempts', fill: '#EF4444' },
                     ]}>
@@ -896,13 +896,13 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
               <div className="h-64 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={analyticsData?.loginTrendBar || [
-                    { day: 'Mon', date: 'Jul 27', logins: 3, successCount: 3, failedCount: 0, mostUsed: 'Passkey WebAuthn', fill: '#2563EB' },
-                    { day: 'Tue', date: 'Jul 28', logins: 5, successCount: 5, failedCount: 0, mostUsed: 'Email OTP', fill: '#2563EB' },
-                    { day: 'Wed', date: 'Jul 29', logins: 2, successCount: 2, failedCount: 0, mostUsed: 'QR Cross-Device', fill: '#2563EB' },
-                    { day: 'Thu', date: 'Jul 30', logins: 6, successCount: 6, failedCount: 0, mostUsed: 'Passkey WebAuthn', fill: '#2563EB' },
-                    { day: 'Fri', date: 'Jul 31', logins: 4, successCount: 4, failedCount: 0, mostUsed: 'Passkey WebAuthn', fill: '#2563EB' },
-                    { day: 'Sat', date: 'Aug 1', logins: 7, successCount: 7, failedCount: 0, mostUsed: 'Passkey WebAuthn', fill: '#2563EB' },
-                    { day: 'Sun', date: 'Aug 2', logins: 3, successCount: 3, failedCount: 0, mostUsed: 'Email OTP', fill: '#2563EB' },
+                    { day: 'Mon', date: 'Jul 27', logins: 3, successCount: 3, failedCount: 0, mostUsed: 'Passkey WebAuthn', fill: '#428475' },
+                    { day: 'Tue', date: 'Jul 28', logins: 5, successCount: 5, failedCount: 0, mostUsed: 'Email OTP', fill: '#428475' },
+                    { day: 'Wed', date: 'Jul 29', logins: 2, successCount: 2, failedCount: 0, mostUsed: 'QR Cross-Device', fill: '#428475' },
+                    { day: 'Thu', date: 'Jul 30', logins: 6, successCount: 6, failedCount: 0, mostUsed: 'Passkey WebAuthn', fill: '#428475' },
+                    { day: 'Fri', date: 'Jul 31', logins: 4, successCount: 4, failedCount: 0, mostUsed: 'Passkey WebAuthn', fill: '#428475' },
+                    { day: 'Sat', date: 'Aug 1', logins: 7, successCount: 7, failedCount: 0, mostUsed: 'Passkey WebAuthn', fill: '#428475' },
+                    { day: 'Sun', date: 'Aug 2', logins: 3, successCount: 3, failedCount: 0, mostUsed: 'Email OTP', fill: '#428475' },
                   ]}>
                     <XAxis dataKey="day" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
                     <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
@@ -922,7 +922,7 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
                         return null;
                       }}
                     />
-                    <Bar dataKey="logins" fill="#2563EB" radius={[8, 8, 0, 0]} className="cursor-pointer" />
+                    <Bar dataKey="logins" fill="#428475" radius={[8, 8, 0, 0]} className="cursor-pointer" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>

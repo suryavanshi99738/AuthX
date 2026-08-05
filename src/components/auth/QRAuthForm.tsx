@@ -137,7 +137,7 @@ export function QRAuthForm() {
         </div>
 
         {/* QR Code Card Display */}
-        <div className="p-6 rounded-xl bg-card border border-border shadow-card flex flex-col items-center justify-center text-center relative overflow-hidden min-h-[260px]">
+        <div className="p-6 rounded-xl bg-white border border-[#E5D7C3] shadow-card flex flex-col items-center justify-center text-center relative overflow-hidden min-h-[260px]">
           {status === 'loading' && (
             <div className="flex flex-col items-center gap-3">
               <Loader2 className="w-8 h-8 text-primary animate-spin" />
@@ -177,7 +177,7 @@ export function QRAuthForm() {
               <p className="text-xs text-muted-foreground mt-1 max-w-xs">
                 QR codes expire after 60 seconds to ensure strict security.
               </p>
-              <Button onClick={createQR} className="mt-2 rounded-lg h-10 px-4 gap-2 bg-primary">
+              <Button onClick={createQR} className="mt-2 rounded-lg h-10 px-4 gap-2 bg-[#428475] text-white hover:bg-[#356B5F] transition-smooth">
                 <RefreshCw className="w-4 h-4" />
                 Generate New QR Code
               </Button>
@@ -193,7 +193,7 @@ export function QRAuthForm() {
               <p className="text-xs text-muted-foreground mt-1 max-w-xs">
                 The login request was declined on the mobile device.
               </p>
-              <Button onClick={createQR} className="mt-2 rounded-lg h-10 px-4 gap-2 bg-primary">
+              <Button onClick={createQR} className="mt-2 rounded-lg h-10 px-4 gap-2 bg-[#428475] text-white hover:bg-[#356B5F] transition-smooth">
                 <RefreshCw className="w-4 h-4" />
                 Try Again
               </Button>

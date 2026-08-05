@@ -215,7 +215,7 @@ export function DemoAuthPage() {
     <div className="min-h-screen flex flex-col lg:flex-row">
       {/* ── LEFT: Dark Panel ── */}
       <div
-        className="hidden lg:flex lg:flex-[1_1_45%] flex-col items-center justify-center p-12 xl:p-16 order-1 relative bg-zinc-950 overflow-hidden"
+        className="hidden lg:flex lg:flex-[1_1_45%] flex-col items-center justify-center p-12 xl:p-16 order-1 relative bg-[#1A312C] overflow-hidden"
       >
         <div className="absolute inset-0 pointer-events-none opacity-20 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.1)_0%,transparent_100%)]" style={{ backgroundImage: 'radial-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px)', backgroundSize: '24px 24px' }}></div>
         <motion.div
@@ -244,12 +244,12 @@ export function DemoAuthPage() {
           {/* Feature list */}
           <motion.div variants={fadeInUp} className="flex flex-col gap-6 w-full mb-12">
             <div className="flex items-center gap-4">
-              <KeyRound className="w-5 h-5 text-indigo-400" />
-              <span className="text-sm font-medium text-zinc-300">Simulated Passkeys</span>
+              <KeyRound className="w-5 h-5 text-[#89D7B7]" />
+              <span className="text-sm font-medium text-white/90">Simulated Passkeys</span>
             </div>
             <div className="flex items-center gap-4">
-              <Mail className="w-5 h-5 text-indigo-400" />
-              <span className="text-sm font-medium text-zinc-300">Mock Email OTP</span>
+              <Mail className="w-5 h-5 text-[#89D7B7]" />
+              <span className="text-sm font-medium text-white/90">Mock Email OTP</span>
             </div>
           </motion.div>
 
@@ -263,7 +263,7 @@ export function DemoAuthPage() {
       </div>
 
       {/* ── RIGHT: Auth Panel ── */}
-      <div className="flex-1 lg:flex-[1_1_55%] bg-background flex items-center justify-center p-6 md:p-12 lg:p-16 order-2">
+      <div className="flex-1 lg:flex-[1_1_55%] bg-[#FFF4E1] flex items-center justify-center p-6 md:p-12 lg:p-16 order-2">
         <motion.div
           className="w-full max-w-md mx-auto"
           initial={{ opacity: 0, x: 20 }}
@@ -301,18 +301,18 @@ export function DemoAuthPage() {
                   {/* Passkey option */}
                   <button
                     onClick={handleDemoPasskey}
-                    className="flex flex-col items-center gap-2 p-3 bg-card border border-border rounded-lg hover:border-primary/30 hover:bg-primary/5 transition-smooth cursor-pointer text-center"
+                    className="flex flex-col items-center gap-2 p-3 bg-white border border-[#E5D7C3] rounded-lg hover:border-[#428475] hover:bg-[#428475]/5 transition-smooth cursor-pointer text-center"
                   >
-                    <KeyRound className="w-5 h-5 text-primary" />
+                    <KeyRound className="w-5 h-5 text-[#428475]" />
                     <span className="text-sm font-medium text-foreground">Passkey Demo</span>
                   </button>
 
                   {/* OTP option */}
                   <button
                     onClick={handleDemoOTP}
-                    className="flex flex-col items-center gap-2 p-3 bg-card border border-border rounded-lg hover:border-primary/30 hover:bg-primary/5 transition-smooth cursor-pointer text-center"
+                    className="flex flex-col items-center gap-2 p-3 bg-white border border-[#E5D7C3] rounded-lg hover:border-[#428475] hover:bg-[#428475]/5 transition-smooth cursor-pointer text-center"
                   >
-                    <Mail className="w-5 h-5 text-primary" />
+                    <Mail className="w-5 h-5 text-[#428475]" />
                     <span className="text-sm font-medium text-foreground">OTP Demo</span>
                   </button>
                 </div>
@@ -376,7 +376,7 @@ export function DemoAuthPage() {
                   </div>
 
                   <Button
-                    className="w-full h-11 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm transition-smooth"
+                    className="w-full h-11 rounded-lg bg-[#428475] text-white hover:bg-[#356B5F] shadow-sm transition-smooth"
                     disabled={otpCode.length !== 6}
                     onClick={handleVerifyDemoOTP}
                   >

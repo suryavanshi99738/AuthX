@@ -209,7 +209,7 @@ export function MobileQRScannerModal({ isOpen, onClose, onScanSuccess }: MobileQ
 
                   {/* Animated Glowing Laser Beam */}
                   <motion.div
-                    className="w-full h-1 bg-gradient-to-r from-transparent via-primary/60 to-transparent absolute left-0"
+                    className="w-full h-1 bg-gradient-to-r from-transparent via-accent/80 to-transparent absolute left-0"
                     animate={{ top: ['5%', '90%', '5%'] }}
                     transition={{
                       duration: 2.2,

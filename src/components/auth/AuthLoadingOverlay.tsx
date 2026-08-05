@@ -40,7 +40,7 @@ export function AuthLoadingOverlay({
 
           {/* Content card */}
           <motion.div
-            className="relative z-10 bg-card rounded-xl shadow-xl p-8 flex flex-col items-center text-center max-w-sm mx-4"
+            className="relative z-10 bg-[#FFF4E1] border border-[#E5D7C3] rounded-xl shadow-xl p-8 flex flex-col items-center text-center max-w-sm mx-4"
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
@@ -53,7 +53,7 @@ export function AuthLoadingOverlay({
                 animate={{ rotate: 360 }}
                 transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
               >
-                <Loader2 className="w-12 h-12 text-primary" />
+                <Loader2 className="w-12 h-12 text-[#428475]" />
               </motion.div>
             )}
 
