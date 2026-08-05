@@ -516,6 +516,7 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
             <motion.div variants={fadeInUp}>
               <StatCard
                 title="Security Score"
+                description="Overall account health rating"
                 value={<div className="flex items-baseline gap-1"><AnimatedCounter value={96} /><span className="text-xs font-normal">/ 100</span></div>}
                 icon={<ShieldCheck className="w-5 h-5 text-primary" />}
                 trend={{ value: "Grade A+ Rating", isPositive: true }}
@@ -523,7 +524,8 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
             </motion.div>
             <motion.div variants={fadeInUp}>
               <StatCard
-                title="Current Risk"
+                title="Current Threat Level"
+                description="Real-time device risk score"
                 value={riskData?.level || 'Low'}
                 subtitle={`Score: ${riskData?.score || 12}/100`}
                 icon={<ShieldCheck className="w-5 h-5 text-success" />}
@@ -532,8 +534,9 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
             </motion.div>
             <motion.div variants={fadeInUp}>
               <StatCard
-                title="Active Sessions"
-                value={<div className="flex items-baseline gap-1"><AnimatedCounter value={sessionSummary?.activeSessionsCount || 2} /><span className="text-xs font-normal">Active</span></div>}
+                title="Active Logins"
+                description="Parallel active sessions count"
+                value={<div className="flex items-baseline gap-1"><AnimatedCounter value={sessionSummary?.activeSessionsCount || 1} /><span className="text-xs font-normal">Active</span></div>}
                 subtitle={sessionSummary?.currentDeviceName || 'Windows 11 PC'}
                 icon={<Radio className="w-5 h-5 text-primary animate-pulse" />}
               />
@@ -541,6 +544,7 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
             <motion.div variants={fadeInUp}>
               <StatCard
                 title="Trusted Devices"
+                description="Hardware bound trust tokens"
                 value={<div className="flex items-baseline gap-1"><AnimatedCounter value={trustedDevices.length || 1} /><span className="text-xs font-normal">Bound</span></div>}
                 subtitle={`Limit: ${userSettingsState?.deviceLimit || 5} Max`}
                 icon={<Laptop className="w-5 h-5 text-primary" />}
@@ -548,7 +552,8 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
             </motion.div>
             <motion.div variants={fadeInUp}>
               <StatCard
-                title="Auth Method Today"
+                title="Primary Auth Method"
+                description="Most frequent verification method"
                 value={(() => {
                   const isMobileClient = typeof window !== 'undefined' && /mobile|iphone|ipad|android/i.test(navigator.userAgent);
                   if (isMobileClient) {
@@ -564,7 +569,8 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
             </motion.div>
             <motion.div variants={fadeInUp}>
               <StatCard
-                title="Recent Activity"
+                title="Security Audit Feed"
+                description="Latest authentication event log"
                 value={history[0]?.method || 'Email OTP'}
                 subtitle={`Last Login: ${history[0] ? formatTimeAgo(history[0].createdAt) : 'Just now'}`}
                 icon={<Activity className="w-5 h-5 text-primary" />}
@@ -576,7 +582,7 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
           <motion.div variants={fadeInUp}>
             <SectionHeader title="Quick Insights" />
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="p-4 rounded-xl bg-card border border-border space-y-1">
+              <div className="bg-card border border-border p-5 rounded-2xl shadow-sm space-y-2">
                 <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
                   <Clock className="w-3.5 h-3.5 text-primary" />
                   <span>Last Login</span>
@@ -585,7 +591,7 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
                 <p className="text-[11px] text-muted-foreground">{history[0]?.ipAddress || '10.17.87.25'} ({history[0]?.device || 'Current Session'})</p>
               </div>
 
-              <div className="p-4 rounded-xl bg-card border border-border space-y-1">
+              <div className="bg-card border border-border p-5 rounded-2xl shadow-sm space-y-2">
                 <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
                   <Laptop className="w-3.5 h-3.5 text-primary" />
                   <span>Last Trusted Device</span>
@@ -594,7 +600,7 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
                 <p className="text-[11px] text-muted-foreground">{trustedDevices[0]?.browser || 'Chrome 124'} • Active</p>
               </div>
 
-              <div className="p-4 rounded-xl bg-card border border-border space-y-1">
+              <div className="bg-card border border-border p-5 rounded-2xl shadow-sm space-y-2">
                 <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
                   <ShieldCheck className="w-3.5 h-3.5 text-success" />
                   <span>Security Recommendation</span>
@@ -604,6 +610,40 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
                 </p>
                 <p className="text-[11px] text-muted-foreground">All systems operational</p>
               </div>
+            </div>
+          </motion.div>
+
+          <motion.div variants={fadeInUp}>
+            <SectionHeader title="Recent Authentication Logins" />
+            <div className="space-y-3">
+              {history.slice(0, 4).map((log, i) => (
+                <div key={i} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-card border border-border rounded-2xl shadow-sm hover:shadow-md transition-shadow">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20 shrink-0">
+                      {log.device.toLowerCase().includes('phone') || log.device.toLowerCase().includes('mobile') ? (
+                        <Smartphone className="w-5 h-5 text-primary" />
+                      ) : (
+                        <Laptop className="w-5 h-5 text-primary" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-foreground">{log.method}</p>
+                      <p className="text-xs text-muted-foreground">{log.device} • {log.ipAddress} • {log.location || 'Local Network'}</p>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-start sm:items-end gap-1">
+                    <Badge variant={log.status === 'failed' || log.status === 'rejected' ? 'destructive' : 'secondary'} className={log.status !== 'failed' && log.status !== 'rejected' ? 'bg-success/10 text-success text-[10px]' : 'text-[10px]'}>
+                      {log.status === 'failed' || log.status === 'rejected' ? 'Failed' : 'Success'}
+                    </Badge>
+                    <p className="text-[10px] text-muted-foreground font-medium">{formatTimeAgo(log.createdAt)}</p>
+                  </div>
+                </div>
+              ))}
+              {history.length === 0 && (
+                <div className="p-4 text-center text-xs text-muted-foreground bg-card border border-border rounded-2xl">
+                  No recent login history found.
+                </div>
+              )}
             </div>
           </motion.div>
         </>
@@ -1206,45 +1246,73 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {deviceRisks.length > 0 ? (
                 deviceRisks.map((dev, idx) => (
-                  <Card key={idx} className="shadow-card">
-                    <CardContent className="p-5 space-y-3">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20">
-                            {dev.deviceName.toLowerCase().includes('phone') || dev.deviceName.toLowerCase().includes('mobile') ? (
-                              <Smartphone className="w-4.5 h-4.5 text-primary" />
-                            ) : (
-                              <Laptop className="w-4.5 h-4.5 text-primary" />
-                            )}
-                          </div>
-                          <div>
-                            <h4 className="font-heading text-sm font-bold text-foreground">{dev.deviceName}</h4>
-                            <p className="text-xs text-muted-foreground">{dev.browser}</p>
-                          </div>
+                  <Card key={idx} className="bg-card text-card-foreground rounded-2xl border border-border/80 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 p-5 space-y-4">
+                    {/* Header */}
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20 shrink-0">
+                          {dev.deviceName.toLowerCase().includes('phone') || dev.deviceName.toLowerCase().includes('mobile') ? (
+                            <Smartphone className="w-5 h-5 text-primary" />
+                          ) : (
+                            <Laptop className="w-5 h-5 text-primary" />
+                          )}
                         </div>
-                        <Badge variant={dev.riskLevel === 'High' ? 'destructive' : dev.riskLevel === 'Medium' ? 'outline' : 'secondary'} className="text-[10px]">
-                          Score: {dev.riskScore}/100
+                        <div>
+                          <h4 className="font-heading font-semibold text-foreground">{dev.deviceName}</h4>
+                          <p className="text-xs text-muted-foreground">{dev.browser}</p>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-1">
+                        <Badge variant={dev.riskLevel === 'High' ? 'destructive' : dev.riskLevel === 'Medium' ? 'outline' : 'secondary'} className={dev.riskLevel !== 'High' && dev.riskLevel !== 'Medium' ? 'bg-success/10 text-success text-[10px]' : 'text-[10px]'}>
+                          {dev.riskLevel}
                         </Badge>
+                        <span className="text-[10px] text-muted-foreground font-medium">Score: {dev.riskScore}/100</span>
                       </div>
+                    </div>
 
-                      <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border/60 text-xs text-muted-foreground">
-                        <div className="flex items-center gap-1.5">
-                          <Globe className="w-3.5 h-3.5 text-primary shrink-0" />
-                          <span>{dev.ipAddress}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <MapPin className="w-3.5 h-3.5 text-primary shrink-0" />
-                          <span>{dev.location}</span>
-                        </div>
-                      </div>
+                    {/* Progress bar */}
+                    <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${
+                          dev.riskScore >= 66 ? 'bg-danger' : dev.riskScore >= 31 ? 'bg-warning' : 'bg-success'
+                        }`}
+                        style={{ width: `${Math.min(dev.riskScore, 100)}%` }}
+                      />
+                    </div>
 
-                      <div className="flex items-center justify-between text-xs pt-1">
-                        <span className="text-muted-foreground">Trust Status</span>
-                        <Badge variant={dev.isTrusted ? 'secondary' : 'outline'} className={dev.isTrusted ? 'bg-success/10 text-success text-[10px]' : 'text-warning border-warning/30 text-[10px]'}>
-                          {dev.isTrusted ? 'Trusted Device' : 'Untrusted New Device'}
-                        </Badge>
+                    {/* Metadata Grid */}
+                    <div className="grid grid-cols-2 gap-2 pt-3 border-t border-border/60 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1.5">
+                        <Globe className="w-3.5 h-3.5 text-primary shrink-0" />
+                        <span className="truncate">{dev.ipAddress}</span>
                       </div>
-                    </CardContent>
+                      <div className="flex items-center gap-1.5">
+                        <MapPin className="w-3.5 h-3.5 text-primary shrink-0" />
+                        <span className="truncate">{dev.location}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <ShieldCheck className="w-3.5 h-3.5 text-primary shrink-0" />
+                        <StatusBadge variant={dev.isTrusted ? "success" : "warning"} className="text-[10px]">
+                          {dev.isTrusted ? 'Trusted Device' : 'Untrusted'}
+                        </StatusBadge>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-primary shrink-0" />
+                        <span className="truncate">Activity: {formatTimeAgo(dev.lastSeen || new Date().toISOString())}</span>
+                      </div>
+                    </div>
+
+                    {/* Footer */}
+                    <div className="flex items-center justify-between pt-2 border-t border-border/60">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 text-xs rounded-xl gap-1.5"
+                      >
+                        <Info className="w-3.5 h-3.5" />
+                        View Risk Analysis
+                      </Button>
+                    </div>
                   </Card>
                 ))
               ) : (

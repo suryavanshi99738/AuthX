@@ -1,59 +1,46 @@
-# AuthX Enterprise Theme Migration — Progress Report
+# AuthX Dashboard UI Refinements & Card Enhancements — Progress Report
 
-## Status: ✅ Migration Complete
-
----
-
-## Palette Overview
-- **Primary Dark**: `#1A312C` (Deep Forest Green)
-- **Primary**: `#428475` (Muted Emerald/Teal)
-- **Secondary Accent**: `#89D7B7` (Soft Mint/Sage)
-- **Background**: `#FFF4E1` (Warm Cream / Soft Light)
-- **Surface Muted**: `#F4E7D3`
-- **Dark Mode Background**: `#0D1513`
-- **Dark Mode Card**: `#162420`
+## Status: ✅ Enhancements Complete & Verified
 
 ---
 
-## Accomplished Work
+## Key Improvements Implemented
 
-### 1. Design System & Global Styles (`src/app/globals.css`)
-- Replaced color tokens across light (`:root`) and dark (`.dark`) modes with the forest green & warm cream palette.
-- Border radius set to `0.875rem` (14px).
-- Solid, layered shadows applied (no glow, no glassmorphism).
+### 1. StatCard Component Enhancements (`src/components/ui/stat-card.tsx`)
+- Added explicit support for `title`, `label`, `description` (3-4 words), and `subtitle`.
+- Updated typography to modern font styling (`font-heading font-semibold`, `text-sm font-semibold`, `text-xs text-muted-foreground`).
+- Safe trend rendering: string values (e.g. "Grade A+") render cleanly as badges without `%` or `NaN%`.
+- Slightly larger card sizing with `min-h-[160px] p-6 sm:p-7 rounded-2xl` for a spacious, modern enterprise aesthetic.
 
-### 2. Reusable UI Components (`src/components/ui/`)
-- Updated `status-badge.tsx`, `stat-card.tsx`, `info-callout.tsx`, `page-header.tsx`, `chart-card.tsx`, `empty-state.tsx` to match theme tokens.
+### 2. Navbar Section Icons & User Email Pill (`Dashboard.tsx` & `DemoDashboard.tsx`)
+- Added dynamic section icons in the header top bar (e.g. `Home` icon next to Home, `KeyRound` next to Authentication Methods, `Radio` next to Sessions, `ShieldAlert` next to Risk Center, etc.).
+- Added `Mail` icon inside the user email address pill in the top right navbar.
 
-### 3. Landing Page Redesign
-- **Heading**: `SpotlightHeading.tsx` updated to plain text "Presence of <span className="text-accent">SECURE</span> Authentication" with "SECURE" highlighted in `#89D7B7` / `#428475` and main text aligned to the LEFT.
-- **Hero Section**: Left-aligned headline, subtext, and CTAs (`#428475` primary button, `#428475` outline secondary). Right side features 3 decorative floating cards arranged vertically in a zigzag offset pattern with floating elevation shadows.
-- **Footer & Sections**: Navigation bar, timeline, stats, comparison grid, and enterprise footer updated to `#1A312C` / `#FFF4E1` / `#89D7B7`.
+### 3. Home View Content & Scrollability (`DashboardContent.tsx`)
+- Configured all 6 Home Overview StatCards with explicit titles AND 3-4 word descriptions:
+  - **Security Score**: "Overall account health rating"
+  - **Current Threat Level**: "Real-time device risk score"
+  - **Active Logins**: "Parallel active sessions count"
+  - **Trusted Devices**: "Hardware bound trust tokens"
+  - **Primary Auth Method**: "Most frequent verification method"
+  - **Security Audit Feed**: "Latest authentication event log"
+- Enhanced **Quick Insights** cards with comfortable padding and modern typography.
+- Added **"Recent Authentication Logins"** activity list section directly below Quick Insights on the Home view, displaying recent authentication history items with status badges, ensuring the Home section is full, informative, and naturally scrollable.
 
-### 4. Auth Pages Redesign (`src/components/auth/` & `src/components/demo/`)
-- Split Layout: Left side `#1A312C` dark forest panel; Right side `#FFF4E1` warm light background.
-- Primary buttons `#428475`, form inputs with `#E5D7C3` border and `#428475` focus ring.
-- Preserved all state hooks, WebAuthn passkey logic, QR polling, OTP handlers, and timers.
-
-### 5. Dashboard Shell & Sidebar (`Sidebar.tsx`, `Dashboard.tsx`, `DemoDashboard.tsx`)
-- Fixed Sidebar background `#1A312C`, text soft white `#E2E8F0`.
-- Active item background `#428475` with subtle `#89D7B7` left border (`border-l-4`).
-- Hover background `#24423C`.
-- Main dashboard background `#FFF4E1` (light mode) / `#0D1513` (dark mode).
-
-### 6. Dashboard Content & Charts (`DashboardContent.tsx`)
-- Charts customized to exact color specs:
-  - **Auth Method Usage Pie Chart**: OTP (`#428475`), Passkey (`#89D7B7`), QR Login (`#1A312C`).
-  - **Risk Distribution Bar Chart**: Low (`#428475`), Medium (`#F59E0B`), High (`#EF4444`).
-- All 12 views updated with `#FFF4E1` background, `#FFFFFF` cards with `#E5D7C3` borders, and `#1A312C` headings.
-
-### 7. Modals & Overlays (`NewDeviceModal.tsx`, `UnderDevelopmentModal.tsx`, `MobileQRScannerModal.tsx`)
-- Modals updated to use the new card surfaces, `#428475` icon badges, and `#89D7B7` scanner elements.
+### 4. Per-Device Risk Assessment Cards Redesign (`DashboardContent.tsx`)
+- Redesigned Per-Device Risk Assessment cards to look **EXACTLY like the Session Management cards**:
+  - Container with `rounded-2xl border shadow-sm hover:shadow-md hover:-translate-y-0.5`.
+  - Left circular badge with device type icon (`Smartphone` or `Laptop`).
+  - Device name & browser in `font-heading font-semibold text-foreground`.
+  - Risk Score badge (`Score: 10/100`) + Risk Level badge.
+  - Risk score progress bar.
+  - Metadata grid featuring IP address (`Globe` icon), Location (`MapPin` icon), Trust Status badge (`StatusBadge` variant="success" for `Trusted Device`), and Last Activity (`Clock` icon).
+  - Card footer with action button ("Inspect Risk Profile").
 
 ---
 
 ## Verification Results
-- ✅ `npx next build` — Compiled successfully in 11.6s
-- ✅ 0 backend files touched (verified via `git diff`)
-- ✅ All 35 API routes active and intact
-- ✅ Zero TypeScript or JSX errors
+- ✅ `npx next build` — Compiled successfully in **6.6s** with zero errors.
+- ✅ **0 backend files modified** (verified via `git diff`).
+- ✅ Existing `#1A312C` / `#FFF4E1` / `#428475` / `#89D7B7` theme palette strictly preserved.
+- ✅ Responsive behavior & touch targets maintained across viewports.
