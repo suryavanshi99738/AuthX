@@ -55,8 +55,12 @@ const bottomNavItems: SidebarItem[] = [
 
 export function Sidebar({ activeItem, onItemClick, isDemo }: SidebarProps) {
   const { logout, cleanupDemo } = useAuth();
-  const [collapsed, setCollapsed] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const [isPinned, setIsPinned] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+
+  // Derived effective collapsed state: collapsed if NOT pinned AND NOT hovered
+  const collapsed = !isPinned && !isHovered;
 
   useEffect(() => {
     const checkMobile = () => {
@@ -77,10 +81,16 @@ export function Sidebar({ activeItem, onItemClick, isDemo }: SidebarProps) {
     }
   };
 
+  const togglePin = () => {
+    setIsPinned((prev) => !prev);
+  };
+
   return (
     <motion.aside
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       className={cn(
-        'h-screen flex flex-col bg-[#1A312C] border-r border-[#24423C] text-[#E2E8F0] transition-all duration-300 select-none shrink-0 overflow-hidden sticky top-0 z-20',
+        'h-screen flex flex-col bg-[#1A312C] border-r border-[#24423C] text-[#E2E8F0] transition-all duration-300 select-none shrink-0 overflow-hidden sticky top-0 z-20 shadow-lg',
         collapsed ? 'w-16' : 'w-64'
       )}
       initial={{ opacity: 0, x: -20 }}
@@ -101,27 +111,16 @@ export function Sidebar({ activeItem, onItemClick, isDemo }: SidebarProps) {
           <ShieldCheck className="w-7 h-7 text-[#89D7B7]" />
         )}
 
-        {!collapsed ? (
-          <button
-            onClick={() => setCollapsed(true)}
-            className="w-8 h-8 rounded-lg hover:bg-[#24423C] flex items-center justify-center text-[#E2E8F0]/70 hover:text-[#E2E8F0] transition-smooth"
-            title="Collapse sidebar"
-          >
-            <PanelLeftClose className="w-5 h-5" />
-          </button>
-        ) : (
-          <button
-            onClick={() => setCollapsed(false)}
-            className="w-8 h-8 rounded-lg hover:bg-[#24423C] flex items-center justify-center text-[#E2E8F0]/70 hover:text-[#E2E8F0] transition-smooth"
-            title="Expand sidebar"
-          >
-            <PanelLeft className="w-5 h-5" />
-          </button>
-        )}
+        <button
+          onClick={togglePin}
+          className="w-8 h-8 rounded-lg hover:bg-[#24423C] flex items-center justify-center text-[#E2E8F0]/70 hover:text-[#E2E8F0] transition-smooth cursor-pointer"
+          title={isPinned ? 'Unpin sidebar (Auto-collapse on exit)' : 'Pin sidebar expanded'}
+        >
+          {!collapsed ? <PanelLeftClose className="w-5 h-5" /> : <PanelLeft className="w-5 h-5" />}
+        </button>
       </div>
 
-      {/* Main Navigation Items (Fixed / Non-scrollable layout) */}
-      {/* Main Navigation Items (Fixed / Non-scrollable layout) */}
+      {/* Main Navigation Items */}
       <nav className="flex-1 overflow-y-auto py-2 px-3 space-y-1 scrollbar-none">
         {mainNavItems.map((item) => {
           if (item.mobileOnly && !isMobile) return null;
@@ -143,7 +142,7 @@ export function Sidebar({ activeItem, onItemClick, isDemo }: SidebarProps) {
             >
               <item.icon className={cn('w-5 h-5 shrink-0', isActive && 'text-white')} />
               {!collapsed && (
-                <span className={cn('font-medium tracking-tight', isActive && 'text-white font-medium')}>
+                <span className={cn('font-medium tracking-tight whitespace-nowrap', isActive && 'text-white font-medium')}>
                   {item.label}
                 </span>
               )}
@@ -160,7 +159,7 @@ export function Sidebar({ activeItem, onItemClick, isDemo }: SidebarProps) {
       </nav>
 
       {/* Bottom Section: Settings & Profile & Logout */}
-      <div className="mt-auto border-t border-border px-3 py-3 space-y-1">
+      <div className="mt-auto border-t border-[#24423C] px-3 py-3 space-y-1">
         {bottomNavItems.map((item) => {
           const isActive = activeItem === item.id;
           return (
@@ -180,7 +179,7 @@ export function Sidebar({ activeItem, onItemClick, isDemo }: SidebarProps) {
             >
               <item.icon className={cn('w-5 h-5 shrink-0', isActive && 'text-white')} />
               {!collapsed && (
-                <span className={cn('font-medium tracking-tight', isActive && 'text-white font-medium')}>
+                <span className={cn('font-medium tracking-tight whitespace-nowrap', isActive && 'text-white font-medium')}>
                   {item.label}
                 </span>
               )}
@@ -195,7 +194,7 @@ export function Sidebar({ activeItem, onItemClick, isDemo }: SidebarProps) {
           );
         })}
 
-        <div className="border-b border-border my-2" />
+        <div className="border-b border-[#24423C] my-2" />
 
         <motion.button
           onClick={handleLogout}
@@ -208,7 +207,7 @@ export function Sidebar({ activeItem, onItemClick, isDemo }: SidebarProps) {
           whileTap={{ scale: 0.98 }}
         >
           <LogOut className="w-5 h-5 shrink-0" />
-          {!collapsed && <span className="font-medium">{isDemo ? 'Exit Demo' : 'Logout'}</span>}
+          {!collapsed && <span className="font-medium whitespace-nowrap">{isDemo ? 'Exit Demo' : 'Logout'}</span>}
         </motion.button>
       </div>
     </motion.aside>

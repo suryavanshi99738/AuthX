@@ -70,22 +70,22 @@ export function StatCard({
     <div
       className={cn(
         'bg-card text-card-foreground rounded-2xl border border-border/80 shadow-sm transition-all duration-200',
-        'hover:shadow-md hover:-translate-y-0.5 p-6 sm:p-7 min-h-[160px] flex flex-col justify-between',
+        'hover:shadow-md hover:-translate-y-0.5 p-6 sm:p-7 h-full flex flex-col justify-between min-h-[170px]',
         className
       )}
     >
-      {/* Top Row: Icon & Trend Badge */}
+      {/* Top Row: Icon & Title & Trend Badge */}
       <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
+        <div className="flex items-start gap-3 min-w-0 flex-1">
           {icon && (
-            <div className={cn('w-11 h-11 rounded-xl flex items-center justify-center shrink-0 shadow-xs', accentColors[accentColor])}>
+            <div className={cn('w-11 h-11 rounded-xl flex items-center justify-center shrink-0 shadow-xs mt-0.5', accentColors[accentColor])}>
               {icon}
             </div>
           )}
-          <div>
-            <h4 className="text-sm font-semibold tracking-tight text-foreground font-heading">{displayTitle}</h4>
+          <div className="min-w-0 flex-1">
+            <h4 className="text-sm font-semibold tracking-tight text-foreground font-heading truncate">{displayTitle}</h4>
             {description && (
-              <p className="text-xs text-muted-foreground mt-0.5 font-sans leading-relaxed line-clamp-1">
+              <p className="text-xs text-muted-foreground mt-0.5 font-sans leading-relaxed line-clamp-1 truncate">
                 {description}
               </p>
             )}
@@ -109,7 +109,7 @@ export function StatCard({
 
       {/* Main Value & Subtitle */}
       <div className="mt-4 pt-2">
-        <div className="text-3xl font-extrabold tracking-tight text-foreground font-heading leading-none">
+        <div className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground font-heading leading-none truncate">
           {animate && (isNumber || typeof value === 'string') ? (
             <AnimatedCounter value={numForAnimate} prefix={prefix} suffix={suffix} />
           ) : (
@@ -117,9 +117,9 @@ export function StatCard({
           )}
         </div>
         {subtitle && (
-          <p className="text-xs font-medium text-muted-foreground mt-2 flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-primary/60 inline-block" />
-            <span>{subtitle}</span>
+          <p className="text-xs font-medium text-muted-foreground mt-2 flex items-center gap-1.5 truncate">
+            <span className="w-1.5 h-1.5 rounded-full bg-primary/70 inline-block shrink-0" />
+            <span className="truncate">{subtitle}</span>
           </p>
         )}
       </div>

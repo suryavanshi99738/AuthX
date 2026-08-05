@@ -449,7 +449,7 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
 
   if (loading) {
     return (
-      <div className="p-8 space-y-6 max-w-5xl animate-pulse">
+      <div className="p-8 space-y-6 w-full max-w-[1600px] mx-auto animate-pulse">
         <div className="h-24 bg-muted/60 rounded-2xl" />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="h-28 bg-muted/60 rounded-2xl" />
@@ -464,7 +464,7 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
 
   return (
     <motion.div
-      className="p-6 md:p-8 space-y-6 max-w-5xl"
+      className="p-6 md:p-8 space-y-6 w-full max-w-[1600px] mx-auto"
       initial="hidden"
       animate="visible"
       variants={staggerContainer}
@@ -513,16 +513,17 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
 
           {/* Overview Cards Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <motion.div variants={fadeInUp}>
+            <motion.div variants={fadeInUp} className="h-full flex flex-col">
               <StatCard
                 title="Security Score"
                 description="Overall account health rating"
                 value={<div className="flex items-baseline gap-1"><AnimatedCounter value={96} /><span className="text-xs font-normal">/ 100</span></div>}
                 icon={<ShieldCheck className="w-5 h-5 text-primary" />}
                 trend={{ value: "Grade A+ Rating", isPositive: true }}
+                className="h-full flex-1"
               />
             </motion.div>
-            <motion.div variants={fadeInUp}>
+            <motion.div variants={fadeInUp} className="h-full flex flex-col">
               <StatCard
                 title="Current Threat Level"
                 description="Real-time device risk score"
@@ -530,27 +531,30 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
                 subtitle={`Score: ${riskData?.score || 12}/100`}
                 icon={<ShieldCheck className="w-5 h-5 text-success" />}
                 trend={{ value: "Protected", isPositive: true }}
+                className="h-full flex-1"
               />
             </motion.div>
-            <motion.div variants={fadeInUp}>
+            <motion.div variants={fadeInUp} className="h-full flex flex-col">
               <StatCard
                 title="Active Logins"
                 description="Parallel active sessions count"
                 value={<div className="flex items-baseline gap-1"><AnimatedCounter value={sessionSummary?.activeSessionsCount || 1} /><span className="text-xs font-normal">Active</span></div>}
                 subtitle={sessionSummary?.currentDeviceName || 'Windows 11 PC'}
                 icon={<Radio className="w-5 h-5 text-primary animate-pulse" />}
+                className="h-full flex-1"
               />
             </motion.div>
-            <motion.div variants={fadeInUp}>
+            <motion.div variants={fadeInUp} className="h-full flex flex-col">
               <StatCard
                 title="Trusted Devices"
                 description="Hardware bound trust tokens"
                 value={<div className="flex items-baseline gap-1"><AnimatedCounter value={trustedDevices.length || 1} /><span className="text-xs font-normal">Bound</span></div>}
                 subtitle={`Limit: ${userSettingsState?.deviceLimit || 5} Max`}
                 icon={<Laptop className="w-5 h-5 text-primary" />}
+                className="h-full flex-1"
               />
             </motion.div>
-            <motion.div variants={fadeInUp}>
+            <motion.div variants={fadeInUp} className="h-full flex flex-col">
               <StatCard
                 title="Primary Auth Method"
                 description="Most frequent verification method"
@@ -565,9 +569,10 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
                 })()}
                 icon={<KeyRound className="w-5 h-5 text-primary" />}
                 trend={{ value: "Hardware Verified", isPositive: true }}
+                className="h-full flex-1"
               />
             </motion.div>
-            <motion.div variants={fadeInUp}>
+            <motion.div variants={fadeInUp} className="h-full flex flex-col">
               <StatCard
                 title="Security Audit Feed"
                 description="Latest authentication event log"
@@ -575,6 +580,7 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
                 subtitle={`Last Login: ${history[0] ? formatTimeAgo(history[0].createdAt) : 'Just now'}`}
                 icon={<Activity className="w-5 h-5 text-primary" />}
                 trend={{ value: "0 Failed Attempts", isPositive: true }}
+                className="h-full flex-1"
               />
             </motion.div>
           </div>

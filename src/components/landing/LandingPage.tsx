@@ -112,23 +112,28 @@ export function LandingPage() {
           
           <div className="hidden lg:flex relative w-full h-full min-h-[400px]">
             {[
-              { icon: KeyRound, title: 'Passkeys Authentication' },
-              { icon: Fingerprint, icon2: QrCode, title: 'Biometric & QR Verification' },
-              { icon: ShieldCheck, title: 'Encrypted Session Security' }
+              { icon: KeyRound, title: 'Passkeys Authentication', subtitle: 'FIDO2 WebAuthn' },
+              { icon: Fingerprint, title: 'Biometric Vault Sync', subtitle: 'Touch / Face ID' },
+              { icon: QrCode, title: 'Cross-Device QR Verification', subtitle: 'Instant Mobile Scan' },
+              { icon: ShieldCheck, title: 'Encrypted Session Security', subtitle: 'Zero Password Storage' }
             ].map((card, idx) => (
               <motion.div
                 key={idx}
-                className={`bg-card border border-border shadow-elevated rounded-xl p-5 flex items-center gap-4 w-72 absolute z-10 ${
-                  idx === 0 ? 'top-10 left-0' : idx === 1 ? 'top-1/2 -translate-y-1/2 right-0' : 'bottom-10 left-12'
+                className={`bg-card border border-border shadow-elevated rounded-xl p-5 flex items-center gap-4 w-80 absolute z-10 cursor-pointer hover:ring-1 hover:ring-primary/30 transition-all ${
+                  idx === 0 ? 'top-2 left-0' : idx === 1 ? 'top-28 right-0' : idx === 2 ? 'top-60 left-4' : 'bottom-2 right-4'
                 }`}
-                animate={{ y: [0, -15, 0] }}
+                animate={{ y: [0, -12, 0] }}
+                whileHover={{ scale: 1.05, y: -6, boxShadow: '0 20px 30px -10px rgba(26, 49, 44, 0.2)' }}
+                whileTap={{ scale: 0.98 }}
                 transition={{ duration: 4, repeat: Infinity, delay: idx * 0.3, ease: 'easeInOut' }}
               >
                 <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0 gap-1">
                   <card.icon className="w-5 h-5" />
-                  {card.icon2 && <card.icon2 className="w-5 h-5" />}
                 </div>
-                <h4 className="font-semibold text-sm leading-tight text-card-foreground">{card.title}</h4>
+                <div className="flex flex-col">
+                  <h4 className="font-semibold text-sm leading-tight text-card-foreground">{card.title}</h4>
+                  <p className="text-xs text-muted-foreground mt-0.5">{card.subtitle}</p>
+                </div>
               </motion.div>
             ))}
             {/* Decorative background shadow elements */}
