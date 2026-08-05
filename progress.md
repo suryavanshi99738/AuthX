@@ -1,36 +1,64 @@
-# AuthX UI Layout, Auto-Collapse Sidebar & Landing Page Enhancements — Progress Report
+# AuthX Independent Theme System — Progress Report
 
-## Status: ✅ Enhancements Complete & Verified
+## Status: ✅ Implementation & Verification Complete
 
 ---
 
-## Key Improvements Implemented
+## Approved Dark Palette
+- **App Background**: `#0D1110`
+- **Secondary Surface**: `#151C1A`
+- **Card Surface**: `#1D2724`
+- **Sidebar**: `#08110F`
+- **Primary**: `#5FA895`
+- **Primary Hover**: `#74BDAA`
+- **Accent**: `#9DE6C8`
+- **Border**: `#31443F`
+- **Divider**: `#273733`
+- **Heading**: `#F8FAF8`
+- **Body Text**: `#D7DDD9`
+- **Muted Text**: `#97A39E`
+- **Success**: `#3DDC97`
+- **Warning**: `#F4C95D`
+- **Danger**: `#EF6A6A`
+- **Info**: `#5AA8FF`
 
-### 1. Auto-Collapsible User-Friendly Sidebar (`Sidebar.tsx`)
-- Added mouse hover auto-expand and mouse exit auto-collapse behavior (`onMouseEnter` -> expand to `w-64`, `onMouseLeave` -> collapse to `w-16`).
-- Included an `isPinned` toggle mode via the collapse icon button, allowing users to pin the sidebar open continuously or rely on auto-hover collapse.
+---
 
-### 2. Full-Width Dashboard Content Expansion (`DashboardContent.tsx`)
-- Replaced the fixed `max-w-5xl` container width constraint with `w-full max-w-[1600px] mx-auto`.
-- When the sidebar collapses, the dashboard content and card grid seamlessly expand to fill the entire screen width, eliminating any awkward right-side empty space.
+## Accomplished Work
 
-### 3. Equal-Height StatCards Grid Alignment (`stat-card.tsx` & `DashboardContent.tsx`)
-- Enforced uniform flex stretching (`h-full flex flex-col justify-between`) across all 6 Home Overview StatCards.
-- Added text truncation and responsive typography so cards in the grid match identical heights without uneven wrapping.
+### 1. Independent Theme Architecture
+- Created `src/hooks/useLandingTheme.ts` managing `authx_landing_theme` localStorage key (`'light' | 'dark' | 'system'`).
+- Created `src/hooks/useDashboardTheme.ts` managing `authx_dashboard_theme` localStorage key (`'light' | 'dark' | 'system'`).
+- The two theme controllers operate completely independently and never interfere with each other:
+  - **Landing Page → Dark** & **Dashboard → Light** works seamlessly.
+  - **Landing Page → Light** & **Dashboard → Dark** works seamlessly.
+- System mode in both controllers listens dynamically to `window.matchMedia('(prefers-color-scheme: dark)')` change events.
 
-### 4. Split Interactive Floating Hero Cards on Landing Page (`LandingPage.tsx`)
-- Split the combined "Biometric & QR Verification" card into two dedicated, distinct floating cards:
-  1. **Passkeys Authentication** (`KeyRound` icon, `"FIDO2 WebAuthn"`)
-  2. **Biometric Vault Sync** (`Fingerprint` icon, `"Touch / Face ID"`)
-  3. **Cross-Device QR Verification** (`QrCode` icon, `"Instant Mobile Scan"`)
-  4. **Encrypted Session Security** (`ShieldCheck` icon, `"Zero Password Storage"`)
-- Increased floating card width to `w-80` (320px).
-- Arranged all 4 cards in a vertical zigzag offset layout with floating shadows.
-- Added interactive hover & active tap dynamics (`whileHover={{ scale: 1.05, y: -6 }}`, `whileTap={{ scale: 0.98 }}`).
+### 2. Landing Page Theme Toggle
+- Added a dedicated Landing Page Theme Toggle button on the Landing Navbar (supporting Light, Dark, System mode options).
+- Controls Landing Page, Hero, Features, Workflow Timeline, Statistics, Comparison Table, Enterprise Footer, and Demo Modal.
+- Does NOT affect Dashboard or Settings.
+
+### 3. Dashboard Theme Control
+- Dashboard theme is controlled via Settings -> Appearance (Radio selector: Light / Dark / System).
+- Controls Sidebar, Header, Dashboard pages, Charts, Tables, Cards, and Modals.
+- Does NOT affect Landing Page.
+
+### 4. Chart Color Adaptations
+- **Authentication Method Usage Pie Chart**:
+  - OTP: `#5FA895` (Dark) / `#428475` (Light)
+  - Passkey: `#9DE6C8` (Dark) / `#89D7B7` (Light)
+  - QR: `#6EC6B3` (Dark) / `#1A312C` (Light)
+- **Risk Distribution Bar Chart**:
+  - Low Risk: `#3DDC97` (Dark) / `#428475` (Light)
+  - Medium Risk: `#F4C95D` (Dark) / `#F59E0B` (Light)
+  - High Risk: `#EF6A6A` (Dark) / `#EF4444` (Light)
+- Grid lines, tooltips, legends, and axis labels maintain excellent text contrast in both themes.
 
 ---
 
 ## Verification Results
-- ✅ `npx next build` — Compiled successfully in **6.0s** with zero errors.
+- ✅ `npx next build` — Compiled successfully in **10.2s** with zero errors.
 - ✅ **0 backend files modified** (verified via `git diff`).
-- ✅ Color palette (`#1A312C`, `#428475`, `#89D7B7`, `#FFF4E1`) and architecture 100% preserved.
+- ✅ Text readability and contrast verified across cards, buttons, inputs, tables, dropdowns, modals, charts, sidebar, tooltips, and toasts.
+- ✅ Animations, hover effects, and responsive behavior preserved without layout shifts.

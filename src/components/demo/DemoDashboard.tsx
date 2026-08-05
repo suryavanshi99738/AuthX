@@ -21,6 +21,7 @@ import {
   Mail,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useDashboardTheme } from '@/hooks/useDashboardTheme';
 import { getDemoDashboard } from '@/services/auth-client';
 import { Sidebar } from '@/components/dashboard/Sidebar';
 import { DashboardContent } from '@/components/dashboard/DashboardContent';
@@ -42,6 +43,7 @@ const SECTION_ICONS: Record<string, React.ReactNode> = {
 
 export function DemoDashboard() {
   const { user, sessionToken, cleanupDemo } = useAuth();
+  const { themePref, setThemePref, resolvedTheme } = useDashboardTheme();
   const [activeItem, setActiveItem] = useState('home');
   const [dashboardData, setDashboardData] = useState<Record<string, unknown> | null>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -67,7 +69,7 @@ export function DemoDashboard() {
   };
 
   return (
-    <div className="min-h-screen flex bg-[#FFF4E1] dark:bg-[#0D1513]">
+    <div className={`min-h-screen flex transition-colors duration-300 ${resolvedTheme === 'dark' ? 'dark bg-[#0D1110] text-[#D7DDD9]' : 'bg-[#FFF4E1] text-[#1A312C]'}`}>
       {/* Mobile sidebar overlay */}
       {mobileSidebarOpen && (
         <motion.div
@@ -96,7 +98,7 @@ export function DemoDashboard() {
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0 transition-all duration-300">
         {/* Top bar */}
-        <header className="sticky top-0 z-30 bg-[#FFF4E1] dark:bg-[#0D1513] border-b border-[#E5D7C3] dark:border-[#1A312C] flex items-center justify-between px-5 py-3.5 h-16 shadow-2xs">
+        <header className={`sticky top-0 z-30 transition-colors duration-300 ${resolvedTheme === 'dark' ? 'bg-[#0D1110] border-[#31443F]' : 'bg-[#FFF4E1] border-[#E5D7C3]'} border-b flex items-center justify-between px-5 py-3.5 h-16 shadow-2xs`}>
           <div className="flex items-center gap-3">
             <button
               onClick={() => setMobileSidebarOpen(true)}

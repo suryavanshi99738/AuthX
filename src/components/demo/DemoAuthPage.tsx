@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/input-otp';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
+import { useDashboardTheme } from '@/hooks/useDashboardTheme';
 import { startDemo, demoPasskey, demoOTP, verifyOTP, createSession } from '@/services/auth-client';
 import { AuthLoadingOverlay } from '@/components/auth/AuthLoadingOverlay';
 import { fadeInUp, staggerContainer } from '@/lib/animations';
@@ -82,6 +83,7 @@ function DemoShield() {
 /* ── Demo Auth Page ── */
 export function DemoAuthPage() {
   const { setUser, setSession, setPageView, setIsDemo } = useAuth();
+  const { resolvedTheme } = useDashboardTheme();
   const [step, setStep] = useState<DemoStep>('select');
   const [demoUserId, setDemoUserId] = useState('');
   const [otpCode, setOtpCode] = useState('');
@@ -212,10 +214,10 @@ export function DemoAuthPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row">
+    <div className={`min-h-screen flex flex-col lg:flex-row transition-colors duration-300 ${resolvedTheme === 'dark' ? 'dark bg-[#0D1110] text-[#D7DDD9]' : 'bg-[#FFF4E1] text-[#1A312C]'}`}>
       {/* ── LEFT: Dark Panel ── */}
       <div
-        className="hidden lg:flex lg:flex-[1_1_45%] flex-col items-center justify-center p-12 xl:p-16 order-1 relative bg-[#1A312C] overflow-hidden"
+        className={`hidden lg:flex lg:flex-[1_1_45%] flex-col items-center justify-center p-12 xl:p-16 order-1 relative overflow-hidden ${resolvedTheme === 'dark' ? 'bg-[#08110F]' : 'bg-[#1A312C]'}`}
       >
         <div className="absolute inset-0 pointer-events-none opacity-20 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.1)_0%,transparent_100%)]" style={{ backgroundImage: 'radial-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px)', backgroundSize: '24px 24px' }}></div>
         <motion.div
@@ -263,7 +265,7 @@ export function DemoAuthPage() {
       </div>
 
       {/* ── RIGHT: Auth Panel ── */}
-      <div className="flex-1 lg:flex-[1_1_55%] bg-[#FFF4E1] flex items-center justify-center p-6 md:p-12 lg:p-16 order-2">
+      <div className={`flex-1 lg:flex-[1_1_55%] flex items-center justify-center p-6 md:p-12 lg:p-16 order-2 ${resolvedTheme === 'dark' ? 'bg-[#0D1110]' : 'bg-[#FFF4E1]'}`}>
         <motion.div
           className="w-full max-w-md mx-auto"
           initial={{ opacity: 0, x: 20 }}
@@ -301,7 +303,7 @@ export function DemoAuthPage() {
                   {/* Passkey option */}
                   <button
                     onClick={handleDemoPasskey}
-                    className="flex flex-col items-center gap-2 p-3 bg-white border border-[#E5D7C3] rounded-lg hover:border-[#428475] hover:bg-[#428475]/5 transition-smooth cursor-pointer text-center"
+                    className={`flex flex-col items-center gap-2 p-3 rounded-lg transition-smooth cursor-pointer text-center border ${resolvedTheme === 'dark' ? 'bg-[#151C1A] border-[#31443F] hover:border-[#5FA895] hover:bg-[#5FA895]/5' : 'bg-white border-[#E5D7C3] hover:border-[#428475] hover:bg-[#428475]/5'}`}
                   >
                     <KeyRound className="w-5 h-5 text-[#428475]" />
                     <span className="text-sm font-medium text-foreground">Passkey Demo</span>
@@ -310,7 +312,7 @@ export function DemoAuthPage() {
                   {/* OTP option */}
                   <button
                     onClick={handleDemoOTP}
-                    className="flex flex-col items-center gap-2 p-3 bg-white border border-[#E5D7C3] rounded-lg hover:border-[#428475] hover:bg-[#428475]/5 transition-smooth cursor-pointer text-center"
+                    className={`flex flex-col items-center gap-2 p-3 rounded-lg transition-smooth cursor-pointer text-center border ${resolvedTheme === 'dark' ? 'bg-[#151C1A] border-[#31443F] hover:border-[#5FA895] hover:bg-[#5FA895]/5' : 'bg-white border-[#E5D7C3] hover:border-[#428475] hover:bg-[#428475]/5'}`}
                   >
                     <Mail className="w-5 h-5 text-[#428475]" />
                     <span className="text-sm font-medium text-foreground">OTP Demo</span>

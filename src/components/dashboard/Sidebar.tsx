@@ -20,6 +20,7 @@ import {
   QrCode,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useDashboardTheme } from '@/hooks/useDashboardTheme';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { cn } from '@/lib/utils';
 
@@ -55,6 +56,7 @@ const bottomNavItems: SidebarItem[] = [
 
 export function Sidebar({ activeItem, onItemClick, isDemo }: SidebarProps) {
   const { logout, cleanupDemo } = useAuth();
+  const { resolvedTheme } = useDashboardTheme();
   const [isHovered, setIsHovered] = useState(false);
   const [isPinned, setIsPinned] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -90,7 +92,7 @@ export function Sidebar({ activeItem, onItemClick, isDemo }: SidebarProps) {
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       className={cn(
-        'h-screen flex flex-col bg-[#1A312C] border-r border-[#24423C] text-[#E2E8F0] transition-all duration-300 select-none shrink-0 overflow-hidden sticky top-0 z-20 shadow-lg',
+        `h-screen flex flex-col border-r transition-all duration-300 select-none shrink-0 overflow-hidden sticky top-0 z-20 shadow-lg ${resolvedTheme === 'dark' ? 'bg-[#08110F] border-[#31443F] text-[#D7DDD9]' : 'bg-[#1A312C] border-[#24423C] text-[#E2E8F0]'}`,
         collapsed ? 'w-16' : 'w-64'
       )}
       initial={{ opacity: 0, x: -20 }}
@@ -101,19 +103,19 @@ export function Sidebar({ activeItem, onItemClick, isDemo }: SidebarProps) {
       <div className={cn('p-4 flex items-center justify-between', collapsed && 'p-3 flex-col justify-center gap-4')}>
         {!collapsed ? (
           <div className="flex items-center gap-2.5">
-            <ShieldCheck className="w-7 h-7 text-[#89D7B7]" />
-            <span className="font-heading text-lg font-semibold tracking-tight text-[#E2E8F0]">AuthX</span>
+            <ShieldCheck className={`w-7 h-7 ${resolvedTheme === 'dark' ? 'text-[#9DE6C8]' : 'text-[#89D7B7]'}`} />
+            <span className={`font-heading text-lg font-semibold tracking-tight ${resolvedTheme === 'dark' ? 'text-[#D7DDD9]' : 'text-[#E2E8F0]'}`}>AuthX</span>
             {isDemo && (
               <StatusBadge variant="warning">Demo</StatusBadge>
             )}
           </div>
         ) : (
-          <ShieldCheck className="w-7 h-7 text-[#89D7B7]" />
+          <ShieldCheck className={`w-7 h-7 ${resolvedTheme === 'dark' ? 'text-[#9DE6C8]' : 'text-[#89D7B7]'}`} />
         )}
 
         <button
           onClick={togglePin}
-          className="w-8 h-8 rounded-lg hover:bg-[#24423C] flex items-center justify-center text-[#E2E8F0]/70 hover:text-[#E2E8F0] transition-smooth cursor-pointer"
+          className={`w-8 h-8 rounded-lg flex items-center justify-center transition-smooth cursor-pointer ${resolvedTheme === 'dark' ? 'hover:bg-[#151C1A] text-[#D7DDD9]/70 hover:text-[#D7DDD9]' : 'hover:bg-[#24423C] text-[#E2E8F0]/70 hover:text-[#E2E8F0]'}`}
           title={isPinned ? 'Unpin sidebar (Auto-collapse on exit)' : 'Pin sidebar expanded'}
         >
           {!collapsed ? <PanelLeftClose className="w-5 h-5" /> : <PanelLeft className="w-5 h-5" />}
@@ -131,11 +133,11 @@ export function Sidebar({ activeItem, onItemClick, isDemo }: SidebarProps) {
               onClick={() => onItemClick(item.id)}
               title={collapsed ? item.label : undefined}
               className={cn(
-                'w-full flex items-center gap-3 rounded-lg transition-smooth relative group cursor-pointer',
+                'w-full flex items-center gap-3 rounded-lg transition-smooth relative group cursor-pointer border-l-4',
                 collapsed ? 'justify-center p-2' : 'px-3 py-2 text-sm',
                 isActive
-                  ? 'bg-[#428475] text-white font-medium border-l-4 border-[#89D7B7]'
-                  : 'text-[#E2E8F0]/70 hover:bg-[#24423C] hover:text-[#E2E8F0] border-l-4 border-transparent'
+                  ? (resolvedTheme === 'dark' ? 'bg-[#5FA895] text-white font-medium border-[#9DE6C8]' : 'bg-[#428475] text-white font-medium border-[#89D7B7]')
+                  : (resolvedTheme === 'dark' ? 'text-[#D7DDD9]/70 hover:bg-[#151C1A] hover:text-[#D7DDD9] border-transparent' : 'text-[#E2E8F0]/70 hover:bg-[#24423C] hover:text-[#E2E8F0] border-transparent')
               )}
               whileHover={{ x: collapsed ? 0 : 2 }}
               whileTap={{ scale: 0.98 }}
@@ -148,7 +150,7 @@ export function Sidebar({ activeItem, onItemClick, isDemo }: SidebarProps) {
               )}
               {isActive && !collapsed && (
                 <motion.div
-                  className="ml-auto w-1.5 h-1.5 rounded-full bg-[#89D7B7]"
+                  className={`ml-auto w-1.5 h-1.5 rounded-full ${resolvedTheme === 'dark' ? 'bg-[#9DE6C8]' : 'bg-[#89D7B7]'}`}
                   layoutId="sidebarActiveDot"
                   transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                 />
@@ -159,7 +161,7 @@ export function Sidebar({ activeItem, onItemClick, isDemo }: SidebarProps) {
       </nav>
 
       {/* Bottom Section: Settings & Profile & Logout */}
-      <div className="mt-auto border-t border-[#24423C] px-3 py-3 space-y-1">
+      <div className={`mt-auto border-t px-3 py-3 space-y-1 ${resolvedTheme === 'dark' ? 'border-[#31443F]' : 'border-[#24423C]'}`}>
         {bottomNavItems.map((item) => {
           const isActive = activeItem === item.id;
           return (
@@ -168,11 +170,11 @@ export function Sidebar({ activeItem, onItemClick, isDemo }: SidebarProps) {
               onClick={() => onItemClick(item.id)}
               title={collapsed ? item.label : undefined}
               className={cn(
-                'w-full flex items-center gap-3 rounded-lg transition-smooth group cursor-pointer',
+                'w-full flex items-center gap-3 rounded-lg transition-smooth group cursor-pointer border-l-4',
                 collapsed ? 'justify-center p-2' : 'px-3 py-2 text-sm',
                 isActive
-                  ? 'bg-[#428475] text-white font-medium border-l-4 border-[#89D7B7]'
-                  : 'text-[#E2E8F0]/70 hover:bg-[#24423C] hover:text-[#E2E8F0] border-l-4 border-transparent'
+                  ? (resolvedTheme === 'dark' ? 'bg-[#5FA895] text-white font-medium border-[#9DE6C8]' : 'bg-[#428475] text-white font-medium border-[#89D7B7]')
+                  : (resolvedTheme === 'dark' ? 'text-[#D7DDD9]/70 hover:bg-[#151C1A] hover:text-[#D7DDD9] border-transparent' : 'text-[#E2E8F0]/70 hover:bg-[#24423C] hover:text-[#E2E8F0] border-transparent')
               )}
               whileHover={{ x: collapsed ? 0 : 2 }}
               whileTap={{ scale: 0.98 }}
@@ -185,7 +187,7 @@ export function Sidebar({ activeItem, onItemClick, isDemo }: SidebarProps) {
               )}
               {isActive && !collapsed && (
                 <motion.div
-                  className="ml-auto w-1.5 h-1.5 rounded-full bg-[#89D7B7]"
+                  className={`ml-auto w-1.5 h-1.5 rounded-full ${resolvedTheme === 'dark' ? 'bg-[#9DE6C8]' : 'bg-[#89D7B7]'}`}
                   layoutId="sidebarBottomActiveDot"
                   transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                 />
@@ -194,13 +196,14 @@ export function Sidebar({ activeItem, onItemClick, isDemo }: SidebarProps) {
           );
         })}
 
-        <div className="border-b border-[#24423C] my-2" />
+        <div className={`border-b my-2 ${resolvedTheme === 'dark' ? 'border-[#31443F]' : 'border-[#24423C]'}`} />
 
         <motion.button
           onClick={handleLogout}
           title={collapsed ? (isDemo ? 'Exit Demo' : 'Logout') : undefined}
           className={cn(
-            'w-full flex items-center gap-3 rounded-lg transition-smooth cursor-pointer text-[#E2E8F0]/70 hover:bg-[#24423C] hover:text-[#E2E8F0] border-l-4 border-transparent',
+            'w-full flex items-center gap-3 rounded-lg transition-smooth cursor-pointer border-l-4 border-transparent',
+            resolvedTheme === 'dark' ? 'text-[#D7DDD9]/70 hover:bg-[#151C1A] hover:text-[#D7DDD9]' : 'text-[#E2E8F0]/70 hover:bg-[#24423C] hover:text-[#E2E8F0]',
             collapsed ? 'justify-center p-2' : 'px-3 py-2 text-sm'
           )}
           whileHover={{ x: collapsed ? 0 : 2 }}

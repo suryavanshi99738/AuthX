@@ -23,7 +23,9 @@ import {
   XCircle,
   Github,
   Twitter,
-  Linkedin
+  Linkedin,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -33,9 +35,11 @@ import { DemoModal } from './DemoModal';
 import { SectionHeader } from '@/components/ui/section-header';
 import { AnimatedCounter } from '@/components/ui/animated-counter';
 import { fadeInUp, staggerContainer } from '@/lib/animations';
+import { useLandingTheme } from '@/hooks/useLandingTheme';
 
 export function LandingPage() {
   const { setPageView, setIsDemo } = useAuth();
+  const { themePref, setThemePref, resolvedTheme } = useLandingTheme();
   const [demoOpen, setDemoOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
@@ -57,10 +61,10 @@ export function LandingPage() {
 
 
   return (
-    <div className="min-h-screen flex flex-col bg-background text-foreground" suppressHydrationWarning>
+    <div className={`min-h-screen flex flex-col transition-colors duration-300 ${resolvedTheme === 'dark' ? 'dark bg-[#0D1110] text-[#D7DDD9]' : 'bg-[#FFF4E1] text-[#1A312C]'}`} suppressHydrationWarning>
       
       {/* 1. Sticky Navigation Bar */}
-      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 h-16 flex items-center ${scrolled ? 'bg-background/80 backdrop-blur-sm border-b border-border' : 'bg-transparent'}`}>
+      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 h-16 flex items-center ${scrolled ? 'bg-background/80 dark:bg-[#0D1110]/80 backdrop-blur-sm border-b border-border dark:border-[#31443F]' : 'bg-transparent'}`}>
         <div className="max-w-7xl mx-auto w-full px-6 lg:px-8 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-6 h-6 text-primary" />
@@ -74,10 +78,26 @@ export function LandingPage() {
           </div>
 
           <div className="flex items-center gap-4">
-            <Button variant="ghost" className="hidden sm:inline-flex" onClick={handleStartDemo}>
+            <button
+              onClick={() => {
+                if (themePref === 'light') setThemePref('dark');
+                else if (themePref === 'dark') setThemePref('system');
+                else setThemePref('light');
+              }}
+              className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors relative group flex items-center justify-center"
+              title="Landing Theme: Light / Dark / System"
+            >
+              {themePref === 'light' && <Sun className="w-5 h-5 text-amber-500" />}
+              {themePref === 'dark' && <Moon className="w-5 h-5 text-indigo-400" />}
+              {themePref === 'system' && <Monitor className="w-5 h-5 text-slate-500 dark:text-slate-400" />}
+              <span className="absolute -bottom-8 right-0 w-max bg-black/80 dark:bg-white/90 text-white dark:text-black text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                Landing Theme: {themePref.charAt(0).toUpperCase() + themePref.slice(1)}
+              </span>
+            </button>
+            <Button variant="ghost" className="hidden sm:inline-flex dark:text-[#F8FAF8] dark:hover:bg-white/10" onClick={handleStartDemo}>
               Get Demo
             </Button>
-            <Button onClick={handleStartReal}>
+            <Button className="dark:bg-[#5FA895] dark:text-white dark:hover:bg-[#4C8B7A]" onClick={handleStartReal}>
               Get Started
             </Button>
           </div>
@@ -92,21 +112,21 @@ export function LandingPage() {
               Enterprise Security Platform
             </div>
             
-            <SpotlightHeading />
+            <SpotlightHeading resolvedTheme={resolvedTheme} />
             
-            <p className="text-lg text-muted-foreground mb-8 max-w-xl">
+            <p className="text-lg text-muted-foreground dark:text-[#97A39E] mb-8 max-w-xl">
               Eliminate passwords. Prevent phishing. Secure every login with hardware-bound passkeys, one-time codes, and cross-device QR verification.
             </p>
             
             <div className="flex flex-wrap items-center gap-4 mb-10">
-              <Button size="lg" onClick={handleStartReal}>Get Started</Button>
-              <Button size="lg" variant="outline" onClick={handleStartDemo}>Try Demo</Button>
+              <Button size="lg" className="dark:bg-[#5FA895] dark:text-white dark:hover:bg-[#4C8B7A]" onClick={handleStartReal}>Get Started</Button>
+              <Button size="lg" variant="outline" className="dark:border-[#31443F] dark:text-[#F8FAF8] dark:hover:bg-[#1D2724]" onClick={handleStartDemo}>Try Demo</Button>
             </div>
             
-            <div className="flex flex-wrap items-center gap-6 text-sm text-muted-foreground">
-              <div className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4" /> FIDO2 Certified</div>
-              <div className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4" /> E2E Encrypted</div>
-              <div className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4" /> SOC 2 Ready</div>
+            <div className="flex flex-wrap items-center gap-6 text-sm text-muted-foreground dark:text-[#97A39E]">
+              <div className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 dark:text-[#5FA895]" /> FIDO2 Certified</div>
+              <div className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 dark:text-[#5FA895]" /> E2E Encrypted</div>
+              <div className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 dark:text-[#5FA895]" /> SOC 2 Ready</div>
             </div>
           </div>
           
@@ -119,7 +139,7 @@ export function LandingPage() {
             ].map((card, idx) => (
               <motion.div
                 key={idx}
-                className={`bg-card border border-border shadow-elevated rounded-xl p-5 flex items-center gap-4 w-80 absolute z-10 cursor-pointer hover:ring-1 hover:ring-primary/30 transition-all ${
+                className={`bg-card dark:bg-[#1D2724] border border-border dark:border-[#31443F] shadow-elevated rounded-xl p-5 flex items-center gap-4 w-80 absolute z-10 cursor-pointer hover:ring-1 hover:ring-primary/30 transition-all ${
                   idx === 0 ? 'top-2 left-0' : idx === 1 ? 'top-28 right-0' : idx === 2 ? 'top-60 left-4' : 'bottom-2 right-4'
                 }`}
                 animate={{ y: [0, -12, 0] }}
@@ -127,12 +147,12 @@ export function LandingPage() {
                 whileTap={{ scale: 0.98 }}
                 transition={{ duration: 4, repeat: Infinity, delay: idx * 0.3, ease: 'easeInOut' }}
               >
-                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0 gap-1">
+                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary dark:text-[#5FA895] shrink-0 gap-1">
                   <card.icon className="w-5 h-5" />
                 </div>
                 <div className="flex flex-col">
-                  <h4 className="font-semibold text-sm leading-tight text-card-foreground">{card.title}</h4>
-                  <p className="text-xs text-muted-foreground mt-0.5">{card.subtitle}</p>
+                  <h4 className="font-semibold text-sm leading-tight text-card-foreground dark:text-[#F8FAF8]">{card.title}</h4>
+                  <p className="text-xs text-muted-foreground dark:text-[#97A39E] mt-0.5">{card.subtitle}</p>
                 </div>
               </motion.div>
             ))}
@@ -156,12 +176,12 @@ export function LandingPage() {
                 { icon: KeyRound, title: 'Passkey WebAuthn', desc: 'Hardware-backed biometric authentication for maximum security.' },
                 { icon: QrCode, title: 'QR Code Login', desc: 'Frictionless cross-device login by scanning a simple code.' }
               ].map((f, i) => (
-                <div key={i} className="bg-card border border-border rounded-xl p-6 shadow-card hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-300">
-                  <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center mb-4">
+                <div key={i} className="bg-card dark:bg-[#1D2724] border border-border dark:border-[#31443F] rounded-xl p-6 shadow-card hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-300">
+                  <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary dark:text-[#5FA895] flex items-center justify-center mb-4">
                     <f.icon className="w-5 h-5" />
                   </div>
-                  <h4 className="font-medium mb-2">{f.title}</h4>
-                  <p className="text-sm text-muted-foreground">{f.desc}</p>
+                  <h4 className="font-medium mb-2 dark:text-[#F8FAF8]">{f.title}</h4>
+                  <p className="text-sm text-muted-foreground dark:text-[#97A39E]">{f.desc}</p>
                 </div>
               ))}
             </div>
@@ -176,12 +196,12 @@ export function LandingPage() {
                 { icon: Lock, title: 'Emergency Lockdown', desc: 'Instantly revoke access across all devices in case of a breach.' },
                 { icon: Fingerprint, title: 'Trusted Devices', desc: 'Device fingerprinting ensures access only from recognized endpoints.' }
               ].map((f, i) => (
-                <div key={i} className="bg-card border border-border rounded-xl p-6 shadow-card hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-300">
-                  <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center mb-4">
+                <div key={i} className="bg-card dark:bg-[#1D2724] border border-border dark:border-[#31443F] rounded-xl p-6 shadow-card hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-300">
+                  <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary dark:text-[#5FA895] flex items-center justify-center mb-4">
                     <f.icon className="w-5 h-5" />
                   </div>
-                  <h4 className="font-medium mb-2">{f.title}</h4>
-                  <p className="text-sm text-muted-foreground">{f.desc}</p>
+                  <h4 className="font-medium mb-2 dark:text-[#F8FAF8]">{f.title}</h4>
+                  <p className="text-sm text-muted-foreground dark:text-[#97A39E]">{f.desc}</p>
                 </div>
               ))}
             </div>
@@ -196,12 +216,12 @@ export function LandingPage() {
                 { icon: ScrollText, title: 'Login History', desc: 'Detailed audit logs of every authentication attempt.' },
                 { icon: PieChart, title: 'Security Analytics', desc: 'Comprehensive dashboards for security posture monitoring.' }
               ].map((f, i) => (
-                <div key={i} className="bg-card border border-border rounded-xl p-6 shadow-card hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-300">
-                  <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center mb-4">
+                <div key={i} className="bg-card dark:bg-[#1D2724] border border-border dark:border-[#31443F] rounded-xl p-6 shadow-card hover:shadow-card-hover hover:-translate-y-0.5 transition-all duration-300">
+                  <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary dark:text-[#5FA895] flex items-center justify-center mb-4">
                     <f.icon className="w-5 h-5" />
                   </div>
-                  <h4 className="font-medium mb-2">{f.title}</h4>
-                  <p className="text-sm text-muted-foreground">{f.desc}</p>
+                  <h4 className="font-medium mb-2 dark:text-[#F8FAF8]">{f.title}</h4>
+                  <p className="text-sm text-muted-foreground dark:text-[#97A39E]">{f.desc}</p>
                 </div>
               ))}
             </div>
@@ -211,8 +231,8 @@ export function LandingPage() {
 
       {/* 4. Authentication Workflow Timeline */}
       <section className="py-24 px-6 lg:px-8 max-w-3xl mx-auto w-full">
-        <h3 className="font-heading text-3xl font-bold text-center mb-16">Authentication Workflow</h3>
-        <div className="relative border-l-2 border-border ml-4 md:ml-0 md:pl-8 space-y-12">
+        <h3 className="font-heading text-3xl font-bold text-center mb-16 dark:text-[#F8FAF8]">Authentication Workflow</h3>
+        <div className="relative border-l-2 border-border dark:border-[#31443F] ml-4 md:ml-0 md:pl-8 space-y-12">
           {[
             { title: 'User Initiation', desc: 'User enters identifier (email/username).', icon: Fingerprint },
             { title: 'Authentication Selection', desc: 'System prompts for Passkey, Biometrics, or fallback OTP.', icon: ShieldCheck },
@@ -222,16 +242,16 @@ export function LandingPage() {
             { title: 'Continuous Security', desc: 'Risk engine monitors the session in the background.', icon: Radio }
           ].map((step, i) => (
             <div key={i} className="relative pl-8 md:pl-0">
-              <div className="absolute left-[-41px] md:left-[-41px] top-1 w-6 h-6 rounded-full bg-background border-2 border-primary flex items-center justify-center">
-                <div className="w-2 h-2 rounded-full bg-primary" />
+              <div className="absolute left-[-41px] md:left-[-41px] top-1 w-6 h-6 rounded-full bg-background dark:bg-[#0D1110] border-2 border-primary dark:border-[#5FA895] flex items-center justify-center">
+                <div className="w-2 h-2 rounded-full bg-primary dark:bg-[#5FA895]" />
               </div>
               <div className="flex gap-4 items-start">
-                <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                  <step.icon className="w-5 h-5 text-foreground" />
+                <div className="w-10 h-10 rounded-lg bg-muted dark:bg-[#1D2724] flex items-center justify-center shrink-0">
+                  <step.icon className="w-5 h-5 text-foreground dark:text-[#5FA895]" />
                 </div>
                 <div>
-                  <h4 className="font-semibold text-lg">{step.title}</h4>
-                  <p className="text-muted-foreground">{step.desc}</p>
+                  <h4 className="font-semibold text-lg dark:text-[#F8FAF8]">{step.title}</h4>
+                  <p className="text-muted-foreground dark:text-[#97A39E]">{step.desc}</p>
                 </div>
               </div>
             </div>
@@ -240,9 +260,9 @@ export function LandingPage() {
       </section>
 
       {/* 5. 'Why AuthX' Section */}
-      <section className="py-24 px-6 lg:px-8 bg-muted/30">
+      <section className="py-24 px-6 lg:px-8 bg-muted/30 dark:bg-black/20">
         <div className="max-w-7xl mx-auto text-center">
-          <h2 className="font-heading text-3xl md:text-4xl font-bold mb-16">Why Choose AuthX?</h2>
+          <h2 className="font-heading text-3xl md:text-4xl font-bold mb-16 dark:text-[#F8FAF8]">Why Choose AuthX?</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
             {[
               { icon: KeyRound, title: 'Zero Passwords', desc: 'Remove the #1 cause of data breaches by eliminating shared secrets entirely.' },
@@ -250,11 +270,11 @@ export function LandingPage() {
               { icon: Building2, title: 'Enterprise Ready', desc: 'Built for scale with SSO integration, RBAC, and compliance standards out of the box.' }
             ].map((f, i) => (
               <div key={i} className="flex flex-col items-center">
-                <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary mb-6">
+                <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center text-primary dark:text-[#5FA895] mb-6">
                   <f.icon className="w-8 h-8" />
                 </div>
-                <h3 className="font-semibold text-xl mb-3">{f.title}</h3>
-                <p className="text-muted-foreground max-w-sm">{f.desc}</p>
+                <h3 className="font-semibold text-xl mb-3 dark:text-[#F8FAF8]">{f.title}</h3>
+                <p className="text-muted-foreground dark:text-[#97A39E] max-w-sm">{f.desc}</p>
               </div>
             ))}
           </div>
@@ -270,25 +290,25 @@ export function LandingPage() {
             { value: 0, label: 'Password Breaches' },
             { value: 2, prefix: 'FIDO', label: 'Compliant' } // Fake numbers for demo, 2 for FIDO2
           ].map((stat, i) => (
-            <div key={i} className="border border-border rounded-xl p-8 text-center bg-card">
-              <div className="text-4xl font-bold text-foreground mb-2 flex justify-center items-baseline gap-1">
+            <div key={i} className="border border-border dark:border-[#31443F] rounded-xl p-8 text-center bg-card dark:bg-[#1D2724]">
+              <div className="text-4xl font-bold text-foreground dark:text-[#F8FAF8] mb-2 flex justify-center items-baseline gap-1">
                 {stat.prefix}
                 <AnimatedCounter value={stat.value} />
                 {stat.suffix}
               </div>
-              <p className="text-sm text-muted-foreground">{stat.label}</p>
+              <p className="text-sm text-muted-foreground dark:text-[#97A39E]">{stat.label}</p>
             </div>
           ))}
         </div>
       </section>
 
       {/* 7. Comparison Section */}
-      <section className="py-24 px-6 lg:px-8 bg-muted/30">
+      <section className="py-24 px-6 lg:px-8 bg-muted/30 dark:bg-black/20">
         <div className="max-w-4xl mx-auto">
-          <h2 className="font-heading text-3xl font-bold text-center mb-12">Traditional Auth vs AuthX</h2>
+          <h2 className="font-heading text-3xl font-bold text-center mb-12 dark:text-[#F8FAF8]">Traditional Auth vs AuthX</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="bg-card border border-border rounded-xl p-8 shadow-sm">
-              <h3 className="font-semibold text-xl mb-6 text-center border-b border-border pb-4">Traditional Auth</h3>
+            <div className="bg-card dark:bg-[#1D2724] border border-border dark:border-[#31443F] rounded-xl p-8 shadow-sm">
+              <h3 className="font-semibold text-xl mb-6 text-center border-b border-border dark:border-[#31443F] pb-4 dark:text-[#F8FAF8]">Traditional Auth</h3>
               <ul className="space-y-4">
                 {[
                   'Password Storage',
@@ -297,7 +317,7 @@ export function LandingPage() {
                   'Credential Stuffing',
                   'MFA Friction'
                 ].map((item, i) => (
-                  <li key={i} className="flex items-center gap-3 text-muted-foreground">
+                  <li key={i} className="flex items-center gap-3 text-muted-foreground dark:text-[#97A39E]">
                     <XCircle className="w-5 h-5 text-destructive shrink-0" />
                     <span>{item}</span>
                   </li>
@@ -305,11 +325,11 @@ export function LandingPage() {
               </ul>
             </div>
             
-            <div className="bg-primary/5 border border-primary/20 rounded-xl p-8 shadow-sm relative overflow-hidden">
+            <div className="bg-primary/5 dark:bg-[#5FA895]/10 border border-primary/20 dark:border-[#5FA895]/30 rounded-xl p-8 shadow-sm relative overflow-hidden">
               <div className="absolute top-0 right-0 p-4 opacity-10">
-                <ShieldCheck className="w-24 h-24 text-primary" />
+                <ShieldCheck className="w-24 h-24 text-primary dark:text-[#5FA895]" />
               </div>
-              <h3 className="font-semibold text-xl mb-6 text-center border-b border-primary/20 pb-4 text-primary">AuthX</h3>
+              <h3 className="font-semibold text-xl mb-6 text-center border-b border-primary/20 dark:border-[#5FA895]/30 pb-4 text-primary dark:text-[#5FA895]">AuthX</h3>
               <ul className="space-y-4 relative z-10">
                 {[
                   'No Stored Credentials',
@@ -318,8 +338,8 @@ export function LandingPage() {
                   'Hardware-Bound Keys',
                   'Seamless MFA'
                 ].map((item, i) => (
-                  <li key={i} className="flex items-center gap-3 text-foreground font-medium">
-                    <CheckCircle2 className="w-5 h-5 text-success shrink-0" />
+                  <li key={i} className="flex items-center gap-3 text-foreground dark:text-[#F8FAF8] font-medium">
+                    <CheckCircle2 className="w-5 h-5 text-success dark:text-[#5FA895] shrink-0" />
                     <span>{item}</span>
                   </li>
                 ))}
@@ -330,7 +350,7 @@ export function LandingPage() {
       </section>
 
       {/* 8. Enterprise Footer */}
-      <footer className="bg-[#1A312C] text-[#89D7B7]/70 py-16 px-6 lg:px-8 border-t border-[#428475]/30 mt-auto">
+      <footer className="bg-[#1A312C] dark:bg-[#08110F] text-[#89D7B7]/70 py-16 px-6 lg:px-8 border-t border-[#428475]/30 mt-auto">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-10 mb-16">
             <div>
@@ -387,7 +407,7 @@ export function LandingPage() {
       </footer>
 
       {/* Demo Modal */}
-      <DemoModal open={demoOpen} onClose={() => setDemoOpen(false)} />
+      <DemoModal open={demoOpen} onClose={() => setDemoOpen(false)} resolvedTheme={resolvedTheme} />
     </div>
   );
 }

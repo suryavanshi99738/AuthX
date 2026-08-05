@@ -95,7 +95,9 @@ import {
   YAxis,
   Tooltip,
   ResponsiveContainer,
+  CartesianGrid,
 } from 'recharts';
+import { useDashboardTheme } from '@/hooks/useDashboardTheme';
 
 interface DashboardContentProps {
   activeSection?: string;
@@ -135,6 +137,7 @@ function AnimatedCounter({ value, duration = 0.8 }: { value: number; duration?: 
 export function DashboardContent({ activeSection = 'home', dashboardData }: DashboardContentProps) {
   const router = useRouter();
   const { user, sessionToken } = useAuth();
+  const { themePref, setThemePref, resolvedTheme } = useDashboardTheme();
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -829,11 +832,17 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
-                        data={analyticsData?.authUsagePie || [
-                          { name: 'Email OTP', value: 4, percentage: '44.4%', lastUsed: 'Just now', fill: '#428475' },
-                          { name: 'Passkey WebAuthn', value: 2, percentage: '22.2%', lastUsed: '1h ago', fill: '#89D7B7' },
-                          { name: 'QR Cross-Device', value: 3, percentage: '33.3%', lastUsed: '3h ago', fill: '#1A312C' },
-                        ]}
+                        data={(analyticsData?.authUsagePie || [
+                          { name: 'Email OTP', value: 4, percentage: '44.4%', lastUsed: 'Just now' },
+                          { name: 'Passkey WebAuthn', value: 2, percentage: '22.2%', lastUsed: '1h ago' },
+                          { name: 'QR Cross-Device', value: 3, percentage: '33.3%', lastUsed: '3h ago' },
+                        ]).map((item) => {
+                          let fill = '#428475';
+                          if (item.name.includes('OTP')) fill = resolvedTheme === 'dark' ? '#5FA895' : '#428475';
+                          else if (item.name.includes('Passkey')) fill = resolvedTheme === 'dark' ? '#9DE6C8' : '#89D7B7';
+                          else if (item.name.includes('QR')) fill = resolvedTheme === 'dark' ? '#6EC6B3' : '#1A312C';
+                          return { ...item, fill };
+                        })}
                         cx="50%"
                         cy="50%"
                         innerRadius={62}
@@ -882,10 +891,16 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
 
                 <div className="flex flex-wrap items-center justify-center gap-4 pt-2 border-t border-border/60 text-xs">
                   {(analyticsData?.authUsagePie || [
-                    { name: 'Email OTP', value: 4, percentage: '44.4%', fill: '#428475' },
-                    { name: 'Passkey WebAuthn', value: 2, percentage: '22.2%', fill: '#89D7B7' },
-                    { name: 'QR Cross-Device', value: 3, percentage: '33.3%', fill: '#1A312C' },
-                  ]).map((item, idx) => (
+                    { name: 'Email OTP', value: 4, percentage: '44.4%' },
+                    { name: 'Passkey WebAuthn', value: 2, percentage: '22.2%' },
+                    { name: 'QR Cross-Device', value: 3, percentage: '33.3%' },
+                  ]).map((item) => {
+                    let fill = '#428475';
+                    if (item.name.includes('OTP')) fill = resolvedTheme === 'dark' ? '#5FA895' : '#428475';
+                    else if (item.name.includes('Passkey')) fill = resolvedTheme === 'dark' ? '#9DE6C8' : '#89D7B7';
+                    else if (item.name.includes('QR')) fill = resolvedTheme === 'dark' ? '#6EC6B3' : '#1A312C';
+                    return { ...item, fill };
+                  }).map((item, idx) => (
                     <div
                       key={idx}
                       className={`flex items-center gap-1.5 cursor-pointer transition-smooth ${
@@ -905,11 +920,18 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
             <ChartCard title="Risk Distribution">
                 <div className="h-64 w-full">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={analyticsData?.riskDistributionBar || [
-                      { level: 'Low Risk', count: 8, percentage: '80%', factor: 'Trusted Device Verified', fill: '#428475' },
-                      { level: 'Medium Risk', count: 2, percentage: '20%', factor: 'New Browser UserAgent', fill: '#F59E0B' },
-                      { level: 'High Risk', count: 0, percentage: '0%', factor: 'Multiple Failed Attempts', fill: '#EF4444' },
-                    ]}>
+                    <BarChart data={(analyticsData?.riskDistributionBar || [
+                      { level: 'Low Risk', count: 8, percentage: '80%', factor: 'Trusted Device Verified' },
+                      { level: 'Medium Risk', count: 2, percentage: '20%', factor: 'New Browser UserAgent' },
+                      { level: 'High Risk', count: 0, percentage: '0%', factor: 'Multiple Failed Attempts' },
+                    ]).map((item) => {
+                      let fill = '#428475';
+                      if (item.level.includes('Low')) fill = resolvedTheme === 'dark' ? '#3DDC97' : '#428475';
+                      else if (item.level.includes('Medium')) fill = resolvedTheme === 'dark' ? '#F4C95D' : '#F59E0B';
+                      else if (item.level.includes('High')) fill = resolvedTheme === 'dark' ? '#EF6A6A' : '#EF4444';
+                      return { ...item, fill };
+                    })}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={resolvedTheme === 'dark' ? '#31443F' : '#E5D7C3'} vertical={false} />
                       <XAxis dataKey="level" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
                       <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
                       <Tooltip
@@ -950,6 +972,7 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
                     { day: 'Sat', date: 'Aug 1', logins: 7, successCount: 7, failedCount: 0, mostUsed: 'Passkey WebAuthn', fill: '#428475' },
                     { day: 'Sun', date: 'Aug 2', logins: 3, successCount: 3, failedCount: 0, mostUsed: 'Email OTP', fill: '#428475' },
                   ]}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={resolvedTheme === 'dark' ? '#31443F' : '#E5D7C3'} vertical={false} />
                     <XAxis dataKey="day" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
                     <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
                     <Tooltip
@@ -1656,9 +1679,9 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
                       ].map((t) => (
                         <button
                           key={t.id}
-                          onClick={() => handleUpdateSetting('theme', t.id)}
+                          onClick={() => setThemePref(t.id as 'light' | 'dark' | 'system')}
                           className={`p-4 rounded-xl border flex flex-col items-center gap-2 text-xs font-medium transition-smooth ${
-                            userSettingsState?.theme === t.id ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-card text-muted-foreground'
+                            themePref === t.id ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-card text-muted-foreground'
                           }`}
                         >
                           <t.icon className="w-5 h-5" />
