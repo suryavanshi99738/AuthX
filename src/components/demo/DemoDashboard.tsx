@@ -19,6 +19,9 @@ import {
   User,
   QrCode,
   Mail,
+  Sun,
+  Moon,
+  Monitor,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useDashboardTheme } from '@/hooks/useDashboardTheme';
@@ -134,6 +137,31 @@ export function DemoDashboard() {
               <LogOut className="w-3.5 h-3.5" />
               <span>Exit Demo</span>
             </button>
+            
+            {/* Theme Toggle */}
+            <div className="hidden sm:flex items-center gap-1 bg-muted/50 p-1 rounded-full border border-border">
+              <button
+                onClick={() => setThemePref('light')}
+                className={`p-1.5 rounded-full transition-colors ${themePref === 'light' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                title="Light mode"
+              >
+                <Sun className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setThemePref('dark')}
+                className={`p-1.5 rounded-full transition-colors ${themePref === 'dark' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                title="Dark mode"
+              >
+                <Moon className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setThemePref('system')}
+                className={`p-1.5 rounded-full transition-colors ${themePref === 'system' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                title="System theme"
+              >
+                <Monitor className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </header>
 

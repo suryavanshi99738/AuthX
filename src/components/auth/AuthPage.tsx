@@ -20,13 +20,16 @@ import {
   Sparkles,
   Loader2,
   AlertCircle,
+  Moon,
+  Sun,
+  Monitor,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
-import { useDashboardTheme } from '@/hooks/useDashboardTheme';
+import { useLandingTheme } from '@/hooks/useLandingTheme';
 import { PasskeyAuthForm } from './PasskeyAuthForm';
 import { OTPAuthForm } from './OTPAuthForm';
 import { QRAuthForm } from './QRAuthForm';
@@ -110,7 +113,7 @@ function AuthInteractiveShield() {
 /* ── Auth Page Component ── */
 export function AuthPage() {
   const { setPageView, authTab, setAuthTab, authMethod, setAuthMethod, setSignupDraft, setLoginEmailDraft, isDemo } = useAuth();
-  const { resolvedTheme } = useDashboardTheme();
+  const { themePref, setThemePref, resolvedTheme } = useLandingTheme();
   const [loginEmail, setLoginEmail] = useState('');
   const [signupName, setSignupName] = useState('');
   const [signupEmail, setSignupEmail] = useState('');
@@ -307,14 +310,39 @@ export function AuthPage() {
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
         >
-          {/* Back button */}
-          <button
-            onClick={() => setPageView('landing')}
-            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-smooth mb-8"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to home
-          </button>
+          {/* Header controls */}
+          <div className="flex items-center justify-between mb-8">
+            <button
+              onClick={() => setPageView('landing')}
+              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-smooth"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to home
+            </button>
+            <div className="flex items-center gap-2 bg-muted/50 p-1 rounded-full border border-border">
+              <button
+                onClick={() => setThemePref('light')}
+                className={`p-1.5 rounded-full transition-colors ${themePref === 'light' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                title="Light mode"
+              >
+                <Sun className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setThemePref('dark')}
+                className={`p-1.5 rounded-full transition-colors ${themePref === 'dark' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                title="Dark mode"
+              >
+                <Moon className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setThemePref('system')}
+                className={`p-1.5 rounded-full transition-colors ${themePref === 'system' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                title="System theme"
+              >
+                <Monitor className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
 
           {/* Logo */}
           <div className="flex items-center gap-3 mb-8">
@@ -331,22 +359,22 @@ export function AuthPage() {
           </p>
 
           {/* ── Tab Selector ── */}
-          <div className="relative flex p-1 bg-[#1A312C] rounded-lg mb-8">
+          <div className={`relative flex p-1 rounded-lg mb-8 ${resolvedTheme === 'dark' ? 'bg-[#151C1A] border border-[#31443F]' : 'bg-[#F4E7D3] border border-[#E5D7C3]'}`}>
             <motion.div
-              className="absolute top-1 bottom-1 bg-[#428475] shadow-sm rounded-md"
+              className={`absolute top-1 bottom-1 shadow-sm rounded-md ${resolvedTheme === 'dark' ? 'bg-[#5FA895]' : 'bg-[#428475]'}`}
               style={{ width: 'calc(50% - 4px)' }}
               animate={{ left: authTab === 'login' ? '4px' : 'calc(50% + 0px)' }}
               transition={{ type: 'spring', stiffness: 300, damping: 30 }}
             />
             <button
               onClick={() => setAuthTab('login')}
-              className={`relative z-10 flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-medium transition-colors ${authTab === 'login' ? 'text-white' : 'text-[#89D7B7]'}`}
+              className={`relative z-10 flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-medium transition-colors ${authTab === 'login' ? (resolvedTheme === 'dark' ? 'text-[#0D1110]' : 'text-white') : 'text-muted-foreground'}`}
             >
               Login
             </button>
             <button
               onClick={() => { setAuthTab('signup'); setSignupStep('form'); setSignupError(''); }}
-              className={`relative z-10 flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-medium transition-colors ${authTab === 'signup' ? 'text-white' : 'text-[#89D7B7]'}`}
+              className={`relative z-10 flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-medium transition-colors ${authTab === 'signup' ? (resolvedTheme === 'dark' ? 'text-[#0D1110]' : 'text-white') : 'text-muted-foreground'}`}
             >
               Sign Up
             </button>
@@ -374,7 +402,7 @@ export function AuthPage() {
                             placeholder="you@example.com"
                             value={loginEmail}
                             onChange={(e) => { setLoginEmail(e.target.value); setLoginError(''); }}
-                            className={`h-11 rounded-lg focus:ring-2 focus:ring-[#428475]/20 ${resolvedTheme === 'dark' ? 'bg-[#151C1A] border-[#31443F] focus:border-[#5FA895]' : 'bg-white border-[#E5D7C3] focus:border-[#428475]'}`}
+                            className={`h-11 rounded-lg focus:ring-2 focus:ring-[#428475]/20 ${resolvedTheme === 'dark' ? 'bg-[#1D2724] border-[#31443F] focus:border-[#5FA895]' : 'bg-white border-[#E5D7C3] focus:border-[#428475]'}`}
                             onKeyDown={(e) => e.key === 'Enter' && handleLoginContinue()}
                           />
                         </div>
@@ -410,7 +438,7 @@ export function AuthPage() {
                             <button
                               key={method.id}
                               onClick={() => handleMethodClick(method.id)}
-                              className={`flex items-center gap-3 p-3 rounded-lg transition-smooth cursor-pointer border ${resolvedTheme === 'dark' ? 'bg-[#151C1A] border-[#31443F] hover:border-[#5FA895] hover:bg-[#5FA895]/5' : 'bg-white border-[#E5D7C3] hover:border-[#428475] hover:bg-[#428475]/5'}`}
+                              className={`flex items-center gap-3 p-3 rounded-lg transition-smooth cursor-pointer border ${resolvedTheme === 'dark' ? 'bg-[#1D2724] border-[#31443F] hover:border-[#5FA895] hover:bg-[#5FA895]/5' : 'bg-white border-[#E5D7C3] hover:border-[#428475] hover:bg-[#428475]/5'}`}
                             >
                               <method.icon className="w-5 h-5 text-[#428475] shrink-0" />
                               <span className="text-sm font-medium text-foreground">{method.label}</span>
@@ -451,7 +479,7 @@ export function AuthPage() {
                             <Label htmlFor="signup-name" className="text-sm font-medium">Full Name</Label>
                             <div className="relative">
                               <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                              <Input id="signup-name" type="text" placeholder="John Doe" value={signupName} onChange={(e) => { setSignupName(e.target.value); setSignupError(''); }} className={`h-11 rounded-lg pl-10 focus:ring-2 focus:ring-[#428475]/20 ${resolvedTheme === 'dark' ? 'bg-[#151C1A] border-[#31443F] focus:border-[#5FA895]' : 'bg-white border-[#E5D7C3] focus:border-[#428475]'}`} />
+                              <Input id="signup-name" type="text" placeholder="John Doe" value={signupName} onChange={(e) => { setSignupName(e.target.value); setSignupError(''); }} className={`h-11 rounded-lg pl-10 focus:ring-2 focus:ring-[#428475]/20 ${resolvedTheme === 'dark' ? 'bg-[#1D2724] border-[#31443F] focus:border-[#5FA895]' : 'bg-white border-[#E5D7C3] focus:border-[#428475]'}`} />
                             </div>
                           </div>
 
@@ -459,7 +487,7 @@ export function AuthPage() {
                             <Label htmlFor="signup-email" className="text-sm font-medium">Email Address</Label>
                             <div className="relative">
                               <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                              <Input id="signup-email" type="email" placeholder="you@example.com" value={signupEmail} onChange={(e) => { setSignupEmail(e.target.value); setSignupError(''); }} className={`h-11 rounded-lg pl-10 focus:ring-2 focus:ring-[#428475]/20 ${resolvedTheme === 'dark' ? 'bg-[#151C1A] border-[#31443F] focus:border-[#5FA895]' : 'bg-white border-[#E5D7C3] focus:border-[#428475]'}`} />
+                              <Input id="signup-email" type="email" placeholder="you@example.com" value={signupEmail} onChange={(e) => { setSignupEmail(e.target.value); setSignupError(''); }} className={`h-11 rounded-lg pl-10 focus:ring-2 focus:ring-[#428475]/20 ${resolvedTheme === 'dark' ? 'bg-[#1D2724] border-[#31443F] focus:border-[#5FA895]' : 'bg-white border-[#E5D7C3] focus:border-[#428475]'}`} />
                             </div>
                           </div>
 
@@ -467,7 +495,7 @@ export function AuthPage() {
                             <Label htmlFor="signup-phone" className="text-sm font-medium">Phone Number</Label>
                             <div className="relative">
                               <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                              <Input id="signup-phone" type="tel" placeholder="+1 (555) 000-0000" value={signupPhone} onChange={(e) => { setSignupPhone(e.target.value); setSignupError(''); }} className={`h-11 rounded-lg pl-10 focus:ring-2 focus:ring-[#428475]/20 ${resolvedTheme === 'dark' ? 'bg-[#151C1A] border-[#31443F] focus:border-[#5FA895]' : 'bg-white border-[#E5D7C3] focus:border-[#428475]'}`} />
+                              <Input id="signup-phone" type="tel" placeholder="+1 (555) 000-0000" value={signupPhone} onChange={(e) => { setSignupPhone(e.target.value); setSignupError(''); }} className={`h-11 rounded-lg pl-10 focus:ring-2 focus:ring-[#428475]/20 ${resolvedTheme === 'dark' ? 'bg-[#1D2724] border-[#31443F] focus:border-[#5FA895]' : 'bg-white border-[#E5D7C3] focus:border-[#428475]'}`} />
                             </div>
                           </div>
 
@@ -540,7 +568,7 @@ export function AuthPage() {
                                   onClick={() => handleSignupMethodClick(method.id, true)}
                                   className={`w-full flex items-center justify-between p-3.5 rounded-lg border transition-smooth text-left ${
                                     isClickable
-                                      ? (resolvedTheme === 'dark' ? 'bg-[#151C1A] border-[#31443F] hover:border-[#5FA895] hover:bg-[#5FA895]/5 cursor-pointer' : 'bg-white border-[#E5D7C3] hover:border-[#428475] hover:bg-[#428475]/5 cursor-pointer')
+                                      ? (resolvedTheme === 'dark' ? 'bg-[#1D2724] border-[#31443F] hover:border-[#5FA895] hover:bg-[#5FA895]/5 cursor-pointer' : 'bg-white border-[#E5D7C3] hover:border-[#428475] hover:bg-[#428475]/5 cursor-pointer')
                                       : 'border-border/50 bg-muted/30 opacity-65 cursor-not-allowed'
                                   }`}
                                 >
@@ -586,7 +614,7 @@ export function AuthPage() {
                               <button
                                 key={method.id}
                                 onClick={() => handleSignupMethodClick(method.id)}
-                                className={`flex items-center gap-3 p-3 rounded-lg transition-smooth cursor-pointer border ${resolvedTheme === 'dark' ? 'bg-[#151C1A] border-[#31443F] hover:border-[#5FA895] hover:bg-[#5FA895]/5' : 'bg-white border-[#E5D7C3] hover:border-[#428475] hover:bg-[#428475]/5'}`}
+                                className={`flex items-center gap-3 p-3 rounded-lg transition-smooth cursor-pointer border ${resolvedTheme === 'dark' ? 'bg-[#1D2724] border-[#31443F] hover:border-[#5FA895] hover:bg-[#5FA895]/5' : 'bg-white border-[#E5D7C3] hover:border-[#428475] hover:bg-[#428475]/5'}`}
                               >
                                 <method.icon className="w-5 h-5 text-[#428475] shrink-0" />
                                 <span className="text-sm font-medium text-foreground">{method.label}</span>

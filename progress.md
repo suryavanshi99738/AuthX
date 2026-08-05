@@ -1,50 +1,28 @@
-# AuthX Default Light Theme Restoration & Independent Theme System — Progress Report
+# AuthX Landing/Auth Theme Synchronization & Dashboard Theme Control — Progress Report
 
-## Status: ✅ Default Light Theme Restored & Verified
-
----
-
-## Restored Default Light Theme Palette
-- **Main Background**: `#FFF4E1` (Warm Cream)
-- **Primary Text & Headings**: `#1A312C` (Deep Forest Green)
-- **Primary Accent / Buttons**: `#428475` (Muted Emerald)
-- **Secondary Accent**: `#89D7B7` (Soft Mint)
-- **Secondary Background / Muted**: `#F4E7D3`
-- **Cards**: `#FFFFFF` with `#E5D7C3` border
+## Status: ✅ Fixes Complete & Verified
 
 ---
 
-## Independent Theme System (Corrected Behavior)
+## Accomplished Work & Corrections
 
-### 1. Default Light Theme Restoration
-- Initialized default theme preference to `'light'` in both `useLandingTheme.ts` and `useDashboardTheme.ts`.
-- When a user visits the application for the first time or reloads, the entire application defaults 100% to the Light theme (`#FFF4E1` warm cream & `#1A312C` forest green).
-- **Dark mode is applied ONLY when the user explicitly clicks Dark mode or selects System mode.**
+### 1. Landing & Auth Pages Theme Synchronization (`AuthPage.tsx` & `DemoAuthPage.tsx`)
+- Changed `AuthPage` and `DemoAuthPage` to use `useLandingTheme()` (the exact same theme controller used by the Landing Page).
+- The theme of Signup & Login pages is now **100% synchronized with the Landing Page theme**:
+  - When Landing Page is set to **Light Theme**, Signup & Login pages display in **Light Theme** (`#FFF4E1` warm cream background, `#FFFFFF` form surface, `#1A312C` text, `#E5D7C3` borders, `#428475` buttons).
+  - When Landing Page is set to **Dark Theme**, Signup & Login pages adapt to **Dark Theme** (`#0D1110` background, `#1D2724` card surface, `#F8FAF8` text, `#31443F` borders).
+- Added a dedicated **Theme Toggle Button** (Sun/Moon/Monitor) on the top right header of the Login/Signup page next to "Back to home" for instant theme switching directly on Auth pages.
 
-### 2. Independent Theme Scopes
-- **Landing Page Theme Controller (`useLandingTheme.ts`)**:
-  - Independent localStorage key `authx_landing_theme` (defaults to `'light'`).
-  - Toggle button on Landing Page Navbar switches Landing Page between Light, Dark, and System modes.
-  - Does NOT affect Dashboard or Settings.
-- **Dashboard Theme Controller (`useDashboardTheme.ts`)**:
-  - Independent localStorage key `authx_dashboard_theme` (defaults to `'light'`).
-  - Radio card selector under Settings → Appearance switches Dashboard between Light, Dark, and System modes.
-  - Does NOT affect Landing Page.
-
-### 3. Dark Theme Palette (On Explicit Selection)
-- App Background: `#0D1110`
-- Secondary Surface: `#151C1A`
-- Card Surface: `#1D2724`
-- Sidebar: `#08110F`
-- Primary: `#5FA895` (Hover: `#74BDAA`)
-- Accent: `#9DE6C8`
-- Border: `#31443F`
-- Chart Colors: OTP (`#5FA895`), Passkey (`#9DE6C8`), QR (`#6EC6B3`), Low Risk (`#3DDC97`), Medium Risk (`#F4C95D`), High Risk (`#EF6A6A`).
+### 2. Smooth & Instant Dashboard Theme Switching (`Dashboard.tsx`, `DemoDashboard.tsx`, `DashboardContent.tsx`)
+- Connected Settings → Appearance radio cards to `useDashboardTheme().setThemePref('light' | 'dark' | 'system')` so selecting Light/Dark/System in Settings immediately updates `localStorage` and triggers an instant re-render across the whole Dashboard.
+- Added a quick **Dashboard Theme Toggle Button** (Sun/Moon/Monitor) right on the Dashboard top bar header (next to user email address) so users can also toggle Dashboard theme directly from the header.
+- Verified that switching Dashboard theme ONLY affects Dashboard scope and NEVER alters Landing / Auth page themes.
 
 ---
 
 ## Verification Results
-- ✅ `npx next build` — Compiled successfully in **8.4s** with zero errors.
+- ✅ `npx next build` — Compiled successfully in **9.7s** with zero errors.
 - ✅ **0 backend files modified** (verified via `git diff`).
-- ✅ 100% Light theme default restored on initial load.
-- ✅ Independent theme scopes verified (Landing Page and Dashboard themes do not interfere with each other).
+- ✅ Signup & Login pages now match Landing Page theme 100%.
+- ✅ Dashboard theme switching in Settings and Header works instantly and smoothly.
+- ✅ Independent theme scopes (Landing/Auth vs Dashboard) fully functional.

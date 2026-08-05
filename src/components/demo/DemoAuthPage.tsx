@@ -14,6 +14,9 @@ import {
   Eye,
   User,
   CheckCircle2,
+  Moon,
+  Sun,
+  Monitor,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,7 +29,7 @@ import {
 } from '@/components/ui/input-otp';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
-import { useDashboardTheme } from '@/hooks/useDashboardTheme';
+import { useLandingTheme } from '@/hooks/useLandingTheme';
 import { startDemo, demoPasskey, demoOTP, verifyOTP, createSession } from '@/services/auth-client';
 import { AuthLoadingOverlay } from '@/components/auth/AuthLoadingOverlay';
 import { fadeInUp, staggerContainer } from '@/lib/animations';
@@ -83,7 +86,7 @@ function DemoShield() {
 /* ── Demo Auth Page ── */
 export function DemoAuthPage() {
   const { setUser, setSession, setPageView, setIsDemo } = useAuth();
-  const { resolvedTheme } = useDashboardTheme();
+  const { themePref, setThemePref, resolvedTheme } = useLandingTheme();
   const [step, setStep] = useState<DemoStep>('select');
   const [demoUserId, setDemoUserId] = useState('');
   const [otpCode, setOtpCode] = useState('');
@@ -272,14 +275,39 @@ export function DemoAuthPage() {
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
         >
-          {/* Back button */}
-          <button
-            onClick={() => setPageView('landing')}
-            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-smooth mb-8"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to home
-          </button>
+          {/* Header controls */}
+          <div className="flex items-center justify-between mb-8">
+            <button
+              onClick={() => setPageView('landing')}
+              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-smooth"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to home
+            </button>
+            <div className="flex items-center gap-2 bg-muted/50 p-1 rounded-full border border-border">
+              <button
+                onClick={() => setThemePref('light')}
+                className={`p-1.5 rounded-full transition-colors ${themePref === 'light' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                title="Light mode"
+              >
+                <Sun className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setThemePref('dark')}
+                className={`p-1.5 rounded-full transition-colors ${themePref === 'dark' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                title="Dark mode"
+              >
+                <Moon className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setThemePref('system')}
+                className={`p-1.5 rounded-full transition-colors ${themePref === 'system' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                title="System theme"
+              >
+                <Monitor className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
 
           {/* Logo + Demo badge */}
           <div className="flex items-center gap-3 mb-8">
@@ -303,7 +331,7 @@ export function DemoAuthPage() {
                   {/* Passkey option */}
                   <button
                     onClick={handleDemoPasskey}
-                    className={`flex flex-col items-center gap-2 p-3 rounded-lg transition-smooth cursor-pointer text-center border ${resolvedTheme === 'dark' ? 'bg-[#151C1A] border-[#31443F] hover:border-[#5FA895] hover:bg-[#5FA895]/5' : 'bg-white border-[#E5D7C3] hover:border-[#428475] hover:bg-[#428475]/5'}`}
+                    className={`flex flex-col items-center gap-2 p-3 rounded-lg transition-smooth cursor-pointer text-center border ${resolvedTheme === 'dark' ? 'bg-[#1D2724] border-[#31443F] hover:border-[#5FA895] hover:bg-[#5FA895]/5' : 'bg-white border-[#E5D7C3] hover:border-[#428475] hover:bg-[#428475]/5'}`}
                   >
                     <KeyRound className="w-5 h-5 text-[#428475]" />
                     <span className="text-sm font-medium text-foreground">Passkey Demo</span>
@@ -312,7 +340,7 @@ export function DemoAuthPage() {
                   {/* OTP option */}
                   <button
                     onClick={handleDemoOTP}
-                    className={`flex flex-col items-center gap-2 p-3 rounded-lg transition-smooth cursor-pointer text-center border ${resolvedTheme === 'dark' ? 'bg-[#151C1A] border-[#31443F] hover:border-[#5FA895] hover:bg-[#5FA895]/5' : 'bg-white border-[#E5D7C3] hover:border-[#428475] hover:bg-[#428475]/5'}`}
+                    className={`flex flex-col items-center gap-2 p-3 rounded-lg transition-smooth cursor-pointer text-center border ${resolvedTheme === 'dark' ? 'bg-[#1D2724] border-[#31443F] hover:border-[#5FA895] hover:bg-[#5FA895]/5' : 'bg-white border-[#E5D7C3] hover:border-[#428475] hover:bg-[#428475]/5'}`}
                   >
                     <Mail className="w-5 h-5 text-[#428475]" />
                     <span className="text-sm font-medium text-foreground">OTP Demo</span>
