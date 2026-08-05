@@ -1668,26 +1668,49 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
 
             <div className="flex-1">
               {settingsSection === 'appearance' && (
-                <Card className="shadow-card">
+                <Card className="shadow-card border-border/80 rounded-2xl">
                   <CardContent className="p-6 space-y-4">
-                    <h3 className="font-heading text-base font-bold text-foreground">Appearance Theme</h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-heading text-base font-bold text-foreground">Appearance Theme</h3>
+                        <p className="text-xs text-muted-foreground mt-0.5">Customize your dashboard display color mode.</p>
+                      </div>
+                      <StatusBadge variant="primary" className="capitalize">
+                        Active: {themePref} Mode
+                      </StatusBadge>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
                       {[
-                        { id: 'light', label: 'Light', icon: Sun },
-                        { id: 'dark', label: 'Dark', icon: Moon },
-                        { id: 'system', label: 'System', icon: Monitor },
-                      ].map((t) => (
-                        <button
-                          key={t.id}
-                          onClick={() => setThemePref(t.id as 'light' | 'dark' | 'system')}
-                          className={`p-4 rounded-xl border flex flex-col items-center gap-2 text-xs font-medium transition-smooth ${
-                            themePref === t.id ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-card text-muted-foreground'
-                          }`}
-                        >
-                          <t.icon className="w-5 h-5" />
-                          <span>{t.label}</span>
-                        </button>
-                      ))}
+                        { id: 'light' as const, label: 'Light Theme', icon: Sun, desc: 'Warm Cream & Forest Green' },
+                        { id: 'dark' as const, label: 'Dark Theme', icon: Moon, desc: 'Deep Forest & Mint' },
+                        { id: 'system' as const, label: 'System Theme', icon: Monitor, desc: 'Follow OS Preferences' },
+                      ].map((t) => {
+                        const isSelected = themePref === t.id;
+                        return (
+                          <button
+                            key={t.id}
+                            type="button"
+                            onClick={() => {
+                              setThemePref(t.id);
+                              handleUpdateSetting('theme', t.id);
+                            }}
+                            className={`p-5 rounded-2xl border flex flex-col items-center text-center gap-3 transition-all duration-200 cursor-pointer ${
+                              isSelected
+                                ? 'border-primary bg-primary/10 text-primary font-bold shadow-sm ring-2 ring-primary/30'
+                                : 'border-border bg-card text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+                            }`}
+                          >
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isSelected ? 'bg-primary text-white' : 'bg-muted text-muted-foreground'}`}>
+                              <t.icon className="w-5 h-5" />
+                            </div>
+                            <div>
+                              <p className="font-heading text-sm font-bold text-foreground">{t.label}</p>
+                              <p className="text-[11px] text-muted-foreground mt-0.5">{t.desc}</p>
+                            </div>
+                          </button>
+                        );
+                      })}
                     </div>
                   </CardContent>
                 </Card>
