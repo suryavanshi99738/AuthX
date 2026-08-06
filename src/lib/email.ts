@@ -37,33 +37,33 @@ function buildVerificationHtml({ code, recipientName }: { code: string; recipien
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Verify your email</title>
   </head>
-  <body style="margin:0;padding:0;background:#f8fafc;font-family:Inter,Arial,Helvetica,sans-serif;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;padding:32px 16px;">
+  <body style="margin:0;padding:0;background:#FFF4E1;font-family:Inter,Arial,Helvetica,sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#FFF4E1;padding:32px 16px;">
       <tr>
         <td align="center">
-          <table role="presentation" width="460" cellpadding="0" cellspacing="0" style="max-width:460px;width:100%;background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;box-shadow:0 1px 3px rgba(15,23,42,0.06);">
+          <table role="presentation" width="460" cellpadding="0" cellspacing="0" style="max-width:460px;width:100%;background:#ffffff;border:1px solid #E5D7C3;border-radius:16px;overflow:hidden;box-shadow:0 4px 12px rgba(26,49,44,0.08);">
             <tr>
-              <td style="background:linear-gradient(135deg,#2563EB 0%,#1E40AF 100%);padding:28px 32px;text-align:center;">
-                <div style="font-size:18px;font-weight:700;color:#ffffff;letter-spacing:0.2px;">BankShield Auth</div>
+              <td style="background:#1A312C;padding:28px 32px;text-align:center;">
+                <div style="font-size:20px;font-weight:700;color:#ffffff;letter-spacing:0.5px;">AuthX Security</div>
               </td>
             </tr>
             <tr>
               <td style="padding:36px 32px 16px;">
-                <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#0f172a;">Verify your email</h1>
+                <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#1A312C;">Verify your email</h1>
                 ${greeting}
-                <p style="margin:0 0 24px;color:#475569;font-size:15px;line-height:1.6;">Your verification code is:</p>
+                <p style="margin:0 0 24px;color:#5C6E69;font-size:15px;line-height:1.6;">Your single-use verification code is:</p>
                 <div style="text-align:center;margin:0 0 24px;">
-                  <div style="display:inline-block;font-family:'Courier New',monospace;font-size:34px;font-weight:700;letter-spacing:10px;color:#2563EB;background:#eff6ff;border:1px solid #dbeafe;border-radius:12px;padding:16px 28px;">${escapeHtml(code)}</div>
+                  <div style="display:inline-block;font-family:'Courier New',monospace;font-size:34px;font-weight:700;letter-spacing:10px;color:#428475;background:#FFF4E1;border:1px solid #E5D7C3;border-radius:12px;padding:16px 28px;">${escapeHtml(code)}</div>
                 </div>
-                <p style="margin:0 0 28px;color:#475569;font-size:15px;line-height:1.6;">This code expires in <strong style="color:#0f172a;">5 minutes</strong>.</p>
-                <div style="border-top:1px solid #e2e8f0;padding-top:20px;">
-                  <p style="margin:0;color:#94a3b8;font-size:13px;line-height:1.5;">If you did not request this, you can safely ignore this email — no account will be created.</p>
+                <p style="margin:0 0 28px;color:#5C6E69;font-size:15px;line-height:1.6;">This code expires in <strong style="color:#1A312C;">5 minutes</strong>.</p>
+                <div style="border-top:1px solid #E5D7C3;padding-top:20px;">
+                  <p style="margin:0;color:#94a3b8;font-size:13px;line-height:1.5;">If you did not request this, you can safely ignore this email — no account will be affected.</p>
                 </div>
               </td>
             </tr>
             <tr>
               <td style="padding:0 32px 28px;">
-                <p style="margin:0;color:#94a3b8;font-size:12px;text-align:center;line-height:1.5;">© 2026 BankShield Auth. This is an automated message, please do not reply.</p>
+                <p style="margin:0;color:#94a3b8;font-size:12px;text-align:center;line-height:1.5;">© 2026 AuthX Platform. Automated security transmission.</p>
               </td>
             </tr>
           </table>
@@ -86,24 +86,19 @@ function escapeHtml(value: string): string {
 function resolveFrom(): string {
   const from = process.env.EMAIL_FROM;
   if (from && from.trim().length > 0) return from.trim();
-  return 'BankShield Auth <onboarding@resend.dev>';
+  return 'AuthX Platform <onboarding@resend.dev>';
 }
 
 /**
  * Send the OTP verification email. Returns a structured result; never throws.
- * The plaintext code is only placed into the email body — it is never logged.
  */
 export async function sendVerificationEmail(params: VerificationEmailParams): Promise<SendEmailResult> {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
-    // Visible server-side diagnostic so a missing .env.local is instantly
-    // identifiable in dev.log. No secrets are logged.
-    console.warn('[email] RESEND_API_KEY is not set. Email sending is disabled. Check that .env.local exists and contains RESEND_API_KEY.');
-    return { success: false, error: 'Email service is not configured.' };
+    console.warn('[email] RESEND_API_KEY is not set. Check .env.local.');
+    return { success: false, error: 'Email service key missing.' };
   }
 
-  // Defensive guard: a missing/invalid code must never crash the route. Return
-  // a structured failure instead so callers can surface a clean 503.
   if (!params.code || typeof params.code !== 'string' || params.code.length === 0) {
     return { success: false, error: 'Missing verification code.' };
   }
@@ -128,21 +123,22 @@ export async function sendVerificationEmail(params: VerificationEmailParams): Pr
       body: JSON.stringify({
         from: resolveFrom(),
         to: [params.to],
-        subject: 'Verify your email',
+        subject: 'Your AuthX Verification Code',
         html,
       }),
-      // Avoid hanging the request indefinitely.
       signal: AbortSignal.timeout(10_000),
     });
 
     if (!res.ok) {
-      // Do not surface the raw upstream message to clients; return a generic error.
-      return { success: false, error: 'Failed to send verification email.' };
+      const errBody = (await res.json().catch(() => ({}))) as { message?: string };
+      console.warn('[email] Resend API Warning:', res.status, errBody);
+      return { success: false, error: errBody.message || 'Resend email delivery failed.' };
     }
 
     const data = (await res.json()) as { id?: string };
     return { success: true, messageId: data.id };
-  } catch {
-    return { success: false, error: 'Failed to send verification email.' };
+  } catch (err) {
+    console.warn('[email] Resend fetch exception:', err);
+    return { success: false, error: 'Failed to connect to email service.' };
   }
 }

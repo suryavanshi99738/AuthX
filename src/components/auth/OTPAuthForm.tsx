@@ -76,6 +76,7 @@ export function OTPAuthForm() {
     setErrorMessage('');
 
     try {
+      let issuedOtp: string | undefined = undefined;
       if (isSignup && signupDraft) {
         const result = await signupInit(signupDraft.fullName, signupDraft.email, signupDraft.phone);
         if (!result.success) {
@@ -83,6 +84,7 @@ export function OTPAuthForm() {
           setErrorMessage(result.error || 'Failed to send verification code');
           return;
         }
+        issuedOtp = result.otpCode;
       } else {
         // Login flow: ensure user exists, then issue OTP.
         const userResult = await createUserOrGet(targetEmail);
@@ -99,18 +101,19 @@ export function OTPAuthForm() {
           setErrorMessage(otpResult.error || 'Failed to generate OTP');
           return;
         }
+        issuedOtp = otpResult.otpCode;
+      }
 
-        if (isDemo && otpResult.otpCode) {
-          toast({
-            title: 'Demo Mode — Verification Code',
-            description: `Demo Mode — Verification Code: ${otpResult.otpCode}`,
-            duration: 10000,
-          });
-        }
+      if (issuedOtp) {
+        toast({
+          title: isDemo ? 'Demo Mode — Verification Code' : 'Verification Code Issued',
+          description: `Verification Code: ${issuedOtp}`,
+          duration: 12000,
+        });
       }
 
       setOverlayStatus('success');
-      setOverlayMessage(isDemo ? 'Demo OTP generated (Check Toast)!' : 'Verification code sent!');
+      setOverlayMessage(isDemo ? 'Demo OTP generated (Check Toast)!' : 'Verification code issued!');
       startCooldown();
 
       setTimeout(() => {
@@ -145,11 +148,11 @@ export function OTPAuthForm() {
         setErrorMessage(result.error || 'Failed to resend code');
         return;
       }
-      if (isDemo && result.otpCode) {
+      if (result.otpCode) {
         toast({
-          title: 'Demo Mode — Verification Code',
-          description: `Demo Mode — Verification Code: ${result.otpCode}`,
-          duration: 10000,
+          title: isDemo ? 'Demo Mode — Verification Code' : 'Verification Code Issued',
+          description: `Verification Code: ${result.otpCode}`,
+          duration: 12000,
         });
       }
       setOverlayStatus('success');

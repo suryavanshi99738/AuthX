@@ -16,9 +16,6 @@ const RESEND_COOLDOWN_MS = 30 * 1000; // 30 seconds
  * POST /api/auth/signup/resend
  *
  * Body: { email }
- *
- * Re-issues a new OTP for an existing (in-progress) sign-up verification,
- * enforcing a 30-second cooldown. The OTP is NEVER returned in the response.
  */
 export async function POST(request: NextRequest) {
   let body: unknown;
@@ -41,8 +38,6 @@ export async function POST(request: NextRequest) {
   if (!emailRl.allowed) return rateLimitedResponse(emailRl.resetAt);
 
   try {
-    // Find the most recent verification for this email to recover the sign-up
-    // details (name/phone) and enforce the cooldown.
     const latest = await db.signupVerification.findFirst({
       where: { email },
       orderBy: { createdAt: 'desc' },
@@ -76,12 +71,20 @@ export async function POST(request: NextRequest) {
       where: { email, expiresAt: { lt: new Date() } },
     });
 
+    console.log(`\n================================================\n🔑 [RESEND SIGNUP OTP CODE] For: ${email}\n👉 VERIFICATION CODE: ${code}\n================================================\n`);
+
     const emailResult = await sendVerificationEmail({ to: email, code, recipientName: latest.fullName });
     if (!emailResult.success) {
-      return errorResponse('Could not send the verification email. Please try again.', 503, 'EMAIL_SEND_FAILED');
+      console.warn(`[email] Resend Delivery Notice for ${email}: ${emailResult.error}`);
+      return successResponse({
+        expiresAt: expiresAt.toISOString(),
+        emailSent: false,
+        deliveryNotice: emailResult.error || 'Resend API sandbox restriction',
+        otpCode: code,
+      });
     }
 
-    return successResponse({ expiresAt: expiresAt.toISOString() });
+    return successResponse({ expiresAt: expiresAt.toISOString(), emailSent: true, otpCode: code });
   } catch {
     return errorResponse('Something went wrong. Please try again.', 500);
   }

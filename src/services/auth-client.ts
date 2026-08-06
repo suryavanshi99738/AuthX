@@ -129,14 +129,14 @@ export async function signupCheck(
   });
 }
 
-export async function signupInit(fullName: string, email: string, phone: string): Promise<ApiResult & { expiresAt?: string }> {
+export async function signupInit(fullName: string, email: string, phone: string): Promise<ApiResult & { expiresAt?: string; otpCode?: string; emailSent?: boolean }> {
   return apiCall('/api/auth/signup/init', {
     method: 'POST',
     body: JSON.stringify({ fullName, email, phone }),
   });
 }
 
-export async function signupResend(email: string): Promise<ApiResult & { expiresAt?: string }> {
+export async function signupResend(email: string): Promise<ApiResult & { expiresAt?: string; otpCode?: string; emailSent?: boolean }> {
   return apiCall('/api/auth/signup/resend', {
     method: 'POST',
     body: JSON.stringify({ email }),

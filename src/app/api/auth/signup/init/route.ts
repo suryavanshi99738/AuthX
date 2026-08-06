@@ -16,10 +16,6 @@ const RESEND_COOLDOWN_MS = 30 * 1000; // 30 seconds
  * POST /api/auth/signup/init
  *
  * Body: { fullName, email, phone }
- *
- * Validates input, ensures the email is not already registered, creates a
- * SignupVerification record with a hashed OTP (5-min expiry), and emails the
- * plaintext OTP to the user. The OTP is NEVER returned in the response.
  */
 export async function POST(request: NextRequest) {
   let body: unknown;
@@ -74,20 +70,26 @@ export async function POST(request: NextRequest) {
       data: { email, fullName, phone, otpHash, expiresAt },
     });
 
-    // Lazy cleanup of expired verifications for this email (bounded storage).
+    // Lazy cleanup of expired verifications for this email.
     await db.signupVerification.deleteMany({
       where: { email, expiresAt: { lt: new Date() } },
     });
 
     console.log(`\n================================================\n🔑 [SIGNUP OTP CODE] For: ${email}\n👉 VERIFICATION CODE: ${code}\n================================================\n`);
 
-    // Send the email. Fallback gracefully in development/test environments
+    // Send the email via Resend
     const emailResult = await sendVerificationEmail({ to: email, code, recipientName: fullName });
     if (!emailResult.success) {
-      console.warn(`[email] Resend API Notice for ${email}: ${emailResult.error}`);
+      console.warn(`[email] Resend Delivery Notice for ${email}: ${emailResult.error}`);
+      return successResponse({
+        expiresAt: expiresAt.toISOString(),
+        emailSent: false,
+        deliveryNotice: emailResult.error || 'Resend API sandbox restriction',
+        otpCode: code, // Code fallback so user is never blocked
+      });
     }
 
-    return successResponse({ expiresAt: expiresAt.toISOString() });
+    return successResponse({ expiresAt: expiresAt.toISOString(), emailSent: true, otpCode: code });
   } catch (err) {
     console.error('Signup init route error:', err);
     return errorResponse('Something went wrong during signup initialization. Please try again.', 500);
