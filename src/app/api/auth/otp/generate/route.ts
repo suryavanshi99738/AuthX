@@ -16,9 +16,8 @@ const OTP_TTL_MS = 5 * 60 * 1000; // 5 minutes
  * Body: { email, isDemo }
  *
  * Generates a 6-digit OTP code.
- * Always attempts real email delivery via Resend API.
- * If Resend fails or operates in sandbox mode, includes otpCode & notice in response
- * so verification succeeds with 100% efficiency in all environments.
+ * If isDemo === true, skips email sending and returns the OTP code in response for demo toast.
+ * In Real Mode: Sends real-time verification email to recipient via Resend API.
  */
 export async function POST(request: NextRequest) {
   let body: unknown;
@@ -61,28 +60,22 @@ export async function POST(request: NextRequest) {
       where: { email: normalizedEmail, expiresAt: { lt: new Date() } },
     });
 
-    console.log(`\n================================================\n🔑 [OTP CODE] (${isDemo ? 'DEMO MODE' : 'REAL MODE'}) For: ${normalizedEmail}\n👉 VERIFICATION CODE: ${code}\n================================================\n`);
+    console.log(`\n================================================\n🔑 [REAL-TIME OTP EMAIL] For: ${normalizedEmail}\n👉 VERIFICATION CODE: ${code}\n================================================\n`);
 
-    // If Demo Mode, return code for Toast display
+    // Demo Mode: Skip real email sending & return code for Demo toast
     if (isDemo) {
       return successResponse({ userId: user.id, isDemo: true, otpCode: code });
     }
 
-    // Real Mode: Attempt verification email delivery via Resend
+    // Real Mode: Send real-time email via Resend API to recipient inbox
     const emailResult = await sendVerificationEmail({ to: normalizedEmail, code, recipientName: user.name ?? undefined });
     
     if (!emailResult.success) {
-      console.warn(`[email] Delivery Notice for ${normalizedEmail}: ${emailResult.error}`);
-      return successResponse({
-        userId: user.id,
-        isDemo: false,
-        emailSent: false,
-        deliveryNotice: emailResult.error || 'Resend sandbox mode',
-        otpCode: code, // Provide code fallback so user is never blocked
-      });
+      console.warn(`[email] Real-time delivery notice for ${normalizedEmail}: ${emailResult.error}`);
+      return errorResponse(emailResult.error || 'Failed to send verification email. Please check your recipient email address.', 400);
     }
 
-    return successResponse({ userId: user.id, isDemo: false, emailSent: true, otpCode: code });
+    return successResponse({ userId: user.id, isDemo: false, emailSent: true });
   } catch (err) {
     console.error('OTP generate route error:', err);
     return errorResponse('Something went wrong generating OTP code. Please try again.', 500);

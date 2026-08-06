@@ -3,7 +3,7 @@
  *
  * Sends transactional email via the Resend HTTP API.
  * The API key is read from `process.env.RESEND_API_KEY` and is NEVER exposed
- * to the client (no `NEXT_PUBLIC_` prefix, never imported by client code).
+ * to the client.
  */
 
 const RESEND_ENDPOINT = 'https://api.resend.com/emails';
@@ -20,22 +20,17 @@ interface VerificationEmailParams {
   recipientName?: string;
 }
 
-/**
- * Build a clean, professional HTML email for OTP verification.
- * The code is rendered large and clear. No sensitive data besides the code
- * itself is included.
- */
 function buildVerificationHtml({ code, recipientName }: { code: string; recipientName?: string }): string {
   const greeting = recipientName
-    ? `<p style="margin:0 0 16px;color:#475569;font-size:15px;">Hi ${escapeHtml(recipientName)},</p>`
-    : `<p style="margin:0 0 16px;color:#475569;font-size:15px;">Hello,</p>`;
+    ? `<p style="margin:0 0 16px;color:#1A312C;font-size:15px;">Hi ${escapeHtml(recipientName)},</p>`
+    : `<p style="margin:0 0 16px;color:#1A312C;font-size:15px;">Hello,</p>`;
 
   return `<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>Verify your email</title>
+    <title>AuthX Verification Code</title>
   </head>
   <body style="margin:0;padding:0;background:#FFF4E1;font-family:Inter,Arial,Helvetica,sans-serif;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#FFF4E1;padding:32px 16px;">
@@ -44,26 +39,26 @@ function buildVerificationHtml({ code, recipientName }: { code: string; recipien
           <table role="presentation" width="460" cellpadding="0" cellspacing="0" style="max-width:460px;width:100%;background:#ffffff;border:1px solid #E5D7C3;border-radius:16px;overflow:hidden;box-shadow:0 4px 12px rgba(26,49,44,0.08);">
             <tr>
               <td style="background:#1A312C;padding:28px 32px;text-align:center;">
-                <div style="font-size:20px;font-weight:700;color:#ffffff;letter-spacing:0.5px;">AuthX Security</div>
+                <div style="font-size:20px;font-weight:700;color:#ffffff;letter-spacing:0.5px;">AuthX Platform</div>
               </td>
             </tr>
             <tr>
               <td style="padding:36px 32px 16px;">
                 <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#1A312C;">Verify your email</h1>
                 ${greeting}
-                <p style="margin:0 0 24px;color:#5C6E69;font-size:15px;line-height:1.6;">Your single-use verification code is:</p>
+                <p style="margin:0 0 24px;color:#5C6E69;font-size:15px;line-height:1.6;">Your single-use login verification code is:</p>
                 <div style="text-align:center;margin:0 0 24px;">
-                  <div style="display:inline-block;font-family:'Courier New',monospace;font-size:34px;font-weight:700;letter-spacing:10px;color:#428475;background:#FFF4E1;border:1px solid #E5D7C3;border-radius:12px;padding:16px 28px;">${escapeHtml(code)}</div>
+                  <div style="display:inline-block;font-family:'Courier New',monospace;font-size:36px;font-weight:700;letter-spacing:12px;color:#428475;background:#FFF4E1;border:1px solid #E5D7C3;border-radius:12px;padding:16px 28px;">${escapeHtml(code)}</div>
                 </div>
-                <p style="margin:0 0 28px;color:#5C6E69;font-size:15px;line-height:1.6;">This code expires in <strong style="color:#1A312C;">5 minutes</strong>.</p>
+                <p style="margin:0 0 28px;color:#5C6E69;font-size:15px;line-height:1.6;">This verification code expires in <strong style="color:#1A312C;">5 minutes</strong>.</p>
                 <div style="border-top:1px solid #E5D7C3;padding-top:20px;">
-                  <p style="margin:0;color:#94a3b8;font-size:13px;line-height:1.5;">If you did not request this, you can safely ignore this email — no account will be affected.</p>
+                  <p style="margin:0;color:#94a3b8;font-size:13px;line-height:1.5;">If you did not request this code, please ignore this email.</p>
                 </div>
               </td>
             </tr>
             <tr>
               <td style="padding:0 32px 28px;">
-                <p style="margin:0;color:#94a3b8;font-size:12px;text-align:center;line-height:1.5;">© 2026 AuthX Platform. Automated security transmission.</p>
+                <p style="margin:0;color:#94a3b8;font-size:12px;text-align:center;line-height:1.5;">© 2026 AuthX Platform. Real-time security authentication service.</p>
               </td>
             </tr>
           </table>
@@ -90,12 +85,12 @@ function resolveFrom(): string {
 }
 
 /**
- * Send the OTP verification email. Returns a structured result; never throws.
+ * Send the OTP verification email via Resend API.
  */
 export async function sendVerificationEmail(params: VerificationEmailParams): Promise<SendEmailResult> {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
-    console.warn('[email] RESEND_API_KEY is not set. Check .env.local.');
+    console.warn('[email] RESEND_API_KEY is missing.');
     return { success: false, error: 'Email service key missing.' };
   }
 
@@ -129,16 +124,17 @@ export async function sendVerificationEmail(params: VerificationEmailParams): Pr
       signal: AbortSignal.timeout(10_000),
     });
 
+    const resData = (await res.json().catch(() => ({}))) as { id?: string; message?: string; statusCode?: number };
+
     if (!res.ok) {
-      const errBody = (await res.json().catch(() => ({}))) as { message?: string };
-      console.warn('[email] Resend API Warning:', res.status, errBody);
-      return { success: false, error: errBody.message || 'Resend email delivery failed.' };
+      console.warn('[email] Resend API Error Response:', res.status, resData);
+      return { success: false, error: resData.message || 'Resend email delivery failed.' };
     }
 
-    const data = (await res.json()) as { id?: string };
-    return { success: true, messageId: data.id };
+    console.log(`[email] Real-time email delivered via Resend! ID: ${resData.id} -> Recipient: ${params.to}`);
+    return { success: true, messageId: resData.id };
   } catch (err) {
-    console.warn('[email] Resend fetch exception:', err);
-    return { success: false, error: 'Failed to connect to email service.' };
+    console.warn('[email] Resend fetch error:', err);
+    return { success: false, error: 'Failed to connect to email delivery service.' };
   }
 }

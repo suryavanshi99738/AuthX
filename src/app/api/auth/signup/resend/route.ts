@@ -14,8 +14,6 @@ const RESEND_COOLDOWN_MS = 30 * 1000; // 30 seconds
 
 /**
  * POST /api/auth/signup/resend
- *
- * Body: { email }
  */
 export async function POST(request: NextRequest) {
   let body: unknown;
@@ -71,20 +69,15 @@ export async function POST(request: NextRequest) {
       where: { email, expiresAt: { lt: new Date() } },
     });
 
-    console.log(`\n================================================\n🔑 [RESEND SIGNUP OTP CODE] For: ${email}\n👉 VERIFICATION CODE: ${code}\n================================================\n`);
+    console.log(`\n================================================\n🔑 [RESEND SIGNUP OTP EMAIL] For: ${email}\n👉 VERIFICATION CODE: ${code}\n================================================\n`);
 
     const emailResult = await sendVerificationEmail({ to: email, code, recipientName: latest.fullName });
     if (!emailResult.success) {
-      console.warn(`[email] Resend Delivery Notice for ${email}: ${emailResult.error}`);
-      return successResponse({
-        expiresAt: expiresAt.toISOString(),
-        emailSent: false,
-        deliveryNotice: emailResult.error || 'Resend API sandbox restriction',
-        otpCode: code,
-      });
+      console.warn(`[email] Real-time delivery notice for ${email}: ${emailResult.error}`);
+      return errorResponse(emailResult.error || 'Failed to send verification email. Please check your recipient email address.', 400);
     }
 
-    return successResponse({ expiresAt: expiresAt.toISOString(), emailSent: true, otpCode: code });
+    return successResponse({ expiresAt: expiresAt.toISOString(), emailSent: true });
   } catch {
     return errorResponse('Something went wrong. Please try again.', 500);
   }

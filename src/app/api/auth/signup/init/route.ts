@@ -14,8 +14,6 @@ const RESEND_COOLDOWN_MS = 30 * 1000; // 30 seconds
 
 /**
  * POST /api/auth/signup/init
- *
- * Body: { fullName, email, phone }
  */
 export async function POST(request: NextRequest) {
   let body: unknown;
@@ -45,8 +43,7 @@ export async function POST(request: NextRequest) {
       return errorResponse('An account with this email already exists. Please log in instead.', 409, 'EMAIL_EXISTS');
     }
 
-    // Enforce the 30-second resend cooldown: if a verification was created for
-    // this email within the last 30s, reject.
+    // Enforce the 30-second resend cooldown
     const cooldownSince = new Date(Date.now() - RESEND_COOLDOWN_MS);
     const recent = await db.signupVerification.findFirst({
       where: { email, createdAt: { gt: cooldownSince } },
@@ -75,21 +72,16 @@ export async function POST(request: NextRequest) {
       where: { email, expiresAt: { lt: new Date() } },
     });
 
-    console.log(`\n================================================\n🔑 [SIGNUP OTP CODE] For: ${email}\n👉 VERIFICATION CODE: ${code}\n================================================\n`);
+    console.log(`\n================================================\n🔑 [SIGNUP OTP EMAIL] For: ${email}\n👉 VERIFICATION CODE: ${code}\n================================================\n`);
 
-    // Send the email via Resend
+    // Send real-time email via Resend API to recipient inbox
     const emailResult = await sendVerificationEmail({ to: email, code, recipientName: fullName });
     if (!emailResult.success) {
-      console.warn(`[email] Resend Delivery Notice for ${email}: ${emailResult.error}`);
-      return successResponse({
-        expiresAt: expiresAt.toISOString(),
-        emailSent: false,
-        deliveryNotice: emailResult.error || 'Resend API sandbox restriction',
-        otpCode: code, // Code fallback so user is never blocked
-      });
+      console.warn(`[email] Real-time delivery notice for ${email}: ${emailResult.error}`);
+      return errorResponse(emailResult.error || 'Failed to send verification email. Please check your recipient email address.', 400);
     }
 
-    return successResponse({ expiresAt: expiresAt.toISOString(), emailSent: true, otpCode: code });
+    return successResponse({ expiresAt: expiresAt.toISOString(), emailSent: true });
   } catch (err) {
     console.error('Signup init route error:', err);
     return errorResponse('Something went wrong during signup initialization. Please try again.', 500);

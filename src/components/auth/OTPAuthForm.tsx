@@ -104,16 +104,16 @@ export function OTPAuthForm() {
         issuedOtp = otpResult.otpCode;
       }
 
-      if (issuedOtp) {
+      if (isDemo && issuedOtp) {
         toast({
-          title: isDemo ? 'Demo Mode — Verification Code' : 'Verification Code Issued',
+          title: 'Demo Mode — Verification Code',
           description: `Verification Code: ${issuedOtp}`,
           duration: 12000,
         });
       }
 
       setOverlayStatus('success');
-      setOverlayMessage(isDemo ? 'Demo OTP generated (Check Toast)!' : 'Verification code issued!');
+      setOverlayMessage(isDemo ? 'Demo OTP generated (Check Toast)!' : 'Verification code sent to your email inbox!');
       startCooldown();
 
       setTimeout(() => {
@@ -148,15 +148,15 @@ export function OTPAuthForm() {
         setErrorMessage(result.error || 'Failed to resend code');
         return;
       }
-      if (result.otpCode) {
+      if (isDemo && result.otpCode) {
         toast({
-          title: isDemo ? 'Demo Mode — Verification Code' : 'Verification Code Issued',
+          title: 'Demo Mode — Verification Code',
           description: `Verification Code: ${result.otpCode}`,
           duration: 12000,
         });
       }
       setOverlayStatus('success');
-      setOverlayMessage('New code generated!');
+      setOverlayMessage(isDemo ? 'New demo code generated!' : 'New verification code sent to your email inbox!');
       startCooldown();
       setOtpCode('');
       setTimeout(() => setOverlayVisible(false), 800);
