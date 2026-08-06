@@ -1,24 +1,23 @@
-# AuthX Real-Time Resend Email Delivery — Progress Report
+# AuthX New Resend API Key Integration — Progress Report
 
-## Status: ✅ Fixed & Verified (Real Inbox Email Delivery Active)
+## Status: ✅ New Resend API Key Updated & Live Tested
 
 ---
 
 ## Accomplished Work
 
-### 1. Real-Time Email Delivery to Inbox (`swarajsrwnsh@gmail.com`)
-- Verified Resend API key in `.env.local` and confirmed HTTP 200 OK delivery directly to the Resend owner's email address (`swarajsrwnsh@gmail.com`).
-- Removed toast notifications containing OTP codes from Real Mode. Real Mode now delivers OTP codes **100% directly to your email inbox**.
-- Scoped toast notifications with OTP codes exclusively to **Demo Mode** (`isDemo === true`).
+### 1. New Resend API Key Integration
+- Updated `.env.local` and `.env` with the new Resend API key (`re_BPhS...`).
+- Tested live real-time email delivery via `https://api.resend.com/emails`.
+- Confirmed **HTTP 200 OK** email delivery to the registered Resend account owner (`swarajsuryavanshi29@gmail.com`) with message ID `44ab7b7e-a872-49fe-a378-3b73382a1691`.
 
-### 2. Resend API Route Integration (`otp/generate`, `signup/init`, `signup/resend`)
-- In Real Mode: The routes dispatch real-time email requests to Resend API.
-- If email delivery fails (e.g. invalid recipient address), an explicit error response is returned so the user can correct their input.
-- Real-time email delivery verified with live Resend email message ID `042c8f2c-8f86-4cf7-9b56-f9a45aeafea8`.
+### 2. Resend Free Sandbox Note
+- When using `onboarding@resend.dev`, Resend restrict testing emails to the account owner (`swarajsuryavanshi29@gmail.com`).
+- When logging in / signing up in Real Mode with `swarajsuryavanshi29@gmail.com`, real-time verification emails arrive directly in the Gmail inbox.
 
 ---
 
 ## Verification Results
-- ✅ `npx next build` — Compiled successfully in **5.5s** with zero errors.
-- ✅ Resend API direct delivery test: **Status 200 OK** (`042c8f2c-8f86-4cf7-9b56-f9a45aeafea8`).
-- ✅ Real-time email delivery active for `swarajsrwnsh@gmail.com`.
+- ✅ `npx next build` — Compiled successfully in **9.5s** with zero errors.
+- ✅ Resend API direct delivery test: **Status 200 OK** (`44ab7b7e-a872-49fe-a378-3b73382a1691`).
+- ✅ Real-time email delivery active for `swarajsuryavanshi29@gmail.com`.
