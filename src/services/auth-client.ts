@@ -196,12 +196,28 @@ export async function demoOTP(demoUserId: string): Promise<ApiResult & { otpCode
   });
 }
 
+const isUserCancellation = (err: unknown): boolean => {
+  if (!err) return false;
+  const str = (err instanceof Error ? err.message : String(err)).toLowerCase();
+  const name = (err as { name?: string })?.name || '';
+  return (
+    name === 'NotAllowedError' ||
+    name === 'AbortError' ||
+    str.includes('not allowed') ||
+    str.includes('timed out') ||
+    str.includes('cancelled') ||
+    str.includes('canceled') ||
+    str.includes('abort') ||
+    str.includes('privacy-considerations-client')
+  );
+};
+
 /* ── Full Passkey Flow (real) ── */
 export async function performPasskeyRegistration(userId: string, email: string) {
   // Step 1: Get registration options
   const regResult = await registerPasskey(userId, email);
   if (!regResult.success || !regResult.options) {
-    return { success: false, error: regResult.error || 'Failed to generate registration options' };
+    return { success: false, error: regResult.error || 'Failed to generate registration options', code: regResult.code };
   }
 
   // Step 2: Browser WebAuthn ceremony (v13 expected call structure)
@@ -209,14 +225,15 @@ export async function performPasskeyRegistration(userId: string, email: string) 
   try {
     credential = await startRegistration({ optionsJSON: regResult.options as PublicKeyCredentialCreationOptionsJSON });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Passkey registration was cancelled';
-    return { success: false, error: msg };
+    const cancelled = isUserCancellation(err);
+    const msg = cancelled ? 'Passkey registration was cancelled' : (err instanceof Error ? err.message : 'Passkey registration failed');
+    return { success: false, error: msg, isCancelled: cancelled };
   }
 
   // Step 3: Verify registration
   const verifyResult = await verifyPasskeyRegistration(userId, credential);
   if (!verifyResult.success) {
-    return { success: false, error: verifyResult.error || 'Passkey verification failed' };
+    return { success: false, error: verifyResult.error || 'Passkey verification failed', code: verifyResult.code };
   }
 
   return { success: true };
@@ -226,7 +243,7 @@ export async function performPasskeyAuthentication(userId: string) {
   // Step 1: Get authentication options
   const authResult = await authenticatePasskey(userId);
   if (!authResult.success || !authResult.options) {
-    return { success: false, error: authResult.error || 'Failed to generate authentication options' };
+    return { success: false, error: authResult.error || 'Failed to generate authentication options', code: authResult.code };
   }
 
   // Step 2: Browser WebAuthn ceremony (v13 expected call structure)
@@ -234,14 +251,15 @@ export async function performPasskeyAuthentication(userId: string) {
   try {
     credential = await startAuthentication({ optionsJSON: authResult.options as PublicKeyCredentialRequestOptionsJSON });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Passkey authentication was cancelled';
-    return { success: false, error: msg };
+    const cancelled = isUserCancellation(err);
+    const msg = cancelled ? 'Passkey authentication was cancelled' : (err instanceof Error ? err.message : 'Passkey authentication failed');
+    return { success: false, error: msg, isCancelled: cancelled, code: authResult.code };
   }
 
   // Step 3: Verify authentication — creates a session on success
   const verifyResult = await verifyPasskeyAuth(userId, credential);
   if (!verifyResult.success || !verifyResult.session) {
-    return { success: false, error: verifyResult.error || 'Passkey verification failed' };
+    return { success: false, error: verifyResult.error || 'Passkey verification failed', code: verifyResult.code };
   }
 
   return { success: true, session: verifyResult.session };

@@ -1,4 +1,4 @@
-# AuthX Passkey & Comprehensive Auth Method LoginHistory Fix — Progress Report
+# AuthX Passkey Flow Isolation & Cancellation Fix — Progress Report
 
 ## Status: ✅ Fixed & Verified
 
@@ -6,23 +6,20 @@
 
 ## Accomplished Work
 
-### Passkey & Multi-Method LoginHistory Audit Logging
-- **Passkey Login Route (`src/app/api/auth/passkey/auth-verify/route.ts`)**:
-  - Integrated `getDeviceDetails(userAgent, ip)` to extract real client device metadata (`deviceName`, `browser`, `os`, `deviceFingerprint`, `location`).
-  - Added automatic creation of `db.loginHistory` record with `method: 'Passkey WebAuthn'`, device details, and `riskLevel: 'Low'`.
-  - Added automatic upsert of `db.trustedDevice` and `db.riskAssessment` evaluation for every Passkey login event.
-- **Passkey Signup Route (`src/app/api/auth/passkey/signup/verify/route.ts`)**:
-  - Added `getDeviceDetails` device metadata detection.
-  - Added automatic creation of `db.loginHistory` with `method: 'Passkey WebAuthn'`, `db.trustedDevice`, and `db.riskAssessment`.
-- **Email OTP Signup Route (`src/app/api/auth/signup/verify/route.ts`)**:
-  - Added auto-detected device details, `db.loginHistory` (`method: 'Email OTP'`), `db.trustedDevice`, and `db.riskAssessment`.
-- **Session Creation Route (`src/app/api/auth/session/route.ts`)**:
-  - Added automatic creation of `db.loginHistory` and `db.trustedDevice` entries for any session created via the session API endpoint.
+### Passkey Authentication & Registration Strict Flow Scoping
+- **Cancellation Detection (`src/services/auth-client.ts`)**:
+  - Implemented `isUserCancellation` helper to catch WebAuthn `NotAllowedError`, `AbortError`, timeout, or explicit user prompt cancellation.
+  - Updated `performPasskeyAuthentication` and `performPasskeyRegistration` to pass `isCancelled` status and backend response code (`NO_PASSKEY`).
+- **Passkey Form Handling (`PasskeyAuthForm.tsx`)**:
+  - Removed blind fallthrough from Passkey Authentication to Passkey Registration.
+  - When Passkey Authentication is cancelled by the user, the flow stops cleanly with `'Passkey verification was cancelled.'`. It **never** triggers a secondary registration ceremony on an existing key.
+  - ONLY when `authResult.code === 'NO_PASSKEY'` (0 passkeys registered on the account) does the form offer passkey creation.
+  - Clean error formatting when registration is cancelled without showing raw WebAuthn W3C specification URLs.
 
 ---
 
 ## Verification Results
-- ✅ `npx next build` — Compiled successfully in **11.5s** with zero errors.
-- ✅ Passkey logins now update `LoginHistory` and `TrustedDevice` tables automatically.
-- ✅ All auth methods (Passkey, Email OTP, QR Code) report consistent login history records.
-- ✅ Zero modifications to core business logic or existing authentication flows.
+- ✅ `npx next build` — Compiled successfully in **5.7s** with zero errors.
+- ✅ Passkey authentication cancellation stops cleanly with 0 secondary prompts.
+- ✅ Duplicate registration attempts on accounts with existing passkeys prevented.
+- ✅ Zero modifications to any other authentication flows or business logic.

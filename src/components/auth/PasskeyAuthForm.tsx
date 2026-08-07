@@ -99,7 +99,7 @@ export function PasskeyAuthForm() {
       // Check if user has passkeys - try auth first, then register
       setOverlayMessage('Initiating Passkey Verification...');
 
-      // Try authentication first (user may already have passkeys)
+      // Try authentication first
       const authResult = await performPasskeyAuthentication(user.id);
 
       if (authResult.success && authResult.session) {
@@ -117,32 +117,49 @@ export function PasskeyAuthForm() {
         return;
       }
 
-      // If auth failed, try registration
-      setOverlayMessage('Registering New Passkey...');
-      const regResult = await performPasskeyRegistration(user.id, email);
-
-      if (regResult.success) {
-        setOverlayStatus('success');
-        setOverlayMessage('Passkey Registered Successfully!');
-
-        // Create session
-        const sessionResult = await createSession(user.id, 'Passkey WebAuthn', isDemo);
-        if (sessionResult.success && sessionResult.session) {
-          setUser({ id: user.id, email: user.email, name: user.name });
-          setSession(sessionResult.session.token);
-          setLoading(false);
-
-          setTimeout(() => {
-            setOverlayVisible(false);
-            setPageView(isDemo ? 'demoDashboard' : 'dashboard');
-          }, 1000);
-          return;
-        }
+      // If user explicitly cancelled authentication prompt, stop immediately without re-triggering registration
+      if (authResult.isCancelled) {
+        setOverlayStatus('error');
+        setErrorMessage('Passkey verification was cancelled.');
+        return;
       }
 
-      // Both failed
+      // ONLY if user account has NO registered passkeys, attempt passkey registration
+      if (authResult.code === 'NO_PASSKEY') {
+        setOverlayMessage('Registering New Passkey...');
+        const regResult = await performPasskeyRegistration(user.id, email);
+
+        if (regResult.success) {
+          setOverlayStatus('success');
+          setOverlayMessage('Passkey Registered Successfully!');
+
+          // Create session
+          const sessionResult = await createSession(user.id, 'Passkey WebAuthn', isDemo);
+          if (sessionResult.success && sessionResult.session) {
+            setUser({ id: user.id, email: user.email, name: user.name });
+            setSession(sessionResult.session.token);
+            setLoading(false);
+
+            setTimeout(() => {
+              setOverlayVisible(false);
+              setPageView(isDemo ? 'demoDashboard' : 'dashboard');
+            }, 1000);
+            return;
+          }
+        }
+
+        setOverlayStatus('error');
+        setErrorMessage(
+          regResult.isCancelled
+            ? 'Passkey registration was cancelled.'
+            : regResult.error || 'Passkey registration failed'
+        );
+        return;
+      }
+
+      // User has registered passkeys, but authentication failed or credential was not recognized on this device
       setOverlayStatus('error');
-      setErrorMessage(regResult.error || authResult.error || 'Passkey verification failed');
+      setErrorMessage(authResult.error || 'Passkey verification failed. Please check your security key.');
     } catch (error) {
       setOverlayStatus('error');
       setErrorMessage(error instanceof Error ? error.message : 'An unexpected error occurred');
