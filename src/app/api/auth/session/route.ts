@@ -10,7 +10,7 @@ import { getDeviceDetails } from '@/lib/device';
 /**
  * POST /api/auth/session
  * Body: { userId, loginMethod?, isDemo? }
- * Creates a new active session with auto-detected device details.
+ * Creates a new active session with auto-detected device details and logs LoginHistory.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -73,6 +73,49 @@ export async function POST(request: NextRequest) {
         expiresAt,
       },
     });
+
+    // Audit logging: TrustedDevice & LoginHistory
+    try {
+      let trusted = await db.trustedDevice.findFirst({
+        where: { userId, deviceFingerprint: deviceDetails.deviceFingerprint },
+      });
+
+      if (!trusted) {
+        await db.trustedDevice.create({
+          data: {
+            userId,
+            deviceName: deviceDetails.deviceName,
+            browser: deviceDetails.browser,
+            deviceFingerprint: deviceDetails.deviceFingerprint,
+            location: deviceDetails.location,
+            status: 'trusted',
+            isDemo,
+          },
+        });
+      } else {
+        await db.trustedDevice.update({
+          where: { id: trusted.id },
+          data: { lastActive: new Date(), location: deviceDetails.location },
+        });
+      }
+
+      await db.loginHistory.create({
+        data: {
+          userId,
+          method: loginMethod,
+          device: deviceDetails.deviceName,
+          browser: deviceDetails.browser,
+          status: 'success',
+          riskLevel: 'Low',
+          ipAddress: ip,
+          location: deviceDetails.location,
+          deviceId: `dev_${deviceDetails.deviceFingerprint}`,
+          isDemo,
+        },
+      });
+    } catch (auditErr) {
+      console.warn('Non-blocking audit log warning in session POST:', auditErr);
+    }
 
     return successResponse({
       session: {

@@ -11,21 +11,17 @@ import { rateLimit } from '@/lib/rate-limit';
 import { db } from '@/lib/db';
 import { base64urlToUint8Array } from '@/lib/utils';
 import { getClientIp, errorResponse, successResponse, rateLimitedResponse } from '@/lib/auth-api';
+import { getDeviceDetails } from '@/lib/device';
 
 /**
  * POST /api/auth/passkey/auth-verify
  *
  * Body: { userId, credential }
  *
- * Verifies a WebAuthn authentication response:
- *   - Challenge matches the stored single-use challenge.
- *   - Origin matches the configured RP origin.
- *   - RP ID matches the configured RP ID.
- *   - Signature is valid for the stored public key.
- *   - Counter is greater than the stored counter (replay protection).
- *
- * On success, updates the stored counter and creates an authenticated session.
- * The challenge is single-use: it is consumed on read regardless of outcome.
+ * Verifies a WebAuthn authentication response and records:
+ *   - Authenticated session with auto-detected device details
+ *   - LoginHistory entry for Passkey WebAuthn login
+ *   - TrustedDevice entry & RiskAssessment evaluation
  */
 export async function POST(request: NextRequest) {
   let body: unknown;
@@ -112,12 +108,81 @@ export async function POST(request: NextRequest) {
       data: { counter: verification.authenticationInfo.newCounter },
     });
 
-    // Create an authenticated session (24-hour expiry).
+    const userAgent = request.headers.get('user-agent');
+    const deviceDetails = getDeviceDetails(userAgent, ip);
+
+    // Create an authenticated session (24-hour expiry) with full device info
     const token = uuidv4();
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
     await db.session.create({
-      data: { userId, token, expiresAt, loginMethod: 'Passkey WebAuthn', isTrusted: true },
+      data: {
+        userId,
+        token,
+        expiresAt,
+        loginMethod: 'Passkey WebAuthn',
+        isTrusted: true,
+        deviceName: deviceDetails.deviceName,
+        deviceType: deviceDetails.deviceType,
+        browser: deviceDetails.browser,
+        os: deviceDetails.os,
+        deviceFingerprint: deviceDetails.deviceFingerprint,
+        ipAddress: ip,
+        location: deviceDetails.location,
+        platform: deviceDetails.isMobile ? 'Mobile' : 'Win32',
+        userAgent: userAgent || 'Mozilla/5.0',
+      },
     });
+
+    // Safely record LoginHistory, TrustedDevice, and RiskAssessment
+    try {
+      let trusted = await db.trustedDevice.findFirst({
+        where: { userId, deviceFingerprint: deviceDetails.deviceFingerprint },
+      });
+
+      if (!trusted) {
+        await db.trustedDevice.create({
+          data: {
+            userId,
+            deviceName: deviceDetails.deviceName,
+            browser: deviceDetails.browser,
+            deviceFingerprint: deviceDetails.deviceFingerprint,
+            location: deviceDetails.location,
+            status: 'trusted',
+          },
+        });
+      } else {
+        await db.trustedDevice.update({
+          where: { id: trusted.id },
+          data: { lastActive: new Date(), location: deviceDetails.location },
+        });
+      }
+
+      await db.loginHistory.create({
+        data: {
+          userId,
+          method: 'Passkey WebAuthn',
+          device: deviceDetails.deviceName,
+          browser: deviceDetails.browser,
+          status: 'success',
+          riskLevel: 'Low',
+          ipAddress: ip,
+          location: deviceDetails.location,
+          deviceId: `dev_${deviceDetails.deviceFingerprint}`,
+        },
+      });
+
+      await db.riskAssessment.create({
+        data: {
+          userId,
+          score: 5,
+          level: 'Low',
+          reasons: JSON.stringify(['Hardware Passkey Verified', 'FIDO2 Security Standard']),
+          ipAddress: ip,
+        },
+      });
+    } catch (auditErr) {
+      console.warn('Non-blocking audit log warning during Passkey auth-verify:', auditErr);
+    }
 
     return successResponse({
       verified: true,

@@ -11,6 +11,7 @@ import { rateLimit } from '@/lib/rate-limit';
 import { db } from '@/lib/db';
 import { uint8ArrayToBase64url, isUint8Array } from '@/lib/utils';
 import { getClientIp, errorResponse, successResponse, rateLimitedResponse } from '@/lib/auth-api';
+import { getDeviceDetails } from '@/lib/device';
 
 /**
  * POST /api/auth/passkey/signup/verify
@@ -20,15 +21,10 @@ import { getClientIp, errorResponse, successResponse, rateLimitedResponse } from
  * Verifies the WebAuthn registration response against the stored challenge.
  * On success:
  *   1. Creates the User account (with the prospective userId) — email verified.
- *   2. Stores the public credential (credentialId, publicKey, counter, ...).
- *   3. Creates an authenticated session.
- *   4. Deletes the pending PasskeySignup record.
- *
- * On failure or expiry, the pending record is preserved so the user can
- * re-request options without re-entering the sign-up form (only the challenge
- * is single-use).
- *
- * Private keys never leave the user's device.
+ *   2. Stores the public credential.
+ *   3. Creates an authenticated session with auto-detected device details.
+ *   4. Logs LoginHistory, TrustedDevice, and RiskAssessment audit entries.
+ *   5. Deletes the pending PasskeySignup record.
  */
 export async function POST(request: NextRequest) {
   let body: unknown;
@@ -159,7 +155,7 @@ export async function POST(request: NextRequest) {
         ? (registrationInfo as { credential: { counter: number } }).credential.counter
         : (registrationInfo as Record<string, unknown>)?.counter ?? 0;
 
-    // Guard against a duplicate credential id (should be extremely rare).
+    // Guard against a duplicate credential id
     const dup = await db.passkeyCredential.findUnique({
       where: { credentialId },
       select: { id: true },
@@ -168,10 +164,8 @@ export async function POST(request: NextRequest) {
       return errorResponse('This passkey is already registered.', 409, 'DUPLICATE_CREDENTIAL');
     }
 
-    // Create the user account with the prospective id (so the credential's
-    // user association matches). emailVerified = true because the passkey
-    // ceremony proves device possession.
-    await db.user.create({
+    // Create the user account with prospective id
+    const createdUser = await db.user.create({
       data: {
         id: pending.prospectiveUserId,
         email: pending.email,
@@ -193,7 +187,10 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Create an authenticated session (24-hour expiry).
+    const userAgent = request.headers.get('user-agent');
+    const deviceDetails = getDeviceDetails(userAgent, ip);
+
+    // Create an authenticated session (24-hour expiry) with auto-detected device details
     const token = uuidv4();
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
     await db.session.create({
@@ -201,8 +198,59 @@ export async function POST(request: NextRequest) {
         userId: pending.prospectiveUserId,
         token,
         expiresAt,
+        loginMethod: 'Passkey WebAuthn',
+        isTrusted: true,
+        deviceName: deviceDetails.deviceName,
+        deviceType: deviceDetails.deviceType,
+        browser: deviceDetails.browser,
+        os: deviceDetails.os,
+        deviceFingerprint: deviceDetails.deviceFingerprint,
+        ipAddress: ip,
+        location: deviceDetails.location,
+        platform: deviceDetails.isMobile ? 'Mobile' : 'Win32',
+        userAgent: userAgent || 'Mozilla/5.0',
       },
     });
+
+    // Safely record LoginHistory, TrustedDevice, and RiskAssessment
+    try {
+      await db.trustedDevice.create({
+        data: {
+          userId: pending.prospectiveUserId,
+          deviceName: deviceDetails.deviceName,
+          browser: deviceDetails.browser,
+          deviceFingerprint: deviceDetails.deviceFingerprint,
+          location: deviceDetails.location,
+          status: 'trusted',
+        },
+      });
+
+      await db.loginHistory.create({
+        data: {
+          userId: pending.prospectiveUserId,
+          method: 'Passkey WebAuthn',
+          device: deviceDetails.deviceName,
+          browser: deviceDetails.browser,
+          status: 'success',
+          riskLevel: 'Low',
+          ipAddress: ip,
+          location: deviceDetails.location,
+          deviceId: `dev_${deviceDetails.deviceFingerprint}`,
+        },
+      });
+
+      await db.riskAssessment.create({
+        data: {
+          userId: pending.prospectiveUserId,
+          score: 5,
+          level: 'Low',
+          reasons: JSON.stringify(['Passkey Account Creation', 'Hardware Passkey Bound']),
+          ipAddress: ip,
+        },
+      });
+    } catch (auditErr) {
+      console.warn('Non-blocking audit log warning during Passkey signup verify:', auditErr);
+    }
 
     // Clean up the pending sign-up record.
     await db.passkeySignup.delete({ where: { id: pending.id } }).catch(() => {});
@@ -210,9 +258,9 @@ export async function POST(request: NextRequest) {
     return successResponse({
       verified: true,
       user: {
-        id: pending.prospectiveUserId,
-        email: pending.email,
-        name: pending.fullName,
+        id: createdUser.id,
+        email: createdUser.email,
+        name: createdUser.name,
       },
       session: { token, expiresAt: expiresAt.toISOString() },
     });
