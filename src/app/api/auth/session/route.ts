@@ -83,6 +83,7 @@ export async function POST(request: NextRequest) {
 
     // Audit logging: TrustedDevice & LoginHistory
     // TrustedDevice lookup is keyed on instanceId (persistent device identity).
+    let isNewDevice = false;
     try {
       let trusted = await db.trustedDevice.findFirst({
         where: { userId, instanceId: deviceDetails.instanceId },
@@ -97,7 +98,7 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      const isNewDevice = !trusted;
+      isNewDevice = !trusted;
 
       if (!trusted) {
         await db.trustedDevice.create({
