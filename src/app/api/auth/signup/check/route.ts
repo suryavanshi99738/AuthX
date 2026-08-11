@@ -38,6 +38,7 @@ export async function POST(request: NextRequest) {
       select: {
         id: true,
         passkeys: { select: { id: true } },
+        authenticator: { select: { enabled: true } },
       },
     });
 
@@ -51,6 +52,7 @@ export async function POST(request: NextRequest) {
       methods: {
         otp: true,
         passkey: existing.passkeys.length > 0,
+        authenticator: Boolean(existing.authenticator?.enabled),
         biometric: false,
         qr: false,
       },

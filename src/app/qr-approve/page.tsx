@@ -19,6 +19,7 @@ import {
   Loader2,
   Smartphone,
   SmartphoneNfc,
+  QrCode,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -32,10 +33,10 @@ import {
   performPasskeyAuthentication,
   generateOTP,
   verifyOTP,
+  verifyAuthenticator,
   trustDevice,
   UserMethods,
 } from '@/services/auth-client';
-import { OTPAuthForm } from '@/components/auth/OTPAuthForm';
 import { useAuth } from '@/hooks/useAuth';
 
 function QRApproveContent() {
@@ -57,7 +58,7 @@ function QRApproveContent() {
   // Authentication & Approval State
   const [email, setEmail] = useState('');
   const [userMethods, setUserMethods] = useState<UserMethods | null>(null);
-  const [step, setStep] = useState<'info' | 'auth_method' | 'otp_verify' | 'approved' | 'rejected' | 'expired'>('info');
+  const [step, setStep] = useState<'info' | 'auth_method' | 'otp_verify' | 'totp_verify' | 'approved' | 'rejected' | 'expired'>('info');
 
   useEffect(() => {
     setMounted(true);
@@ -65,13 +66,18 @@ function QRApproveContent() {
       setEmail(currentUser.email);
     }
   }, [currentUser]);
-  const [authMethodSelected, setAuthMethodSelected] = useState<'passkey' | 'otp' | null>(null);
+  const [authMethodSelected, setAuthMethodSelected] = useState<'passkey' | 'totp' | 'otp' | null>(null);
 
   // OTP State
   const [otpCode, setOtpCode] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [otpLoading, setOtpLoading] = useState(false);
   const [otpError, setOtpError] = useState('');
+
+  // TOTP Authenticator State
+  const [totpCode, setTotpCode] = useState('');
+  const [totpLoading, setTotpLoading] = useState(false);
+  const [totpError, setTotpError] = useState('');
 
   // Processing & Trust Device Modal State
   const [approving, setApproving] = useState(false);
@@ -130,7 +136,7 @@ function QRApproveContent() {
     }
   };
 
-  const handleSelectAuthMethod = async (method: 'passkey' | 'otp') => {
+  const handleSelectAuthMethod = async (method: 'passkey' | 'totp' | 'otp') => {
     setErrorMsg('');
     setAuthMethodSelected(method);
 
@@ -158,6 +164,10 @@ function QRApproveContent() {
       } finally {
         setLoading(false);
       }
+    } else if (method === 'totp') {
+      setTotpError('');
+      setTotpCode('');
+      setStep('totp_verify');
     } else if (method === 'otp') {
       setOtpLoading(true);
       try {
@@ -173,6 +183,30 @@ function QRApproveContent() {
       } finally {
         setOtpLoading(false);
       }
+    }
+  };
+
+  const handleVerifyTOTPAndApprove = async () => {
+    setTotpError('');
+    if (!/^\d{6}$/.test(totpCode)) {
+      setTotpError('Please enter a valid 6-digit code from your authenticator app.');
+      return;
+    }
+
+    setTotpLoading(true);
+    try {
+      const verifyRes = await verifyAuthenticator(totpCode, undefined, email.trim().toLowerCase(), false);
+      if (!verifyRes.success || !verifyRes.verified || !verifyRes.userId) {
+        setTotpError(verifyRes.error || 'Invalid 6-digit authenticator code.');
+        setTotpLoading(false);
+        return;
+      }
+
+      await executeApproval('approve', verifyRes.userId);
+    } catch {
+      setTotpError('Authenticator verification failed.');
+    } finally {
+      setTotpLoading(false);
     }
   };
 
@@ -215,7 +249,6 @@ function QRApproveContent() {
         if (res.user) {
           setApprovedUser(res.user);
         }
-        // Show trust device prompt
         setShowTrustPopup(true);
       } else if (res.status === 'rejected') {
         setStep('rejected');
@@ -416,7 +449,7 @@ function QRApproveContent() {
               <div className="space-y-1">
                 <h2 className="font-heading text-lg font-bold text-foreground">Authenticate to Approve</h2>
                 <p className="text-xs text-muted-foreground">
-                  Confirm your identity for <span className="font-medium text-foreground">{email}</span>.
+                  Select authentication method for <span className="font-medium text-foreground">{email}</span>.
                 </p>
               </div>
 
@@ -424,26 +457,8 @@ function QRApproveContent() {
                 <p className="text-xs text-danger" role="alert">{errorMsg}</p>
               )}
 
-              <div className="space-y-2">
-                {/* Email OTP Option */}
-                <button
-                  onClick={() => handleSelectAuthMethod('otp')}
-                  disabled={otpLoading}
-                  className="w-full flex items-center justify-between p-3.5 rounded-xl border border-border hover:border-primary/40 hover:bg-primary/5 transition-smooth text-left"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <Mail className="w-4 h-4 text-warning" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-foreground">Email OTP</p>
-                      <p className="text-[11px] text-muted-foreground">Send 6-digit verification code</p>
-                    </div>
-                  </div>
-                  <Badge variant="secondary" className="bg-success/10 text-success text-[10px]">Available</Badge>
-                </button>
-
-                {/* Passkey Option */}
+              <div className="space-y-2.5">
+                {/* 1. Passkey Option (Most Secure) */}
                 <button
                   onClick={() => handleSelectAuthMethod('passkey')}
                   disabled={!userMethods.passkey}
@@ -460,13 +475,57 @@ function QRApproveContent() {
                     <div>
                       <p className="text-sm font-medium text-foreground">Passkey</p>
                       <p className="text-[11px] text-muted-foreground">
-                        {userMethods.passkey ? 'Device Biometrics / PIN' : 'Not registered for account'}
+                        {userMethods.passkey ? 'Biometrics / Security Key' : 'Not registered'}
                       </p>
                     </div>
                   </div>
-                  <Badge variant="secondary" className={userMethods.passkey ? 'bg-success/10 text-success text-[10px]' : 'bg-muted text-muted-foreground text-[10px]'}>
-                    {userMethods.passkey ? 'Available' : 'Not registered'}
+                  <Badge variant="secondary" className={userMethods.passkey ? 'bg-primary/10 text-primary border-primary/20 text-[10px]' : 'bg-muted text-muted-foreground text-[10px]'}>
+                    {userMethods.passkey ? 'Most Secure' : 'Not registered'}
                   </Badge>
+                </button>
+
+                {/* 2. Authenticator App Option (Recommended) */}
+                <button
+                  onClick={() => handleSelectAuthMethod('totp')}
+                  disabled={!userMethods.authenticator}
+                  className={`w-full flex items-center justify-between p-3.5 rounded-xl border transition-smooth text-left ${
+                    userMethods.authenticator
+                      ? 'border-border hover:border-primary/40 hover:bg-primary/5 cursor-pointer'
+                      : 'border-border/50 bg-muted/30 opacity-60 cursor-not-allowed'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-success/10 flex items-center justify-center border border-success/20">
+                      <ShieldCheck className="w-4 h-4 text-success" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-foreground">Authenticator App</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {userMethods.authenticator ? 'Time-based code (TOTP)' : 'Not configured in Settings'}
+                      </p>
+                    </div>
+                  </div>
+                  <Badge variant="secondary" className={userMethods.authenticator ? 'bg-success/10 text-success border-success/20 text-[10px]' : 'bg-muted text-muted-foreground text-[10px]'}>
+                    {userMethods.authenticator ? 'Recommended' : 'Not configured'}
+                  </Badge>
+                </button>
+
+                {/* 3. Email OTP Option (Fallback) */}
+                <button
+                  onClick={() => handleSelectAuthMethod('otp')}
+                  disabled={otpLoading}
+                  className="w-full flex items-center justify-between p-3.5 rounded-xl border border-border hover:border-primary/40 hover:bg-primary/5 transition-smooth text-left"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-warning/10 flex items-center justify-center">
+                      <Mail className="w-4 h-4 text-warning" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-foreground">Email OTP</p>
+                      <p className="text-[11px] text-muted-foreground">Send 6-digit verification email</p>
+                    </div>
+                  </div>
+                  <Badge variant="secondary" className="bg-muted text-muted-foreground text-[10px]">Fallback</Badge>
                 </button>
               </div>
 
@@ -477,7 +536,63 @@ function QRApproveContent() {
           </Card>
         )}
 
-        {/* Step 3: Enter OTP */}
+        {/* Step 3A: Enter TOTP Authenticator Code */}
+        {step === 'totp_verify' && (
+          <Card className="shadow-card">
+            <CardContent className="p-6 space-y-5">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-5 h-5 text-success" />
+                  <h2 className="font-heading text-lg font-bold text-foreground">Enter Authenticator Code</h2>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Open your authenticator app (Google Authenticator, Microsoft Authenticator, Authy, etc.) and enter the current 6-digit code for <span className="font-medium text-foreground">{email}</span>.
+                </p>
+              </div>
+
+              {totpError && (
+                <p className="text-xs text-danger" role="alert">{totpError}</p>
+              )}
+
+              <div className="space-y-2">
+                <Label htmlFor="qr-totp-input" className="text-xs font-medium">6-Digit Code</Label>
+                <Input
+                  id="qr-totp-input"
+                  type="text"
+                  maxLength={6}
+                  placeholder="123456"
+                  value={totpCode}
+                  onChange={(e) => { setTotpCode(e.target.value.replace(/\D/g, '')); setTotpError(''); }}
+                  className="h-12 rounded-xl text-center text-lg tracking-widest font-mono"
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex gap-2">
+                <Button onClick={() => setStep('auth_method')} variant="outline" className="rounded-xl h-11 text-xs">
+                  Back
+                </Button>
+
+                <Button
+                  onClick={handleVerifyTOTPAndApprove}
+                  disabled={totpCode.length !== 6 || totpLoading || approving}
+                  className="flex-1 rounded-xl h-11"
+                >
+                  {totpLoading || approving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Verifying Code…
+                    </>
+                  ) : (
+                    'Verify & Approve Login'
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Step 3B: Enter Email OTP */}
         {step === 'otp_verify' && (
           <Card className="shadow-card">
             <CardContent className="p-6 space-y-5">
@@ -505,20 +620,26 @@ function QRApproveContent() {
                 />
               </div>
 
-              <Button
-                onClick={handleVerifyOTPAndApprove}
-                disabled={otpCode.length !== 6 || otpLoading || approving}
-                className="w-full rounded-xl h-11"
-              >
-                {otpLoading || approving ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Verifying & Approving…
-                  </>
-                ) : (
-                  'Verify & Approve Login'
-                )}
-              </Button>
+              <div className="flex gap-2">
+                <Button onClick={() => setStep('auth_method')} variant="outline" className="rounded-xl h-11 text-xs">
+                  Back
+                </Button>
+
+                <Button
+                  onClick={handleVerifyOTPAndApprove}
+                  disabled={otpCode.length !== 6 || otpLoading || approving}
+                  className="flex-1 rounded-xl h-11"
+                >
+                  {otpLoading || approving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Verifying & Approving…
+                    </>
+                  ) : (
+                    'Verify & Approve Login'
+                  )}
+                </Button>
+              </div>
             </CardContent>
           </Card>
         )}

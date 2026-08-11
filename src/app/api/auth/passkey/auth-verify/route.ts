@@ -11,17 +11,18 @@ import { rateLimit } from '@/lib/rate-limit';
 import { db } from '@/lib/db';
 import { base64urlToUint8Array } from '@/lib/utils';
 import { getClientIp, errorResponse, successResponse, rateLimitedResponse } from '@/lib/auth-api';
-import { getDeviceDetails } from '@/lib/device';
+import { getDeviceDetails, type ClientHints } from '@/lib/device';
 
 /**
  * POST /api/auth/passkey/auth-verify
  *
- * Body: { userId, credential }
+ * Body: { userId, credential, clientHints? }
  *
  * Verifies a WebAuthn authentication response and records:
- *   - Authenticated session with auto-detected device details
+ *   - Authenticated session with device details
  *   - LoginHistory entry for Passkey WebAuthn login
- *   - TrustedDevice entry & RiskAssessment evaluation
+ *   - TrustedDevice entry keyed on persistent instanceId
+ *   - RiskAssessment evaluation
  */
 export async function POST(request: NextRequest) {
   let body: unknown;
@@ -31,9 +32,10 @@ export async function POST(request: NextRequest) {
     return errorResponse('Invalid request.', 400);
   }
 
-  const { userId, credential } = (body ?? {}) as {
+  const { userId, credential, clientHints } = (body ?? {}) as {
     userId?: string;
     credential?: AuthenticationResponseJSON;
+    clientHints?: ClientHints;
   };
   if (!userId || typeof userId !== 'string') {
     return errorResponse('User ID is required.', 400);
@@ -109,7 +111,7 @@ export async function POST(request: NextRequest) {
     });
 
     const userAgent = request.headers.get('user-agent');
-    const deviceDetails = getDeviceDetails(userAgent, ip);
+    const deviceDetails = getDeviceDetails(userAgent, ip, clientHints);
 
     // Create an authenticated session (24-hour expiry) with full device info
     const token = uuidv4();
@@ -121,6 +123,7 @@ export async function POST(request: NextRequest) {
         expiresAt,
         loginMethod: 'Passkey WebAuthn',
         isTrusted: true,
+        instanceId: deviceDetails.instanceId,
         deviceName: deviceDetails.deviceName,
         deviceType: deviceDetails.deviceType,
         browser: deviceDetails.browser,
@@ -128,7 +131,10 @@ export async function POST(request: NextRequest) {
         deviceFingerprint: deviceDetails.deviceFingerprint,
         ipAddress: ip,
         location: deviceDetails.location,
-        platform: deviceDetails.isMobile ? 'Mobile' : 'Win32',
+        screenResolution: deviceDetails.screenResolution,
+        timezone: deviceDetails.timezone,
+        language: deviceDetails.language,
+        platform: deviceDetails.platform,
         userAgent: userAgent || 'Mozilla/5.0',
       },
     });
@@ -136,13 +142,20 @@ export async function POST(request: NextRequest) {
     // Safely record LoginHistory, TrustedDevice, and RiskAssessment
     try {
       let trusted = await db.trustedDevice.findFirst({
-        where: { userId, deviceFingerprint: deviceDetails.deviceFingerprint },
+        where: { userId, instanceId: deviceDetails.instanceId },
       });
+
+      if (!trusted && deviceDetails.instanceId === deviceDetails.deviceFingerprint) {
+        trusted = await db.trustedDevice.findFirst({
+          where: { userId, deviceFingerprint: deviceDetails.deviceFingerprint },
+        });
+      }
 
       if (!trusted) {
         await db.trustedDevice.create({
           data: {
             userId,
+            instanceId: deviceDetails.instanceId,
             deviceName: deviceDetails.deviceName,
             browser: deviceDetails.browser,
             deviceFingerprint: deviceDetails.deviceFingerprint,
@@ -153,7 +166,12 @@ export async function POST(request: NextRequest) {
       } else {
         await db.trustedDevice.update({
           where: { id: trusted.id },
-          data: { lastActive: new Date(), location: deviceDetails.location },
+          data: {
+            lastActive: new Date(),
+            location: deviceDetails.location,
+            instanceId: deviceDetails.instanceId,
+            deviceName: deviceDetails.deviceName,
+          },
         });
       }
 
@@ -167,7 +185,7 @@ export async function POST(request: NextRequest) {
           riskLevel: 'Low',
           ipAddress: ip,
           location: deviceDetails.location,
-          deviceId: `dev_${deviceDetails.deviceFingerprint}`,
+          deviceId: deviceDetails.instanceId,
         },
       });
 

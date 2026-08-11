@@ -5,17 +5,30 @@ import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 import { db } from '@/lib/db';
 import { getClientIp, errorResponse, successResponse } from '@/lib/auth-api';
-import { getDeviceDetails } from '@/lib/device';
+import { getDeviceDetails, type ClientHints } from '@/lib/device';
 
 /**
  * POST /api/auth/session
- * Body: { userId, loginMethod?, isDemo? }
- * Creates a new active session with auto-detected device details and logs LoginHistory.
+ * Body: { userId, loginMethod?, isDemo?, clientHints? }
+ * Creates a new active session with device details and logs LoginHistory.
+ *
+ * Device identity uses the persistent deviceId (clientHints.deviceId) as the
+ * primary instanceId. TrustedDevice lookup/upsert is keyed on instanceId.
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { userId, loginMethod = 'Email OTP', isDemo = false } = body as { userId: string; loginMethod?: string; isDemo?: boolean };
+    const {
+      userId,
+      loginMethod = 'Email OTP',
+      isDemo = false,
+      clientHints,
+    } = body as {
+      userId: string;
+      loginMethod?: string;
+      isDemo?: boolean;
+      clientHints?: ClientHints;
+    };
 
     if (!userId) {
       return errorResponse('userId is required', 400);
@@ -31,27 +44,20 @@ export async function POST(request: NextRequest) {
 
     const ip = getClientIp(request);
     const userAgent = request.headers.get('user-agent');
-    const deviceDetails = getDeviceDetails(userAgent, ip);
+    const deviceDetails = getDeviceDetails(userAgent, ip, clientHints);
 
     const token = uuidv4();
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-    // Replace older sessions for the SAME device to prevent duplicate session records
-    await db.session.deleteMany({
-      where: {
-        userId,
-        OR: [
-          { deviceFingerprint: deviceDetails.deviceFingerprint },
-          { deviceName: deviceDetails.deviceName },
-        ],
-      },
-    }).catch(() => {});
-
+    // Create new session — do NOT delete other sessions here.
+    // Each session belongs to an individual device instance; deduplication
+    // must NOT be based on fingerprint/deviceName (that was the root bug).
     const session = await db.session.create({
       data: {
         userId,
         token,
         isDemo,
+        instanceId: deviceDetails.instanceId,
         deviceName: deviceDetails.deviceName,
         deviceType: deviceDetails.deviceType,
         browser: deviceDetails.browser,
@@ -62,10 +68,10 @@ export async function POST(request: NextRequest) {
         isTrusted: true,
         ipAddress: ip,
         location: deviceDetails.location,
-        screenResolution: '1920x1080',
-        timezone: 'Asia/Kolkata',
-        language: 'en-US',
-        platform: deviceDetails.isMobile ? 'Mobile' : 'Win32',
+        screenResolution: deviceDetails.screenResolution,
+        timezone: deviceDetails.timezone,
+        language: deviceDetails.language,
+        platform: deviceDetails.platform,
         userAgent: userAgent || 'Mozilla/5.0',
         networkType: 'Wi-Fi / 4G',
         lastActivity: new Date(),
@@ -75,15 +81,26 @@ export async function POST(request: NextRequest) {
     });
 
     // Audit logging: TrustedDevice & LoginHistory
+    // TrustedDevice lookup is keyed on instanceId (persistent device identity).
     try {
       let trusted = await db.trustedDevice.findFirst({
-        where: { userId, deviceFingerprint: deviceDetails.deviceFingerprint },
+        where: { userId, instanceId: deviceDetails.instanceId },
       });
+
+      if (!trusted) {
+        // Also check legacy records by fingerprint (backward compat)
+        if (deviceDetails.instanceId === deviceDetails.deviceFingerprint) {
+          trusted = await db.trustedDevice.findFirst({
+            where: { userId, deviceFingerprint: deviceDetails.deviceFingerprint },
+          });
+        }
+      }
 
       if (!trusted) {
         await db.trustedDevice.create({
           data: {
             userId,
+            instanceId: deviceDetails.instanceId,
             deviceName: deviceDetails.deviceName,
             browser: deviceDetails.browser,
             deviceFingerprint: deviceDetails.deviceFingerprint,
@@ -95,7 +112,12 @@ export async function POST(request: NextRequest) {
       } else {
         await db.trustedDevice.update({
           where: { id: trusted.id },
-          data: { lastActive: new Date(), location: deviceDetails.location },
+          data: {
+            lastActive: new Date(),
+            location: deviceDetails.location,
+            instanceId: deviceDetails.instanceId,
+            deviceName: deviceDetails.deviceName,
+          },
         });
       }
 
@@ -109,7 +131,7 @@ export async function POST(request: NextRequest) {
           riskLevel: 'Low',
           ipAddress: ip,
           location: deviceDetails.location,
-          deviceId: `dev_${deviceDetails.deviceFingerprint}`,
+          deviceId: deviceDetails.instanceId,
           isDemo,
         },
       });
@@ -208,7 +230,7 @@ export async function DELETE(request: NextRequest) {
           riskLevel: 'Low',
           ipAddress: ip,
           location: existingSession.location || 'Pune, Maharashtra, India',
-          deviceId: existingSession.deviceFingerprint || 'dev_logout',
+          deviceId: existingSession.instanceId || existingSession.deviceFingerprint || 'dev_logout',
           isDemo: existingSession.isDemo,
         },
       }).catch(() => {});

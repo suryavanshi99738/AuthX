@@ -62,6 +62,9 @@ function maskIp(ip?: string | null): string {
 
 /**
  * GET /api/auth/sessions?userId=...&currentToken=...
+ *
+ * Returns all real sessions for the user — one per row, NO deduplication.
+ * Each session belongs to an individual device instance.
  */
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -73,12 +76,12 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Lazy cleanup of expired sessions
+    // Lazy cleanup of expired sessions only
     await db.session.deleteMany({
       where: { expiresAt: { lt: new Date() } },
     }).catch(() => {});
 
-    const rawSessions = await db.session.findMany({
+    const sessions = await db.session.findMany({
       where: currentToken ? { OR: [{ userId }, { token: currentToken }] } : { userId },
       orderBy: { createdAt: 'desc' },
     });
@@ -87,44 +90,19 @@ export async function GET(request: NextRequest) {
       where: { userId },
     });
 
-    // Deduplicate sessions per physical device (keeping current session or latest session per deviceFingerprint)
-    const uniqueDeviceMap = new Map<string, typeof rawSessions[0]>();
-    const duplicateIdsToDelete: string[] = [];
-
-    for (const s of rawSessions) {
-      const isCurrent = Boolean(currentToken && s.token === currentToken);
-      const key = s.deviceFingerprint || s.deviceName || 'default_device';
-
-      if (!uniqueDeviceMap.has(key)) {
-        uniqueDeviceMap.set(key, s);
-      } else {
-        const existing = uniqueDeviceMap.get(key)!;
-        if (isCurrent && existing.token !== s.token) {
-          duplicateIdsToDelete.push(existing.id);
-          uniqueDeviceMap.set(key, s);
-        } else if (existing.token !== s.token) {
-          duplicateIdsToDelete.push(s.id);
-        }
-      }
-    }
-
-    if (duplicateIdsToDelete.length > 0) {
-      await db.session.deleteMany({
-        where: { id: { in: duplicateIdsToDelete } },
-      }).catch(() => {});
-    }
-
-    const uniqueSessions = Array.from(uniqueDeviceMap.values());
-
     let activeCount = 0;
-    const mappedSessions = uniqueSessions.map((s) => {
+    const mappedSessions = sessions.map((s) => {
       const isCurrent = Boolean(currentToken && s.token === currentToken);
       const computedStatus = calculateSessionStatus(s.status, s.expiresAt, s.lastActivity);
       if (computedStatus === 'active' || computedStatus === 'idle') {
         activeCount++;
       }
 
-      const isTrusted = s.isTrusted ?? trustedDevs.some((d) => d.deviceName === s.deviceName);
+      // Trust: check by instanceId first, then deviceName as fallback
+      const isTrusted = s.isTrusted ?? trustedDevs.some(
+        (d) => (d.instanceId && d.instanceId === (s as { instanceId?: string | null }).instanceId) ||
+                d.deviceName === s.deviceName
+      );
       const authStrength = calculateAuthStrength(s.loginMethod, isTrusted);
       const durationStr = calculateSessionDuration(s.createdAt);
 
@@ -132,11 +110,12 @@ export async function GET(request: NextRequest) {
         id: s.id,
         token: s.token,
         userId: s.userId,
-        deviceName: s.deviceName || 'Windows 11 Laptop',
+        instanceId: (s as { instanceId?: string | null }).instanceId || s.deviceFingerprint || '',
+        deviceName: s.deviceName || 'Your Device',
         deviceType: s.deviceType || 'Laptop',
-        browser: s.browser || 'Chrome 124',
-        os: s.os || 'Windows 11',
-        deviceFingerprint: s.deviceFingerprint || 'dev_fp_windows_laptop',
+        browser: s.browser || 'Browser',
+        os: s.os || 'Unknown OS',
+        deviceFingerprint: s.deviceFingerprint || 'fp_unknown',
         loginMethod: s.loginMethod || 'Email OTP',
         status: computedStatus,
         isTrusted,
@@ -144,11 +123,11 @@ export async function GET(request: NextRequest) {
         ipAddress: s.ipAddress || '10.17.87.25',
         maskedIp: maskIp(s.ipAddress),
         location: s.location || 'Pune, Maharashtra, India',
-        screenResolution: s.screenResolution || '1920x1080',
-        timezone: s.timezone || 'Asia/Kolkata',
-        language: s.language || 'en-US',
-        platform: s.platform || 'Win32',
-        userAgent: s.userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+        screenResolution: s.screenResolution || '',
+        timezone: s.timezone || '',
+        language: s.language || '',
+        platform: s.platform || '',
+        userAgent: s.userAgent || '',
         networkType: s.networkType || 'Wi-Fi / 4G',
         loginTime: s.createdAt.toISOString(),
         lastActivity: s.lastActivity.toISOString(),
@@ -165,7 +144,7 @@ export async function GET(request: NextRequest) {
     const summary = {
       activeSessionsCount: activeCount,
       totalSessionsCount: mappedSessions.length,
-      currentDeviceName: currentSession?.deviceName || 'Windows 11 Laptop',
+      currentDeviceName: currentSession?.deviceName || 'Your Device',
       lastLoginTime: mappedSessions[0]?.loginTime || new Date().toISOString(),
     };
 
@@ -197,7 +176,8 @@ export async function DELETE(request: NextRequest) {
 
   try {
     if (action === 'revoke_others') {
-      // Revoke all sessions for this user EXCEPT current token
+      // Revoke all sessions for this user EXCEPT the current session token.
+      // This correctly handles: 2 Windows laptops → only the one with currentToken survives.
       let revokedCount = 0;
       if (currentToken) {
         const deleted = await db.session.deleteMany({
@@ -262,7 +242,7 @@ export async function DELETE(request: NextRequest) {
         riskLevel: 'Medium',
         ipAddress: targetSession.ipAddress || ip,
         location: targetSession.location || 'Pune, Maharashtra, India',
-        deviceId: targetSession.deviceFingerprint || 'dev_revoked',
+        deviceId: (targetSession as { instanceId?: string | null }).instanceId || targetSession.deviceFingerprint || 'dev_revoked',
       },
     });
 

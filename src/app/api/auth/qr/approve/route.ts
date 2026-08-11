@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { db } from '@/lib/db';
 import { rateLimit } from '@/lib/rate-limit';
 import { getClientIp, errorResponse, successResponse, rateLimitedResponse } from '@/lib/auth-api';
+import { getDeviceDetails } from '@/lib/device';
 
 /**
  * POST /api/auth/qr/approve
@@ -66,24 +67,35 @@ export async function POST(request: NextRequest) {
         data: { status: 'rejected' },
       });
 
-      // Audit log
+      // Audit log — use qrReq.deviceInfo for the desktop device
+      const desktopDevice = qrReq.deviceInfo || 'Desktop Browser';
       await db.loginHistory.create({
         data: {
           userId: user.id,
           method: 'QR Login (Mobile Approval)',
-          device: qrReq.deviceInfo || 'Windows Laptop',
-          browser: 'Chrome / Edge',
+          device: desktopDevice,
+          browser: 'Browser',
           status: 'rejected',
-          ipAddress: ip,
+          ipAddress: qrReq.ipAddress || ip,
         },
       });
 
       return successResponse({ status: 'rejected' });
     }
 
-    // On Approve: Create Desktop session
+    // On Approve: detect device details from the approving mobile device
+    const userAgent = request.headers.get('user-agent');
+    // QR desktop session: use qrReq.deviceInfo as device context (no client-side deviceId available for the scanned desktop)
+    const desktopDeviceDetails = getDeviceDetails(
+      null, // desktop UA not available here; use qrReq deviceInfo as name
+      qrReq.ipAddress || ip
+    );
+
     const sessionToken = uuidv4();
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    // The QR desktop session: best device info we have is from qrReq.deviceInfo
+    const desktopDeviceName = qrReq.deviceInfo || 'Your Desktop Browser';
 
     await db.session.create({
       data: {
@@ -92,6 +104,14 @@ export async function POST(request: NextRequest) {
         expiresAt,
         loginMethod: 'QR Login',
         isTrusted: true,
+        instanceId: desktopDeviceDetails.deviceFingerprint,  // fingerprint-based for QR (no persistent ID available)
+        deviceName: desktopDeviceName,
+        deviceType: 'Laptop',
+        browser: desktopDeviceDetails.browser || 'Browser',
+        os: desktopDeviceDetails.os || 'Unknown OS',
+        deviceFingerprint: desktopDeviceDetails.deviceFingerprint,
+        ipAddress: qrReq.ipAddress || ip,
+        location: desktopDeviceDetails.location,
       },
     });
 
@@ -105,20 +125,18 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Audit log for Desktop QR login
-    const locationStr = 'Pune, Maharashtra, India';
-
+    // Audit log: associate with desktop device info from QR request
     await db.loginHistory.create({
       data: {
         userId: user.id,
         method: 'QR Login (Desktop)',
-        device: qrReq.deviceInfo || 'Windows Laptop',
-        browser: 'Chrome',
+        device: desktopDeviceName,
+        browser: desktopDeviceDetails.browser || 'Browser',
         status: 'success',
         riskLevel: 'Low',
         ipAddress: qrReq.ipAddress || ip,
-        location: locationStr,
-        deviceId: 'dev_fp_windows_laptop',
+        location: desktopDeviceDetails.location,
+        deviceId: desktopDeviceDetails.deviceFingerprint,
       },
     });
 

@@ -29,6 +29,7 @@ model User {
   qrRequests      QRLoginRequest[]
   riskAssessments RiskAssessment[]
   settings        UserSettings?
+  authenticator   AuthenticatorCredential?
 }
 
 model Session {
@@ -36,20 +37,22 @@ model Session {
   userId            String
   token             String   @unique
   isDemo            Boolean  @default(false)
-  deviceName        String?  @default("Windows 11 Laptop")
+  /// Persistent client-generated device instance ID (PRIMARY device identity)
+  instanceId        String?  @default("")
+  deviceName        String?  @default("Your Device")
   deviceType        String?  @default("Laptop")
-  browser           String?  @default("Chrome 124")
-  os                String?  @default("Windows 11")
-  deviceFingerprint String?  @default("dev_fp_windows_laptop")
+  browser           String?  @default("Browser")
+  os                String?  @default("Unknown OS")
+  deviceFingerprint String?  @default("fp_unknown")
   loginMethod       String?  @default("Email OTP")
   status            String   @default("active") // active, idle, expired, revoked
   isTrusted         Boolean  @default(true)
   ipAddress         String?  @default("10.17.87.25")
   location          String?  @default("Pune, Maharashtra, India")
-  screenResolution  String?  @default("1920x1080")
-  timezone          String?  @default("Asia/Kolkata")
-  language          String?  @default("en-US")
-  platform          String?  @default("Win32")
+  screenResolution  String?  @default("")
+  timezone          String?  @default("")
+  language          String?  @default("")
+  platform          String?  @default("")
   userAgent         String?
   networkType       String?  @default("Wi-Fi / 4G")
   lastActivity      DateTime @default(now())
@@ -114,8 +117,10 @@ model QRLoginRequest {
 model TrustedDevice {
   id                String   @id @default(cuid())
   userId            String
-  deviceName        String   // e.g. iPhone 15, Windows PC
-  browser           String?  // e.g. Safari 17.0, Chrome 124
+  /// Persistent client-generated device instance ID (PRIMARY device identity)
+  instanceId        String?  @default("")
+  deviceName        String   // e.g. Your MacBook, Your Android Phone
+  browser           String?  // e.g. Safari 17, Chrome 124
   deviceFingerprint String
   location          String?  @default("Local Network")
   status            String   @default("trusted") // trusted, pending_verification, revoked
@@ -126,6 +131,7 @@ model TrustedDevice {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([userId, instanceId])
 }
 
 /// Audit trail of user login events
@@ -214,6 +220,19 @@ model UserSettings {
   passkeysDisabled Boolean  @default(false)
   requireOTPOnly   Boolean  @default(false)
   updatedAt        DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// Time-based One-Time Password (TOTP) credentials for Google Authenticator and compatible apps
+model AuthenticatorCredential {
+  id              String    @id @default(cuid())
+  userId          String    @unique
+  encryptedSecret String
+  enabled         Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  lastUsedAt      DateTime?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

@@ -18,30 +18,15 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const rawDevices = await db.trustedDevice.findMany({
+    // Fetch all TrustedDevice records for this user — each row is one device instance.
+    // Do NOT deduplicate by fingerprint: that was the root of the bug.
+    // Each row has its own instanceId (persistent deviceId) that differentiates devices.
+    const devices = await db.trustedDevice.findMany({
       where: { userId },
       orderBy: { lastActive: 'desc' },
     });
 
-    const uniqueMap = new Map<string, typeof rawDevices[0]>();
-    const dupIds: string[] = [];
-
-    for (const d of rawDevices) {
-      const key = d.deviceFingerprint || d.deviceName;
-      if (!uniqueMap.has(key)) {
-        uniqueMap.set(key, d);
-      } else {
-        dupIds.push(d.id);
-      }
-    }
-
-    if (dupIds.length > 0) {
-      await db.trustedDevice.deleteMany({
-        where: { id: { in: dupIds } },
-      }).catch(() => {});
-    }
-
-    return successResponse({ devices: Array.from(uniqueMap.values()) });
+    return successResponse({ devices });
   } catch (err) {
     console.error('Get Devices Error:', err);
     return errorResponse('Failed to fetch devices.', 500);

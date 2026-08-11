@@ -6,14 +6,14 @@ import { db } from '@/lib/db';
 import { rateLimit } from '@/lib/rate-limit';
 import { verifyOtpHash } from '@/lib/otp';
 import { getClientIp, errorResponse, successResponse, rateLimitedResponse } from '@/lib/auth-api';
-import { getDeviceDetails } from '@/lib/device';
+import { getDeviceDetails, type ClientHints } from '@/lib/device';
 
 const MAX_ATTEMPTS = 3;
 
 /**
  * POST /api/auth/otp/verify
  *
- * Body: { email, code }
+ * Body: { email, code, clientHints? }
  * Verifies the 6-digit login OTP against the latest unverified, non-expired record.
  */
 export async function POST(request: NextRequest) {
@@ -24,7 +24,11 @@ export async function POST(request: NextRequest) {
     return errorResponse('Invalid request.', 400);
   }
 
-  const { email, code } = (body ?? {}) as { email?: string; code?: string };
+  const { email, code, clientHints } = (body ?? {}) as {
+    email?: string;
+    code?: string;
+    clientHints?: ClientHints;
+  };
   if (!email || typeof email !== 'string') {
     return errorResponse('Email is required.', 400);
   }
@@ -82,20 +86,29 @@ export async function POST(request: NextRequest) {
     // Safely perform trust and history logging (isolated catch so audit logging never breaks auth)
     try {
       const userAgent = request.headers.get('user-agent');
-      const { deviceName, browser, deviceFingerprint, location } = getDeviceDetails(userAgent, ip);
+      const deviceDetails = getDeviceDetails(userAgent, ip, clientHints);
 
+      // TrustedDevice lookup keyed on persistent instanceId
       let trusted = await db.trustedDevice.findFirst({
-        where: { userId: user.id, deviceFingerprint },
+        where: { userId: user.id, instanceId: deviceDetails.instanceId },
       });
+
+      if (!trusted && deviceDetails.instanceId === deviceDetails.deviceFingerprint) {
+        // Backward compat: legacy records without instanceId
+        trusted = await db.trustedDevice.findFirst({
+          where: { userId: user.id, deviceFingerprint: deviceDetails.deviceFingerprint },
+        });
+      }
 
       if (!trusted) {
         await db.trustedDevice.create({
           data: {
             userId: user.id,
-            deviceName,
-            browser,
-            deviceFingerprint,
-            location,
+            instanceId: deviceDetails.instanceId,
+            deviceName: deviceDetails.deviceName,
+            browser: deviceDetails.browser,
+            deviceFingerprint: deviceDetails.deviceFingerprint,
+            location: deviceDetails.location,
             status: 'trusted',
             isDemo: otp.isDemo,
           },
@@ -103,7 +116,12 @@ export async function POST(request: NextRequest) {
       } else {
         await db.trustedDevice.update({
           where: { id: trusted.id },
-          data: { lastActive: new Date(), location },
+          data: {
+            lastActive: new Date(),
+            location: deviceDetails.location,
+            instanceId: deviceDetails.instanceId,
+            deviceName: deviceDetails.deviceName,
+          },
         });
       }
 
@@ -111,13 +129,13 @@ export async function POST(request: NextRequest) {
         data: {
           userId: user.id,
           method: 'Email OTP',
-          device: deviceName,
-          browser,
+          device: deviceDetails.deviceName,
+          browser: deviceDetails.browser,
           status: 'success',
           riskLevel: 'Low',
           ipAddress: ip,
-          location,
-          deviceId: `dev_${deviceFingerprint}`,
+          location: deviceDetails.location,
+          deviceId: deviceDetails.instanceId,
           isDemo: otp.isDemo,
         },
       });

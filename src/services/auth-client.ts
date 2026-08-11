@@ -2,6 +2,7 @@
 
 import { startRegistration, startAuthentication } from '@simplewebauthn/browser';
 import type { RegistrationResponseJSON, AuthenticationResponseJSON } from '@simplewebauthn/browser';
+import { getClientHints } from '@/lib/device-id';
 
 /* ── Types ── */
 interface ApiResult {
@@ -22,11 +23,16 @@ interface SessionResult {
 }
 
 /* ── Helper ── */
-async function apiCall(url: string, options?: RequestInit): Promise<ApiResult> {
+async function apiCall(url: string, options?: RequestInit, retries = 1): Promise<ApiResult> {
+  const mergedHeaders = {
+    'Content-Type': 'application/json',
+    ...(options?.headers || {}),
+  };
+
   try {
     const res = await fetch(url, {
-      headers: { 'Content-Type': 'application/json' },
       ...options,
+      headers: mergedHeaders,
     });
 
     let data: Record<string, unknown> = {};
@@ -46,10 +52,14 @@ async function apiCall(url: string, options?: RequestInit): Promise<ApiResult> {
 
     return data as unknown as ApiResult;
   } catch (error) {
-    console.error(`API call failed: ${url}`, error);
+    if (retries > 0) {
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      return apiCall(url, options, retries - 1);
+    }
+    console.warn(`API call failed: ${url}`, error);
     return {
       success: false,
-      error: error instanceof Error && error.message ? error.message : 'Network error. Please check your connection.',
+      error: error instanceof Error && error.message ? error.message : 'Network connection issue. Please try again.',
     };
   }
 }
@@ -93,7 +103,7 @@ export async function verifyPasskeyAuth(
 ): Promise<ApiResult & { session?: SessionResult }> {
   return apiCall('/api/auth/passkey/auth-verify', {
     method: 'POST',
-    body: JSON.stringify({ userId, credential }),
+    body: JSON.stringify({ userId, credential, clientHints: getClientHints() }),
   });
 }
 
@@ -107,7 +117,39 @@ export async function generateOTP(email: string, isDemo = false): Promise<ApiRes
 export async function verifyOTP(email: string, code: string): Promise<ApiResult & { userId?: string; isDemo?: boolean }> {
   return apiCall('/api/auth/otp/verify', {
     method: 'POST',
-    body: JSON.stringify({ email, code }),
+    body: JSON.stringify({ email, code, clientHints: getClientHints() }),
+  });
+}
+
+/* ── Authenticator App (TOTP) APIs ── */
+
+export async function setupAuthenticator(userId: string): Promise<ApiResult & { secret?: string; otpauthUri?: string; issuer?: string; accountEmail?: string }> {
+  return apiCall('/api/authenticator/setup', {
+    method: 'POST',
+    body: JSON.stringify({ userId }),
+  });
+}
+
+export async function verifyAuthenticator(
+  token: string,
+  userId?: string,
+  email?: string,
+  isSetup = false
+): Promise<ApiResult & { verified?: boolean; userId?: string }> {
+  return apiCall('/api/authenticator/verify', {
+    method: 'POST',
+    body: JSON.stringify({ token, userId, email, isSetup }),
+  });
+}
+
+export async function getAuthenticatorStatus(userId: string): Promise<ApiResult & { enabled?: boolean; configuredAt?: string | null; lastUsedAt?: string | null }> {
+  return apiCall(`/api/authenticator/status?userId=${encodeURIComponent(userId)}`);
+}
+
+export async function disableAuthenticator(userId: string): Promise<ApiResult & { disabled?: boolean }> {
+  return apiCall('/api/authenticator/disable', {
+    method: 'POST',
+    body: JSON.stringify({ userId }),
   });
 }
 
@@ -116,6 +158,7 @@ export async function verifyOTP(email: string, code: string): Promise<ApiResult 
 export interface UserMethods {
   otp: boolean;
   passkey: boolean;
+  authenticator?: boolean;
   biometric: boolean;
   qr: boolean;
 }
@@ -146,14 +189,14 @@ export async function signupResend(email: string): Promise<ApiResult & { expires
 export async function signupVerify(email: string, code: string): Promise<ApiResult & { user?: UserResult; session?: SessionResult }> {
   return apiCall('/api/auth/signup/verify', {
     method: 'POST',
-    body: JSON.stringify({ email, code }),
+    body: JSON.stringify({ email, code, clientHints: getClientHints() }),
   });
 }
 
 export async function createSession(userId: string, loginMethod = 'Email OTP', isDemo = false): Promise<ApiResult & { session?: SessionResult }> {
   return apiCall('/api/auth/session', {
     method: 'POST',
-    body: JSON.stringify({ userId, loginMethod, isDemo }),
+    body: JSON.stringify({ userId, loginMethod, isDemo, clientHints: getClientHints() }),
   });
 }
 
@@ -284,7 +327,7 @@ export async function passkeySignupVerify(
 ): Promise<ApiResult & { user?: UserResult; session?: SessionResult }> {
   return apiCall('/api/auth/passkey/signup/verify', {
     method: 'POST',
-    body: JSON.stringify({ prospectiveUserId, credential }),
+    body: JSON.stringify({ prospectiveUserId, credential, clientHints: getClientHints() }),
   });
 }
 
@@ -389,9 +432,10 @@ export async function getRiskAssessment(userId: string): Promise<ApiResult & { c
 }
 
 export async function evaluateRisk(userId: string, ipAddress?: string, userAgent?: string): Promise<ApiResult> {
+  const hints = getClientHints();
   return apiCall('/api/auth/risk', {
     method: 'POST',
-    body: JSON.stringify({ userId, ipAddress, userAgent }),
+    body: JSON.stringify({ userId, ipAddress, userAgent, deviceId: hints.deviceId }),
   });
 }
 

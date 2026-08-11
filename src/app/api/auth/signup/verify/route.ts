@@ -8,7 +8,7 @@ import { rateLimit } from '@/lib/rate-limit';
 import { verifyOtpHash } from '@/lib/otp';
 import { signupVerifySchema } from '@/lib/signup-schema';
 import { getClientIp, errorResponse, successResponse, rateLimitedResponse } from '@/lib/auth-api';
-import { getDeviceDetails } from '@/lib/device';
+import { getDeviceDetails, type ClientHints } from '@/lib/device';
 
 const MAX_ATTEMPTS = 3;
 const SESSION_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -16,7 +16,7 @@ const SESSION_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 /**
  * POST /api/auth/signup/verify
  *
- * Body: { email, code }
+ * Body: { email, code, clientHints? }
  *
  * Verifies the 6-digit OTP against the latest pending SignupVerification for
  * the email. On success:
@@ -38,6 +38,7 @@ export async function POST(request: NextRequest) {
     return errorResponse(parsed.error.issues[0]?.message ?? 'Invalid input.', 400);
   }
   const { email, code } = parsed.data;
+  const clientHints = (body as { clientHints?: ClientHints })?.clientHints;
 
   // Rate limit verify attempts
   const ip = getClientIp(request);
@@ -102,7 +103,7 @@ export async function POST(request: NextRequest) {
     });
 
     const userAgent = request.headers.get('user-agent');
-    const deviceDetails = getDeviceDetails(userAgent, ip);
+    const deviceDetails = getDeviceDetails(userAgent, ip, clientHints);
 
     // Create a login session with device details
     const token = uuidv4();
@@ -114,6 +115,7 @@ export async function POST(request: NextRequest) {
         expiresAt,
         loginMethod: 'Email OTP',
         isTrusted: true,
+        instanceId: deviceDetails.instanceId,
         deviceName: deviceDetails.deviceName,
         deviceType: deviceDetails.deviceType,
         browser: deviceDetails.browser,
@@ -121,7 +123,10 @@ export async function POST(request: NextRequest) {
         deviceFingerprint: deviceDetails.deviceFingerprint,
         ipAddress: ip,
         location: deviceDetails.location,
-        platform: deviceDetails.isMobile ? 'Mobile' : 'Win32',
+        screenResolution: deviceDetails.screenResolution,
+        timezone: deviceDetails.timezone,
+        language: deviceDetails.language,
+        platform: deviceDetails.platform,
         userAgent: userAgent || 'Mozilla/5.0',
       },
     });
@@ -131,6 +136,7 @@ export async function POST(request: NextRequest) {
       await db.trustedDevice.create({
         data: {
           userId: newUser.id,
+          instanceId: deviceDetails.instanceId,
           deviceName: deviceDetails.deviceName,
           browser: deviceDetails.browser,
           deviceFingerprint: deviceDetails.deviceFingerprint,
@@ -149,7 +155,7 @@ export async function POST(request: NextRequest) {
           riskLevel: 'Low',
           ipAddress: ip,
           location: deviceDetails.location,
-          deviceId: `dev_${deviceDetails.deviceFingerprint}`,
+          deviceId: deviceDetails.instanceId,
         },
       });
 

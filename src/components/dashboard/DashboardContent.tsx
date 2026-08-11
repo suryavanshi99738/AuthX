@@ -52,7 +52,11 @@ import {
   LogOut,
   Laptop2,
   Tv,
+  Copy,
+  ExternalLink,
+  ArrowRight,
 } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -73,6 +77,10 @@ import {
   revokeSession,
   revokeAllOtherSessions,
   updateSessionActivity,
+  setupAuthenticator,
+  verifyAuthenticator,
+  getAuthenticatorStatus,
+  disableAuthenticator,
   SessionItem,
 } from '@/services/auth-client';
 import { MobileQRScannerModal } from '@/components/auth/MobileQRScannerModal';
@@ -157,6 +165,19 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
   const [userSettingsState, setUserSettingsState] = useState<{ theme: string; deviceLimit: number; sessionTimeout: number; qrExpiry: number; securityAlerts: boolean; loginAlerts: boolean; qrDisabled: boolean; passkeysDisabled: boolean; requireOTPOnly: boolean } | null>(null);
   const [deviceLimitMsg, setDeviceLimitMsg] = useState<string | null>(null);
 
+  // Authenticator App (TOTP) States
+  const [authenticatorStatus, setAuthenticatorStatus] = useState<{ enabled: boolean; configuredAt?: string | null; lastUsedAt?: string | null } | null>(null);
+  const [totpModalOpen, setTotpModalOpen] = useState(false);
+  const [totpStep, setTotpStep] = useState<'scan' | 'verify' | 'success'>('scan');
+  const [totpSecret, setTotpSecret] = useState('');
+  const [totpUri, setTotpUri] = useState('');
+  const [totpCodeInput, setTotpCodeInput] = useState('');
+  const [totpLoading, setTotpLoading] = useState(false);
+  const [totpError, setTotpError] = useState('');
+  const [showManualKey, setShowManualKey] = useState(false);
+  const [copiedKey, setCopiedKey] = useState(false);
+  const [disablingTotp, setDisablingTotp] = useState(false);
+
   // Session Management States
   const [sessionSummary, setSessionSummary] = useState<{ activeSessionsCount: number; totalSessionsCount: number; currentDeviceName: string; lastLoginTime: string } | null>(null);
   const [sessionsList, setSessionsList] = useState<SessionItem[]>([]);
@@ -203,7 +224,11 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
       getSecurityAnalytics(user.id),
       getUserSettings(user.id),
       getActiveSessions(user.id, sessionToken || undefined),
-    ]).then(([devRes, histRes, riskRes, analyticsRes, settingsRes, sessionRes]) => {
+      getAuthenticatorStatus(user.id),
+    ]).then(([devRes, histRes, riskRes, analyticsRes, settingsRes, sessionRes, authStatusRes]) => {
+      if (authStatusRes?.success) {
+        setAuthenticatorStatus(authStatusRes);
+      }
       if (devRes.success && devRes.devices) setTrustedDevices(devRes.devices);
       if (histRes.success && histRes.history) {
         setHistory(histRes.history);
@@ -316,6 +341,79 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
     } finally {
       setRevokingOthers(false);
     }
+  };
+
+  // Authenticator TOTP Handlers
+  const handleStartTotpSetup = async () => {
+    if (!user?.id) return;
+    setTotpLoading(true);
+    setTotpError('');
+    try {
+      const res = await setupAuthenticator(user.id);
+      if (res.success && res.secret && res.otpauthUri) {
+        setTotpSecret(res.secret);
+        setTotpUri(res.otpauthUri);
+        setTotpStep('scan');
+        setTotpCodeInput('');
+        setShowManualKey(false);
+        setTotpModalOpen(true);
+      } else {
+        setTotpError(res.error || 'Failed to start Authenticator setup.');
+      }
+    } catch {
+      setTotpError('Failed to start Authenticator setup.');
+    } finally {
+      setTotpLoading(false);
+    }
+  };
+
+  const handleVerifyTotpSetup = async () => {
+    if (!user?.id) return;
+    setTotpError('');
+    if (!/^\d{6}$/.test(totpCodeInput.trim())) {
+      setTotpError('Please enter a valid 6-digit code from your authenticator app.');
+      return;
+    }
+    setTotpLoading(true);
+    try {
+      const res = await verifyAuthenticator(totpCodeInput.trim(), user.id, undefined, true);
+      if (res.success && res.verified) {
+        setTotpStep('success');
+        setAuthenticatorStatus({
+          enabled: true,
+          configuredAt: new Date().toISOString(),
+          lastUsedAt: new Date().toISOString(),
+        });
+      } else {
+        setTotpError(res.error || 'Invalid 6-digit authenticator code. Please try again.');
+      }
+    } catch {
+      setTotpError('Verification failed.');
+    } finally {
+      setTotpLoading(false);
+    }
+  };
+
+  const handleDisableTotp = async () => {
+    if (!user?.id) return;
+    setDisablingTotp(true);
+    try {
+      const res = await disableAuthenticator(user.id);
+      if (res.success) {
+        setAuthenticatorStatus({ enabled: false, configuredAt: null, lastUsedAt: null });
+      }
+    } catch {
+      // ignore
+    } finally {
+      setDisablingTotp(false);
+    }
+  };
+
+  const copySecretKey = () => {
+    if (!totpSecret) return;
+    navigator.clipboard.writeText(totpSecret);
+    setCopiedKey(true);
+    setTimeout(() => setCopiedKey(false), 2000);
   };
 
   const handleUpdateSetting = async (key: string, value: unknown) => {
@@ -1768,6 +1866,91 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
                           ))}
                         </select>
                       </div>
+
+                      {/* ── AUTHENTICATOR APP (TOTP) POLICY CARD ── */}
+                      <div className="border-t border-border pt-5 space-y-4">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-success/10 flex items-center justify-center border border-success/20">
+                              <ShieldCheck className="w-5 h-5 text-success" />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <p className="font-semibold text-foreground text-sm">Authenticator App (TOTP)</p>
+                                <Badge variant="secondary" className="bg-success/10 text-success border-success/20 text-[10px]">
+                                  Recommended
+                                </Badge>
+                              </div>
+                              <p className="text-muted-foreground text-xs mt-0.5">
+                                Use 6-digit verification codes from Google Authenticator, Microsoft Authenticator, Authy, 1Password, etc.
+                              </p>
+                            </div>
+                          </div>
+
+                          {authenticatorStatus?.enabled ? (
+                            <Badge variant="secondary" className="bg-success/10 text-success border-success/30 px-2.5 py-0.5 text-xs">
+                              ✓ Enabled
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-muted-foreground text-xs">
+                              Not Configured
+                            </Badge>
+                          )}
+                        </div>
+
+                        {authenticatorStatus?.enabled ? (
+                          <div className="p-4 rounded-xl bg-success/5 border border-success/20 space-y-3">
+                            <div className="flex items-center justify-between text-xs">
+                              <div>
+                                <p className="font-semibold text-foreground flex items-center gap-1.5">
+                                  <CheckCircle2 className="w-4 h-4 text-success" />
+                                  Authenticator App Protection Active
+                                </p>
+                                <p className="text-muted-foreground text-[11px] mt-0.5">
+                                  Configured: {authenticatorStatus.configuredAt ? new Date(authenticatorStatus.configuredAt).toLocaleDateString() : 'Active'}
+                                  {authenticatorStatus.lastUsedAt ? ` · Last used: ${new Date(authenticatorStatus.lastUsedAt).toLocaleDateString()}` : ''}
+                                </p>
+                              </div>
+                              <Button
+                                onClick={handleDisableTotp}
+                                disabled={disablingTotp}
+                                variant="outline"
+                                size="sm"
+                                className="h-8 rounded-lg text-danger hover:text-danger hover:bg-danger/10 text-xs"
+                              >
+                                {disablingTotp ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Disable Authenticator'}
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            <div className="p-4 rounded-xl bg-muted/40 border border-border/60 flex items-center justify-between">
+                              <div className="space-y-0.5">
+                                <p className="font-semibold text-foreground text-xs">Add 2FA Authenticator Protection</p>
+                                <p className="text-muted-foreground text-[11px]">
+                                  Add an extra layer of protection with an authenticator app.
+                                </p>
+                              </div>
+                              <Button
+                                onClick={handleStartTotpSetup}
+                                disabled={totpLoading}
+                                className="rounded-xl h-9 px-4 text-xs font-semibold"
+                              >
+                                {totpLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> : null}
+                                Set Up Authenticator
+                              </Button>
+                            </div>
+                            {totpError && !totpModalOpen && (
+                              <p className="text-xs text-danger font-medium">{totpError}</p>
+                            )}
+                          </div>
+                        )}
+
+                        <div className="p-3 rounded-xl bg-primary/5 border border-primary/20 text-[11px] text-muted-foreground flex items-center gap-2">
+                          <Info className="w-4 h-4 text-primary shrink-0" />
+                          <span>If you lose access to your authenticator app, use your <strong>Recovery Kit</strong> to regain access.</span>
+                        </div>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -2088,6 +2271,162 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
                   {lockdownProcessing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Confirm Action'}
                 </Button>
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* AUTHENTICATOR TOTP SETUP MODAL DIALOG */}
+      <AnimatePresence>
+        {totpModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-md bg-card border border-border rounded-2xl p-6 shadow-2xl space-y-5"
+            >
+              <div className="flex items-center justify-between border-b border-border pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20">
+                    <ShieldCheck className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="font-heading text-base font-bold text-foreground">Set Up Authenticator App</h3>
+                    <p className="text-[11px] text-muted-foreground">Google Authenticator, Authy, Microsoft, 1Password, etc.</p>
+                  </div>
+                </div>
+                <Button
+                  onClick={() => setTotpModalOpen(false)}
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 rounded-full"
+                >
+                  ✕
+                </Button>
+              </div>
+
+              {totpStep === 'scan' && (
+                <div className="space-y-4 text-center">
+                  <div className="space-y-1">
+                    <Badge variant="outline" className="text-primary text-[10px]">Step 1 of 2</Badge>
+                    <h4 className="font-heading text-sm font-bold text-foreground">Scan QR Code</h4>
+                    <p className="text-xs text-muted-foreground">
+                      Open your authenticator app and scan this QR code.
+                    </p>
+                  </div>
+
+                  {/* Authenticator Setup QR Code */}
+                  <div className="p-4 bg-white rounded-2xl inline-block mx-auto shadow-sm border border-border">
+                    {totpUri ? (
+                      <QRCodeSVG value={totpUri} size={180} level="M" />
+                    ) : (
+                      <Loader2 className="w-10 h-10 text-primary animate-spin" />
+                    )}
+                  </div>
+
+                  {/* Manual Key Fallback */}
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => setShowManualKey(!showManualKey)}
+                      className="text-xs text-primary hover:underline font-medium"
+                    >
+                      {showManualKey ? 'Hide manual key' : "Can't scan? Enter setup key manually"}
+                    </button>
+
+                    {showManualKey && (
+                      <div className="mt-3 p-3 rounded-xl bg-muted/60 border border-border text-left space-y-1.5">
+                        <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider block">Secret Setup Key</span>
+                        <div className="flex items-center justify-between gap-2 bg-background p-2 rounded-lg border border-border font-mono text-xs text-foreground">
+                          <span className="break-all font-bold tracking-wider">{totpSecret}</span>
+                          <Button
+                            onClick={copySecretKey}
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-xs shrink-0"
+                          >
+                            {copiedKey ? <Check className="w-3.5 h-3.5 text-success" /> : <Copy className="w-3.5 h-3.5" />}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <Button
+                    onClick={() => setTotpStep('verify')}
+                    className="w-full rounded-xl h-11 text-xs font-semibold"
+                  >
+                    Next: Enter Code
+                    <ArrowRight className="w-4 h-4 ml-1.5" />
+                  </Button>
+                </div>
+              )}
+
+              {totpStep === 'verify' && (
+                <div className="space-y-4">
+                  <div className="space-y-1 text-center">
+                    <Badge variant="outline" className="text-primary text-[10px]">Step 2 of 2</Badge>
+                    <h4 className="font-heading text-sm font-bold text-foreground">Verify Authenticator Code</h4>
+                    <p className="text-xs text-muted-foreground">
+                      Enter the current 6-digit code displayed in your authenticator app to finalize setup.
+                    </p>
+                  </div>
+
+                  {totpError && (
+                    <p className="text-xs text-danger text-center" role="alert">{totpError}</p>
+                  )}
+
+                  <div className="space-y-2">
+                    <label htmlFor="totp-setup-input" className="text-xs font-medium text-muted-foreground block text-center">6-Digit Code</label>
+                    <Input
+                      id="totp-setup-input"
+                      type="text"
+                      maxLength={6}
+                      placeholder="123456"
+                      value={totpCodeInput}
+                      onChange={(e) => { setTotpCodeInput(e.target.value.replace(/\D/g, '')); setTotpError(''); }}
+                      className="h-12 rounded-xl text-center text-lg tracking-widest font-mono"
+                      autoFocus
+                    />
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button onClick={() => setTotpStep('scan')} variant="outline" className="rounded-xl h-11 text-xs">
+                      Back
+                    </Button>
+
+                    <Button
+                      onClick={handleVerifyTotpSetup}
+                      disabled={totpCodeInput.length !== 6 || totpLoading}
+                      className="flex-1 rounded-xl h-11 text-xs font-semibold"
+                    >
+                      {totpLoading ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : null}
+                      Verify & Enable
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {totpStep === 'success' && (
+                <div className="space-y-4 text-center py-2">
+                  <div className="w-14 h-14 rounded-2xl bg-success/10 flex items-center justify-center mx-auto border border-success/20">
+                    <CheckCircle2 className="w-8 h-8 text-success" />
+                  </div>
+                  <div>
+                    <h4 className="font-heading text-lg font-bold text-foreground">Authenticator App Enabled!</h4>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Your account is now protected with 2FA TOTP verification codes.
+                    </p>
+                  </div>
+                  <Button
+                    onClick={() => setTotpModalOpen(false)}
+                    className="w-full rounded-xl h-11 text-xs font-semibold"
+                  >
+                    Done
+                  </Button>
+                </div>
+              )}
             </motion.div>
           </div>
         )}

@@ -15,7 +15,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { userId, ipAddress, userAgent } = body;
+    const { userId, ipAddress, userAgent, deviceId } = body;
 
     if (!userId) {
       return NextResponse.json({ success: false, error: 'User ID is required' }, { status: 400 });
@@ -38,12 +38,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
     }
 
-    // Factor 1: New Device / IP Check
-    const ipKnown = user.loginHistory.some((h) => h.ipAddress === ipAddress) ||
-      user.trustedDevices.some((d) => d.deviceFingerprint?.includes(ipAddress || ''));
-    if (!ipKnown && ipAddress) {
+    // Factor 1: New Device Check — based on actual device identity (instanceId/deviceId).
+    // A device is "new" if its persistent deviceId has never appeared in trusted devices or login history.
+    const deviceIdKnown = deviceId
+      ? user.trustedDevices.some((d: { instanceId?: string | null }) => d.instanceId === deviceId) ||
+        user.loginHistory.some((h) => h.deviceId === deviceId)
+      : user.loginHistory.some((h) => h.ipAddress === ipAddress); // fallback to IP if no deviceId
+    if (!deviceIdKnown) {
       score += 25;
-      reasons.push('New Device / IP Address');
+      reasons.push('New Device Detected');
     }
 
     // Factor 2: New Browser Check
@@ -148,36 +151,39 @@ export async function GET(req: Request) {
       where: { userId },
     });
 
-    // Per-device risk breakdown
+    // Per-device risk breakdown — keyed on actual instanceId / deviceId, not on category strings.
     const uniqueDevicesMap = new Map<string, { deviceName: string; browser: string; ipAddress: string; location: string; isTrusted: boolean; lastSeen: string; riskScore: number; riskLevel: string }>();
 
-    // First populate registered trusted devices
+    // First populate registered trusted devices (each is an individual instance)
     trustedDevs.forEach((td) => {
-      const isMobile = td.deviceName.toLowerCase().includes('mobile') || td.deviceName.toLowerCase().includes('phone');
-      const normName = isMobile ? 'Mobile Phone' : 'Windows Laptop';
-      uniqueDevicesMap.set(normName, {
-        deviceName: normName,
-        browser: td.browser || 'Chrome',
-        ipAddress: '10.17.87.25',
-        location: td.location || 'Pune, Maharashtra, India',
-        isTrusted: true,
-        lastSeen: td.lastActive.toISOString(),
-        riskScore: 10,
-        riskLevel: 'Low',
-      });
+      const key = td.instanceId || td.deviceFingerprint || td.id;
+      if (!uniqueDevicesMap.has(key)) {
+        uniqueDevicesMap.set(key, {
+          deviceName: td.deviceName,
+          browser: td.browser || 'Browser',
+          ipAddress: '10.17.87.25',
+          location: td.location || 'Pune, Maharashtra, India',
+          isTrusted: true,
+          lastSeen: td.lastActive.toISOString(),
+          riskScore: 10,
+          riskLevel: 'Low',
+        });
+      }
     });
 
     loginLogs.forEach((log) => {
-      const isMobile = log.device.toLowerCase().includes('mobile') || log.device.toLowerCase().includes('phone');
-      const normName = isMobile ? 'Mobile Phone' : 'Windows Laptop';
+      // Use actual deviceId stored in loginHistory as key
+      const key = log.deviceId || log.device || log.id;
 
-      if (!uniqueDevicesMap.has(normName)) {
-        const isTrusted = trustedDevs.some((td) => td.deviceName === normName);
+      if (!uniqueDevicesMap.has(key)) {
+        const isTrusted = trustedDevs.some(
+          (td) => (td.instanceId && td.instanceId === log.deviceId) || td.deviceName === log.device
+        );
         const deviceScore = isTrusted ? 10 : log.status === 'failed' ? 85 : 35;
         const riskLevel = deviceScore >= 66 ? 'High' : deviceScore >= 31 ? 'Medium' : 'Low';
-        uniqueDevicesMap.set(normName, {
-          deviceName: normName,
-          browser: log.browser || 'Chrome',
+        uniqueDevicesMap.set(key, {
+          deviceName: log.device,
+          browser: log.browser || 'Browser',
           ipAddress: log.ipAddress || '10.17.87.25',
           location: log.location || 'Pune, Maharashtra, India',
           isTrusted,
