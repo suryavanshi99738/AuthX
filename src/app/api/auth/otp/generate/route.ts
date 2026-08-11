@@ -72,10 +72,9 @@ export async function POST(request: NextRequest) {
     
     if (!emailResult.success) {
       console.warn(`[email] Real-time delivery notice for ${normalizedEmail}: ${emailResult.error}`);
-      return errorResponse(emailResult.error || 'Failed to send verification email. Please check your recipient email address.', 400);
     }
 
-    return successResponse({ userId: user.id, isDemo: false, emailSent: true });
+    return successResponse({ userId: user.id, isDemo: false, emailSent: Boolean(emailResult.success) });
   } catch (err) {
     console.error('OTP generate route error:', err);
     return errorResponse('Something went wrong generating OTP code. Please try again.', 500);

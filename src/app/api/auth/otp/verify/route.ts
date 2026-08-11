@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
             browser: deviceDetails.browser,
             deviceFingerprint: deviceDetails.deviceFingerprint,
             location: deviceDetails.location,
-            status: 'trusted',
+            status: 'untrusted',
             isDemo: otp.isDemo,
           },
         });

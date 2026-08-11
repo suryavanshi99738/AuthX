@@ -74,10 +74,9 @@ export async function POST(request: NextRequest) {
     const emailResult = await sendVerificationEmail({ to: email, code, recipientName: latest.fullName });
     if (!emailResult.success) {
       console.warn(`[email] Real-time delivery notice for ${email}: ${emailResult.error}`);
-      return errorResponse(emailResult.error || 'Failed to send verification email. Please check your recipient email address.', 400);
     }
 
-    return successResponse({ expiresAt: expiresAt.toISOString(), emailSent: true });
+    return successResponse({ expiresAt: expiresAt.toISOString(), emailSent: Boolean(emailResult.success) });
   } catch {
     return errorResponse('Something went wrong. Please try again.', 500);
   }
