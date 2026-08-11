@@ -66,6 +66,7 @@ import { useAuth } from '@/hooks/useAuth';
 import {
   performPasskeyRegistration,
   getTrustedDevices,
+  trustDevice,
   removeTrustedDevice,
   getLoginHistory,
   getRiskAssessment,
@@ -77,6 +78,7 @@ import {
   revokeSession,
   revokeAllOtherSessions,
   updateSessionActivity,
+  verifySession,
   setupAuthenticator,
   verifyAuthenticator,
   getAuthenticatorStatus,
