@@ -76,29 +76,62 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Lazy cleanup of expired sessions only
+    // 1. Delete expired sessions
     await db.session.deleteMany({
-      where: { expiresAt: { lt: new Date() } },
+      where: { userId, expiresAt: { lt: new Date() } },
     }).catch(() => {});
 
-    const sessions = await db.session.findMany({
-      where: currentToken ? { OR: [{ userId }, { token: currentToken }] } : { userId },
+    // 2. Fetch all sessions for user
+    const rawSessions = await db.session.findMany({
+      where: { userId },
       orderBy: { createdAt: 'desc' },
     });
+
+    // 3. Deduplicate sessions per device instance (instanceId): keep only the latest session for each instanceId
+    const seenInstances = new Set<string>();
+    const activeSessionsList = [];
+    const duplicateIdsToDelete: string[] = [];
+
+    for (const s of rawSessions) {
+      const instKey = (s as { instanceId?: string | null }).instanceId || s.deviceFingerprint || s.id;
+      if (!seenInstances.has(instKey)) {
+        seenInstances.add(instKey);
+        activeSessionsList.push(s);
+      } else {
+        // Old duplicate session from the same device instance
+        duplicateIdsToDelete.push(s.id);
+      }
+    }
+
+    // Ensure the current token session is always retained in case currentToken is passed
+    if (currentToken && !activeSessionsList.some((s) => s.token === currentToken)) {
+      const curr = rawSessions.find((s) => s.token === currentToken);
+      if (curr) {
+        activeSessionsList.unshift(curr);
+        const dupIdx = duplicateIdsToDelete.indexOf(curr.id);
+        if (dupIdx !== -1) duplicateIdsToDelete.splice(dupIdx, 1);
+      }
+    }
+
+    // Asynchronously delete old duplicate sessions from DB
+    if (duplicateIdsToDelete.length > 0) {
+      await db.session.deleteMany({
+        where: { id: { in: duplicateIdsToDelete } },
+      }).catch(() => {});
+    }
 
     const trustedDevs = await db.trustedDevice.findMany({
       where: { userId },
     });
 
     let activeCount = 0;
-    const mappedSessions = sessions.map((s) => {
+    const mappedSessions = activeSessionsList.map((s) => {
       const isCurrent = Boolean(currentToken && s.token === currentToken);
       const computedStatus = calculateSessionStatus(s.status, s.expiresAt, s.lastActivity);
       if (computedStatus === 'active' || computedStatus === 'idle') {
         activeCount++;
       }
 
-      // Trust: check by instanceId first, then deviceName as fallback
       const isTrusted = s.isTrusted ?? trustedDevs.some(
         (d) => (d.instanceId && d.instanceId === (s as { instanceId?: string | null }).instanceId) ||
                 d.deviceName === s.deviceName

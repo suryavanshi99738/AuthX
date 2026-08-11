@@ -50,9 +50,16 @@ export async function POST(request: NextRequest) {
     const token = uuidv4();
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-    // Create new session — do NOT delete other sessions here.
-    // Each session belongs to an individual device instance; deduplication
-    // must NOT be based on fingerprint/deviceName (that was the root bug).
+    // Invalidate prior sessions for the exact SAME device instance (instanceId)
+    if (deviceDetails.instanceId) {
+      await db.session.deleteMany({
+        where: {
+          userId,
+          instanceId: deviceDetails.instanceId,
+        },
+      }).catch(() => {});
+    }
+
     const session = await db.session.create({
       data: {
         userId,
