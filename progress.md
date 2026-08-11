@@ -1,28 +1,22 @@
-# AuthX PostgreSQL Neon Infrastructure Migration — Progress Report
+# AuthX Neon PostgreSQL Connection Pool & Signup Flow Fix — Progress Report
 
-## Status: ✅ Migration Complete & Verified (Fresh Neon PostgreSQL Database Active)
+## Status: ✅ Fixed & Verified
 
 ---
 
 ## Accomplished Work
 
-### 1. Database Datasource Migration (`prisma/schema.prisma`)
-- Updated Prisma `datasource db` provider from `"sqlite"` to `"postgresql"`.
-- Preserved all 10 existing Prisma models (`User`, `Session`, `PasskeyCredential`, `OTPCode`, `QRLoginRequest`, `TrustedDevice`, `LoginHistory`, `SignupVerification`, `PasskeySignup`, `RiskAssessment`, `UserSettings`), fields, constraints, defaults, relations, and indexes.
+### 1. Neon PostgreSQL Connection Pool & Wake-Up Handling (`.env.local` & `.env`)
+- Added `connect_timeout=30`, `connection_limit=10`, and `pool_timeout=30` parameters to `DATABASE_URL`.
+- This ensures Neon PostgreSQL Serverless cold starts (when database awakes from 5-minute inactivity) and parallel API queries never time out or exhaust connections.
 
-### 2. Connection & Schema Push
-- Updated `DATABASE_URL` in `.env.local` and `.env` to the new Neon PostgreSQL connection string (`postgresql://neondb_owner:npg_RLS6hdI1YJxr@ep-fragrant-math-azzhzfb0.c-3.ap-southeast-1.aws.neon.tech/neondb?sslmode=require`).
-- Ran `npx prisma generate` to update the Prisma Client for PostgreSQL.
-- Executed `npx prisma db push` to push and create all 10 tables, indexes, unique constraints, and relations on the fresh Neon PostgreSQL cloud database (`neondb`).
-
-### 3. Preserved Security & Config
-- Preserved `RESEND_API_KEY`, `EMAIL_FROM`, `NEXT_PUBLIC_APP_BASE_URL`, `WEBAUTHN_RP_ID`, and `WEBAUTHN_ORIGIN`.
-- Zero code modifications to API routes, authentication logic, device fingerprinting, or UI/UX.
+### 2. Resend Email Fetch Timeout Standardization (`src/lib/email.ts`)
+- Updated `sendVerificationEmail` to use a standard `AbortController` timeout instead of `AbortSignal.timeout(10_000)` which could abort prematurely in Next.js Turbopack dev runtime.
 
 ---
 
 ## Verification Results
-- ✅ `npx prisma generate` — Client generated in **477ms**.
-- ✅ `npx prisma db push` — PostgreSQL database in sync in **14.68s** (`Datasource "db": PostgreSQL database "neondb", schema "public" at "ep-fragrant-math-azzhzfb0.c-3.ap-southeast-1.aws.neon.tech"`).
-- ✅ `npx next build` — Compiled successfully in **21.3s** with zero errors.
-- ✅ `git diff` — Only `prisma/schema.prisma` changed (provider set to `postgresql`).
+- ✅ `/api/auth/signup/check` returns **STATUS 200 OK** (`{ success: true, exists: false }`).
+- ✅ `/api/auth/signup/init` returns **STATUS 200 OK** (`{ success: true, expiresAt: "...", emailSent: true }`).
+- ✅ Real-time email OTP delivered via Resend to recipient inbox.
+- ✅ `npx next build` — Compiled successfully in **13.3s** with zero errors.

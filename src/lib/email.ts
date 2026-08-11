@@ -108,6 +108,9 @@ export async function sendVerificationEmail(params: VerificationEmailParams): Pr
     return { success: false, error: 'Failed to build verification email.' };
   }
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
+
   try {
     const res = await fetch(RESEND_ENDPOINT, {
       method: 'POST',
@@ -121,8 +124,9 @@ export async function sendVerificationEmail(params: VerificationEmailParams): Pr
         subject: 'Your AuthX Verification Code',
         html,
       }),
-      signal: AbortSignal.timeout(10_000),
+      signal: controller.signal,
     });
+    clearTimeout(timeoutId);
 
     const resData = (await res.json().catch(() => ({}))) as { id?: string; message?: string; statusCode?: number };
 
@@ -134,6 +138,7 @@ export async function sendVerificationEmail(params: VerificationEmailParams): Pr
     console.log(`[email] Real-time email delivered via Resend! ID: ${resData.id} -> Recipient: ${params.to}`);
     return { success: true, messageId: resData.id };
   } catch (err) {
+    clearTimeout(timeoutId);
     console.warn('[email] Resend fetch error:', err);
     return { success: false, error: 'Failed to connect to email delivery service.' };
   }
