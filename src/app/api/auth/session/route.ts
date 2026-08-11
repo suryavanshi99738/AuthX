@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { db } from '@/lib/db';
 import { getClientIp, errorResponse, successResponse } from '@/lib/auth-api';
 import { getDeviceDetails, type ClientHints } from '@/lib/device';
+import { sendSecurityAlertEmail } from '@/lib/email-alerts';
 
 /**
  * POST /api/auth/session
@@ -96,6 +97,8 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      const isNewDevice = !trusted;
+
       if (!trusted) {
         await db.trustedDevice.create({
           data: {
@@ -105,7 +108,7 @@ export async function POST(request: NextRequest) {
             browser: deviceDetails.browser,
             deviceFingerprint: deviceDetails.deviceFingerprint,
             location: deviceDetails.location,
-            status: 'trusted',
+            status: 'untrusted',
             isDemo,
           },
         });
@@ -135,6 +138,37 @@ export async function POST(request: NextRequest) {
           isDemo,
         },
       });
+
+      // Dispatch security alert emails asynchronously (non-blocking)
+      if (user.email) {
+        if (isNewDevice) {
+          sendSecurityAlertEmail({
+            userId,
+            email: user.email,
+            type: 'new_device',
+            loginMethod,
+            deviceName: deviceDetails.deviceName,
+            deviceType: deviceDetails.deviceType,
+            os: deviceDetails.os,
+            browser: deviceDetails.browser,
+            location: deviceDetails.location,
+            ipAddress: ip,
+          }).catch(() => {});
+        }
+
+        sendSecurityAlertEmail({
+          userId,
+          email: user.email,
+          type: 'new_login',
+          loginMethod,
+          deviceName: deviceDetails.deviceName,
+          deviceType: deviceDetails.deviceType,
+          os: deviceDetails.os,
+          browser: deviceDetails.browser,
+          location: deviceDetails.location,
+          ipAddress: ip,
+        }).catch(() => {});
+      }
     } catch (auditErr) {
       console.warn('Non-blocking audit log warning in session POST:', auditErr);
     }
@@ -146,6 +180,13 @@ export async function POST(request: NextRequest) {
         deviceName: session.deviceName,
         status: session.status,
       },
+      isNewUntrustedDevice: isNewDevice,
+      untrustedDevice: isNewDevice ? {
+        instanceId: deviceDetails.instanceId,
+        deviceName: deviceDetails.deviceName,
+        browser: deviceDetails.browser,
+        location: deviceDetails.location,
+      } : null,
     });
   } catch (error) {
     console.error('Error creating session:', error);
@@ -185,6 +226,12 @@ export async function GET(request: NextRequest) {
       data: { lastSeen: new Date() },
     }).catch(() => {});
 
+    // Check if user has any active untrusted devices requiring dashboard notification
+    const untrustedDeviceRecord = await db.trustedDevice.findFirst({
+      where: { userId: session.userId, status: 'untrusted' },
+      orderBy: { lastActive: 'desc' },
+    });
+
     return successResponse({
       userId: session.userId,
       user: {
@@ -193,6 +240,13 @@ export async function GET(request: NextRequest) {
         name: session.user.name,
       },
       isDemo: session.isDemo,
+      untrustedDevice: untrustedDeviceRecord ? {
+        id: untrustedDeviceRecord.id,
+        instanceId: untrustedDeviceRecord.instanceId,
+        deviceName: untrustedDeviceRecord.deviceName,
+        browser: untrustedDeviceRecord.browser,
+        location: untrustedDeviceRecord.location,
+      } : null,
     });
   } catch (error) {
     console.error('Error verifying session:', error);

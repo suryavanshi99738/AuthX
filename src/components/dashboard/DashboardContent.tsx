@@ -162,7 +162,7 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
   const [riskData, setRiskData] = useState<{ score: number; level: string; reasons: string[]; updatedAt: string; isHighRisk: boolean } | null>(null);
   const [deviceRisks, setDeviceRisks] = useState<Array<{ deviceName: string; browser: string; ipAddress: string; location: string; isTrusted: boolean; lastSeen: string; riskScore: number; riskLevel: string }>>([]);
   const [analyticsData, setAnalyticsData] = useState<{ totalLogins: number; successfulLogins: number; failedAttempts: number; successRate: string; passkeyCount: number; qrRequestsCount: number; authUsagePie: Array<{ name: string; value: number; percentage: string; lastUsed: string; fill: string }>; riskDistributionBar: Array<{ level: string; count: number; percentage: string; factor: string; fill: string }>; loginTrendBar: Array<{ day: string; date: string; logins: number; successCount: number; failedCount: number; mostUsed: string; fill: string }> } | null>(null);
-  const [userSettingsState, setUserSettingsState] = useState<{ theme: string; deviceLimit: number; sessionTimeout: number; qrExpiry: number; securityAlerts: boolean; loginAlerts: boolean; qrDisabled: boolean; passkeysDisabled: boolean; requireOTPOnly: boolean } | null>(null);
+  const [userSettingsState, setUserSettingsState] = useState<{ theme: string; deviceLimit: number; sessionTimeout: number; qrExpiry: number; securityAlerts: boolean; loginAlerts: boolean; newDeviceAlerts?: boolean; qrDisabled: boolean; passkeysDisabled: boolean; requireOTPOnly: boolean } | null>(null);
   const [deviceLimitMsg, setDeviceLimitMsg] = useState<string | null>(null);
 
   // Authenticator App (TOTP) States
@@ -177,6 +177,11 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
   const [showManualKey, setShowManualKey] = useState(false);
   const [copiedKey, setCopiedKey] = useState(false);
   const [disablingTotp, setDisablingTotp] = useState(false);
+
+  // Untrusted Device Alert Popup State
+  const [untrustedDeviceAlert, setUntrustedDeviceAlert] = useState<{ id?: string; instanceId?: string; deviceName: string; browser?: string; location?: string } | null>(null);
+  const [trustingDevice, setTrustingDevice] = useState(false);
+  const [revokingDevice, setRevokingDevice] = useState(false);
 
   // Session Management States
   const [sessionSummary, setSessionSummary] = useState<{ activeSessionsCount: number; totalSessionsCount: number; currentDeviceName: string; lastLoginTime: string } | null>(null);
@@ -229,7 +234,19 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
       if (authStatusRes?.success) {
         setAuthenticatorStatus(authStatusRes);
       }
-      if (devRes.success && devRes.devices) setTrustedDevices(devRes.devices);
+      if (devRes.success && devRes.devices) {
+        setTrustedDevices(devRes.devices);
+        const untrustedDev = devRes.devices.find((d: { status?: string }) => d.status === 'untrusted');
+        if (untrustedDev) {
+          setUntrustedDeviceAlert({
+            id: untrustedDev.id,
+            instanceId: (untrustedDev as unknown as { instanceId?: string }).instanceId,
+            deviceName: untrustedDev.deviceName,
+            browser: untrustedDev.browser,
+            location: untrustedDev.location,
+          });
+        }
+      }
       if (histRes.success && histRes.history) {
         setHistory(histRes.history);
         if (histRes.history.some((h) => h.method.toLowerCase().includes('passkey'))) setHasPasskey(true);
@@ -248,6 +265,13 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
       if (sessionRes.success) {
         if (sessionRes.summary) setSessionSummary(sessionRes.summary);
         if (sessionRes.sessions) setSessionsList(sessionRes.sessions);
+      }
+      if (sessionToken) {
+        verifySession(sessionToken).then((res) => {
+          if (res.success && (res as unknown as { untrustedDevice?: typeof untrustedDeviceAlert }).untrustedDevice) {
+            setUntrustedDeviceAlert((res as unknown as { untrustedDevice: NonNullable<typeof untrustedDeviceAlert> }).untrustedDevice);
+          }
+        }).catch(() => {});
       }
       setLoading(false);
     });
@@ -414,6 +438,46 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
     navigator.clipboard.writeText(totpSecret);
     setCopiedKey(true);
     setTimeout(() => setCopiedKey(false), 2000);
+  };
+
+  const handleTrustUntrustedDevice = async () => {
+    if (!user?.id || !untrustedDeviceAlert) return;
+    setTrustingDevice(true);
+    try {
+      const res = await trustDevice(
+        user.id,
+        untrustedDeviceAlert.deviceName,
+        untrustedDeviceAlert.browser,
+        untrustedDeviceAlert.instanceId || untrustedDeviceAlert.id
+      );
+      if (res.success) {
+        setUntrustedDeviceAlert(null);
+        const devRes = await getTrustedDevices(user.id);
+        if (devRes.success && devRes.devices) setTrustedDevices(devRes.devices);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setTrustingDevice(false);
+    }
+  };
+
+  const handleRevokeUntrustedDevice = async () => {
+    if (!user?.id || !untrustedDeviceAlert) return;
+    setRevokingDevice(true);
+    try {
+      await revokeAllOtherSessions(user.id, sessionToken || undefined);
+      if (untrustedDeviceAlert.id) {
+        await removeTrustedDevice(untrustedDeviceAlert.id);
+      }
+      setUntrustedDeviceAlert(null);
+      const devRes = await getTrustedDevices(user.id);
+      if (devRes.success && devRes.devices) setTrustedDevices(devRes.devices);
+    } catch {
+      // ignore
+    } finally {
+      setRevokingDevice(false);
+    }
   };
 
   const handleUpdateSetting = async (key: string, value: unknown) => {
@@ -1976,27 +2040,48 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
 
               {settingsSection === 'notifications' && (
                 <Card className="shadow-card">
-                  <CardContent className="p-6 space-y-4 text-xs">
-                    <h3 className="font-heading text-base font-bold text-foreground">Alert Notifications</h3>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-semibold text-foreground">Security Alerts</p>
-                        <p className="text-muted-foreground">Receive instant alerts for high-risk logins.</p>
-                      </div>
-                      <Switch
-                        checked={userSettingsState?.securityAlerts ?? true}
-                        onCheckedChange={(val) => handleUpdateSetting('securityAlerts', val)}
-                      />
+                  <CardContent className="p-6 space-y-5 text-xs">
+                    <div>
+                      <h3 className="font-heading text-base font-bold text-foreground">Email Security Alerts</h3>
+                      <p className="text-muted-foreground text-xs mt-0.5">Protect your account with real-time security notifications.</p>
                     </div>
-                    <div className="flex items-center justify-between border-t border-border pt-3">
-                      <div>
-                        <p className="font-semibold text-foreground">Login Notifications</p>
-                        <p className="text-muted-foreground">Email notification whenever a new device connects.</p>
+
+                    <div className="space-y-4 pt-1">
+                      {/* 1. New Login Alerts */}
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-semibold text-foreground">New Login Alerts</p>
+                          <p className="text-muted-foreground">Receive an email whenever your account is successfully accessed.</p>
+                        </div>
+                        <Switch
+                          checked={userSettingsState?.loginAlerts ?? true}
+                          onCheckedChange={(val) => handleUpdateSetting('loginAlerts', val)}
+                        />
                       </div>
-                      <Switch
-                        checked={userSettingsState?.loginAlerts ?? true}
-                        onCheckedChange={(val) => handleUpdateSetting('loginAlerts', val)}
-                      />
+
+                      {/* 2. New Device Alerts */}
+                      <div className="flex items-center justify-between border-t border-border pt-4">
+                        <div>
+                          <p className="font-semibold text-foreground">New Device Alerts</p>
+                          <p className="text-muted-foreground">Receive an email when a new device is detected on your account.</p>
+                        </div>
+                        <Switch
+                          checked={userSettingsState?.newDeviceAlerts ?? true}
+                          onCheckedChange={(val) => handleUpdateSetting('newDeviceAlerts', val)}
+                        />
+                      </div>
+
+                      {/* 3. Suspicious Login Alerts */}
+                      <div className="flex items-center justify-between border-t border-border pt-4">
+                        <div>
+                          <p className="font-semibold text-foreground">Suspicious Login Alerts</p>
+                          <p className="text-muted-foreground">Receive an email when the Risk Engine detects a high-risk login.</p>
+                        </div>
+                        <Switch
+                          checked={userSettingsState?.securityAlerts ?? true}
+                          onCheckedChange={(val) => handleUpdateSetting('securityAlerts', val)}
+                        />
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -2220,6 +2305,70 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
                   className="flex-1 rounded-xl text-xs h-9"
                 >
                   {revokingOthers ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Confirm Termination'}
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Untrusted New Device Detected Modal Dialog */}
+      <AnimatePresence>
+        {untrustedDeviceAlert && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-md bg-card border border-amber-500/40 rounded-2xl p-6 shadow-2xl space-y-4"
+            >
+              <div className="flex items-center gap-3 text-amber-500">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center border border-amber-500/30 shrink-0">
+                  <AlertTriangle className="w-6 h-6 text-amber-500" />
+                </div>
+                <div>
+                  <h3 className="font-heading text-base font-bold text-foreground">Untrusted New Device Connected</h3>
+                  <p className="text-[11px] text-muted-foreground">New device instance detected on your AuthX account</p>
+                </div>
+              </div>
+
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                A new device recently logged into your account. Please review the device details below and choose whether to trust this device or revoke its session immediately.
+              </p>
+
+              <div className="p-3.5 rounded-xl bg-muted/50 border border-border space-y-2 text-xs">
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground font-medium">Device Name:</span>
+                  <span className="font-bold text-foreground">{untrustedDeviceAlert.deviceName}</span>
+                </div>
+                <div className="flex justify-between items-center border-t border-border/50 pt-2">
+                  <span className="text-muted-foreground font-medium">Browser & OS:</span>
+                  <span className="font-medium text-foreground">{untrustedDeviceAlert.browser || 'Unknown'}</span>
+                </div>
+                <div className="flex justify-between items-center border-t border-border/50 pt-2">
+                  <span className="text-muted-foreground font-medium">Location:</span>
+                  <span className="text-foreground">{untrustedDeviceAlert.location || 'Pune, Maharashtra, India'}</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <Button
+                  onClick={handleRevokeUntrustedDevice}
+                  disabled={revokingDevice}
+                  variant="destructive"
+                  size="sm"
+                  className="flex-1 rounded-xl text-xs h-10 font-semibold"
+                >
+                  {revokingDevice ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Don't Trust / Revoke"}
+                </Button>
+
+                <Button
+                  onClick={handleTrustUntrustedDevice}
+                  disabled={trustingDevice}
+                  size="sm"
+                  className="flex-1 rounded-xl text-xs h-10 font-semibold bg-success hover:bg-success/90 text-white"
+                >
+                  {trustingDevice ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Trust This Device'}
                 </Button>
               </div>
             </motion.div>

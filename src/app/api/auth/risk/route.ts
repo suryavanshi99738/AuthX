@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { sendSecurityAlertEmail } from '@/lib/email-alerts';
 
 export const dynamic = 'force-dynamic';
 
@@ -103,6 +104,21 @@ export async function POST(req: Request) {
         ipAddress: ipAddress || null,
       },
     });
+
+    // Trigger Suspicious Login Alert email asynchronously if High risk
+    if (level === 'High' && user.email) {
+      sendSecurityAlertEmail({
+        userId,
+        email: user.email,
+        type: 'suspicious_login',
+        loginMethod: 'Risk Engine Check',
+        deviceName: 'Recent Device',
+        ipAddress: ipAddress || undefined,
+        riskLevel: 'High',
+        riskScore: score,
+        riskReasons: reasons,
+      }).catch(() => {});
+    }
 
     return NextResponse.json({
       success: true,

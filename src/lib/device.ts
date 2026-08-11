@@ -133,16 +133,17 @@ function parseOS(ua: string): { os: string; isMobile: boolean; isTablet: boolean
  *   "Your iPad"
  *   "Your iPhone"
  */
-function buildDeviceName(os: string, deviceType: 'Laptop' | 'Desktop' | 'Mobile' | 'Tablet', ua: string): string {
-  if (ua.includes('iPhone')) return 'Your iPhone';
-  if (ua.includes('iPad')) return 'Your iPad';
-  if (os.startsWith('Android')) return 'Your Android Phone';
-  if (os.startsWith('macOS')) return 'Your MacBook';
-  if (os.startsWith('iOS')) return 'Your iPhone';
-  if (deviceType === 'Mobile') return 'Your Mobile Phone';
-  if (deviceType === 'Tablet') return 'Your Tablet';
-  if (deviceType === 'Desktop') return `Your ${os} Desktop`;
-  return `Your ${os} Laptop`;
+function buildDeviceName(os: string, deviceType: 'Laptop' | 'Desktop' | 'Mobile' | 'Tablet', ua: string, browser?: string): string {
+  const browserLabel = browser && browser !== 'Browser' && browser !== 'Unknown Browser' ? ` (${browser})` : '';
+  if (ua.includes('iPhone')) return `iPhone${browserLabel}`;
+  if (ua.includes('iPad')) return `iPad${browserLabel}`;
+  if (os.startsWith('Android')) return `Android Phone${browserLabel}`;
+  if (os.startsWith('macOS')) return `MacBook${browserLabel}`;
+  if (os.startsWith('iOS')) return `iPhone${browserLabel}`;
+  if (deviceType === 'Mobile') return `Mobile Phone${browserLabel}`;
+  if (deviceType === 'Tablet') return `Tablet${browserLabel}`;
+  if (deviceType === 'Desktop') return `${os} Desktop${browserLabel}`;
+  return `${os} Laptop${browserLabel}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -159,7 +160,7 @@ export function getDeviceDetails(
 
   const { os, isMobile, deviceType } = parseOS(ua);
   const browser = parseBrowser(ua);
-  const deviceName = buildDeviceName(os, deviceType, ua);
+  const deviceName = buildDeviceName(os, deviceType, ua, browser);
 
   // Composite fingerprint: hash of UA + OS + browser + supporting client signals.
   // This distinguishes same-OS browsers by their exact UA string, screen res, tz, and lang.

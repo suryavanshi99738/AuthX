@@ -43,7 +43,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { userId, theme, deviceLimit, sessionTimeout, qrExpiry, securityAlerts, loginAlerts, qrDisabled, passkeysDisabled, requireOTPOnly } = body;
+    const { userId, theme, deviceLimit, sessionTimeout, qrExpiry, securityAlerts, loginAlerts, newDeviceAlerts, qrDisabled, passkeysDisabled, requireOTPOnly } = body;
 
     if (!userId) {
       return NextResponse.json({ success: false, error: 'User ID is required' }, { status: 400 });
@@ -58,6 +58,7 @@ export async function POST(req: Request) {
         ...(qrExpiry !== undefined && { qrExpiry: Number(qrExpiry) }),
         ...(securityAlerts !== undefined && { securityAlerts: Boolean(securityAlerts) }),
         ...(loginAlerts !== undefined && { loginAlerts: Boolean(loginAlerts) }),
+        ...(newDeviceAlerts !== undefined && { newDeviceAlerts: Boolean(newDeviceAlerts) }),
         ...(qrDisabled !== undefined && { qrDisabled: Boolean(qrDisabled) }),
         ...(passkeysDisabled !== undefined && { passkeysDisabled: Boolean(passkeysDisabled) }),
         ...(requireOTPOnly !== undefined && { requireOTPOnly: Boolean(requireOTPOnly) }),
@@ -70,6 +71,7 @@ export async function POST(req: Request) {
         qrExpiry: Number(qrExpiry) || 60,
         securityAlerts: securityAlerts !== undefined ? Boolean(securityAlerts) : true,
         loginAlerts: loginAlerts !== undefined ? Boolean(loginAlerts) : true,
+        newDeviceAlerts: newDeviceAlerts !== undefined ? Boolean(newDeviceAlerts) : true,
         qrDisabled: Boolean(qrDisabled),
         passkeysDisabled: Boolean(passkeysDisabled),
         requireOTPOnly: Boolean(requireOTPOnly),

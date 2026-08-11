@@ -10,39 +10,42 @@ import { getClientIp, errorResponse, successResponse } from '@/lib/auth-api';
  * Registers/trusts a device for a user.
  */
 export async function POST(request: NextRequest) {
-  let body: { userId?: string; deviceName?: string; browser?: string; deviceFingerprint?: string; location?: string };
+  let body: { userId?: string; deviceId?: string; instanceId?: string; deviceName?: string; browser?: string; deviceFingerprint?: string; location?: string };
   try {
     body = await request.json();
   } catch {
     return errorResponse('Invalid request body.', 400);
   }
 
-  const { userId, deviceName = 'Mobile Phone', browser = 'Chrome' } = body;
+  const { userId, deviceId, instanceId, deviceName, browser = 'Browser', deviceFingerprint, location } = body;
   if (!userId || typeof userId !== 'string') {
     return errorResponse('userId is required.', 400);
   }
 
+  const targetInstanceId = instanceId || deviceId || deviceFingerprint;
   const ip = getClientIp(request);
-  const isMobile = deviceName.toLowerCase().includes('mobile') || deviceName.toLowerCase().includes('phone');
-  const normName = isMobile ? 'Mobile Phone' : 'Windows Laptop';
-  const normFingerprint = isMobile ? 'dev_fp_mobile_phone' : 'dev_fp_windows_laptop';
-  const normLocation = 'Pune, Maharashtra, India';
+  const actualName = deviceName || 'Connected Device';
+  const actualLocation = location || 'Pune, Maharashtra, India';
 
   try {
-    const existing = await db.trustedDevice.findFirst({
-      where: {
-        userId,
-        OR: [
-          { deviceFingerprint: normFingerprint },
-          { deviceName: normName },
-        ],
-      },
-    });
+    let existing = null;
+    if (targetInstanceId) {
+      existing = await db.trustedDevice.findFirst({
+        where: {
+          userId,
+          OR: [
+            { id: targetInstanceId },
+            { instanceId: targetInstanceId },
+            { deviceFingerprint: targetInstanceId },
+          ],
+        },
+      });
+    }
 
     if (existing) {
       const updated = await db.trustedDevice.update({
         where: { id: existing.id },
-        data: { lastActive: new Date(), location: normLocation, status: 'trusted' },
+        data: { lastActive: new Date(), location: actualLocation, status: 'trusted' },
       });
       return successResponse({ trustedDevice: updated });
     }
@@ -50,10 +53,11 @@ export async function POST(request: NextRequest) {
     const created = await db.trustedDevice.create({
       data: {
         userId,
-        deviceName: normName,
+        instanceId: targetInstanceId || `did_${Math.random().toString(36).slice(2)}`,
+        deviceName: actualName,
         browser,
-        deviceFingerprint: normFingerprint,
-        location: normLocation,
+        deviceFingerprint: deviceFingerprint || `fp_${Math.random().toString(36).slice(2)}`,
+        location: actualLocation,
         status: 'trusted',
         lastActive: new Date(),
       },
@@ -65,7 +69,7 @@ export async function POST(request: NextRequest) {
         userId,
         score: 10,
         level: 'Low',
-        reasons: JSON.stringify(['Device Trusted by User', 'Fingerprint Validated']),
+        reasons: JSON.stringify(['Device Trusted by User']),
         ipAddress: ip,
       },
     });

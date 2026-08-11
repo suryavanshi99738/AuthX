@@ -216,6 +216,7 @@ model UserSettings {
   qrExpiry         Int      @default(60) // seconds
   securityAlerts   Boolean  @default(true)
   loginAlerts      Boolean  @default(true)
+  newDeviceAlerts  Boolean  @default(true)
   qrDisabled       Boolean  @default(false)
   passkeysDisabled Boolean  @default(false)
   requireOTPOnly   Boolean  @default(false)
