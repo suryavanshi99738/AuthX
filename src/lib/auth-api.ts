@@ -19,17 +19,26 @@ export function getClientIp(request: NextRequest | Request): string {
   return 'unknown';
 }
 
+const NO_CACHE_HEADERS = {
+  'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+  'Pragma': 'no-cache',
+  'Expires': '0',
+};
+
 /** Standard JSON error response that never leaks internal details. */
 export function errorResponse(message: string, status = 400, code?: string) {
   return Response.json(
     { success: false, error: message, ...(code ? { code } : {}) },
-    { status }
+    { status, headers: NO_CACHE_HEADERS }
   );
 }
 
 /** Standard JSON success response. */
 export function successResponse(data: Record<string, unknown>, status = 200) {
-  return Response.json({ success: true, ...data }, { status });
+  return Response.json(
+    { success: true, ...data },
+    { status, headers: NO_CACHE_HEADERS }
+  );
 }
 
 /** Rate-limited (429) response. */

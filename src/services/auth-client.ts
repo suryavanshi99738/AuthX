@@ -31,6 +31,7 @@ async function apiCall(url: string, options?: RequestInit, retries = 1): Promise
 
   try {
     const res = await fetch(url, {
+      cache: 'no-store',
       ...options,
       headers: mergedHeaders,
     });

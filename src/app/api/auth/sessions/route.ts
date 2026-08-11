@@ -81,9 +81,9 @@ export async function GET(request: NextRequest) {
       where: { userId, expiresAt: { lt: new Date() } },
     }).catch(() => {});
 
-    // 2. Fetch all sessions for user
+    // 2. Fetch all active sessions for user (excluding revoked)
     const rawSessions = await db.session.findMany({
-      where: { userId },
+      where: { userId, status: { not: 'revoked' } },
       orderBy: { createdAt: 'desc' },
     });
 
