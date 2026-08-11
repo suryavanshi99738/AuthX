@@ -204,9 +204,16 @@ export function OTPAuthForm() {
           return;
         }
 
-        const userResult = await createUserOrGet(targetEmail);
-        const resolvedUser = userResult.user || { id: verifyResult.userId as string, email: targetEmail, name: null };
-        const canonicalUserId = verifyResult.userId as string || resolvedUser.id;
+        let canonicalUserId = verifyResult.userId as string | undefined;
+        let userName: string | null = null;
+
+        if (!canonicalUserId) {
+          const userResult = await createUserOrGet(targetEmail);
+          if (userResult.success && userResult.user) {
+            canonicalUserId = userResult.user.id;
+            userName = userResult.user.name || null;
+          }
+        }
 
         if (!canonicalUserId) {
           setOverlayStatus('error');
@@ -223,7 +230,7 @@ export function OTPAuthForm() {
 
         setOverlayStatus('success');
         setOverlayMessage('Verified Successfully!');
-        setUser({ id: canonicalUserId, email: targetEmail, name: resolvedUser.name || null });
+        setUser({ id: canonicalUserId, email: targetEmail, name: userName });
         setSession(sessionResult.session.token);
 
         setTimeout(() => {

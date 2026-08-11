@@ -8,16 +8,18 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { email, name } = body as { email: string; name?: string };
 
-    if (!email) {
+    if (!email || typeof email !== 'string') {
       return NextResponse.json(
         { success: false, error: 'Email is required' },
         { status: 400 }
       );
     }
 
+    const normalizedEmail = email.trim().toLowerCase();
+
     // Check if user already exists
     const existingUser = await db.user.findUnique({
-      where: { email },
+      where: { email: normalizedEmail },
     });
 
     if (existingUser) {
@@ -31,22 +33,39 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Create new user
-    const newUser = await db.user.create({
-      data: {
-        email,
-        name: name || null,
-      },
-    });
+    // Create new user with fallback handling if created concurrently
+    try {
+      const newUser = await db.user.create({
+        data: {
+          email: normalizedEmail,
+          name: name || null,
+        },
+      });
 
-    return NextResponse.json({
-      success: true,
-      user: {
-        id: newUser.id,
-        email: newUser.email,
-        name: newUser.name,
-      },
-    });
+      return NextResponse.json({
+        success: true,
+        user: {
+          id: newUser.id,
+          email: newUser.email,
+          name: newUser.name,
+        },
+      });
+    } catch {
+      const fallbackUser = await db.user.findUnique({
+        where: { email: normalizedEmail },
+      });
+      if (fallbackUser) {
+        return NextResponse.json({
+          success: true,
+          user: {
+            id: fallbackUser.id,
+            email: fallbackUser.email,
+            name: fallbackUser.name,
+          },
+        });
+      }
+      throw new Error('User creation conflict');
+    }
   } catch (error) {
     console.error('Error creating/getting user:', error);
     return NextResponse.json(

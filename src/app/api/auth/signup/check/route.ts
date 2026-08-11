@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) {
     return errorResponse(parsed.error.issues[0]?.message ?? 'Invalid email.', 400);
   }
-  const { email } = parsed.data;
+  const normalizedEmail = parsed.data.email.trim().toLowerCase();
 
   // Rate limit: 20 checks per IP per 10 minutes (cheap endpoint).
   const ip = getClientIp(request);
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const existing = await db.user.findUnique({
-      where: { email },
+      where: { email: normalizedEmail },
       select: {
         id: true,
         passkeys: { select: { id: true } },
