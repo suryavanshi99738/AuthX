@@ -1,19 +1,35 @@
 'use client';
 
-import { useState } from 'react';
+/**
+ * DemoAuthPage — Completely isolated Demo authentication UI.
+ *
+ * ISOLATION GUARANTEE:
+ *  - Zero real API calls
+ *  - Zero real database writes
+ *  - Zero Resend / email delivery
+ *  - OTP generated client-side with crypto.getRandomValues, stored in React state only
+ *  - OTP verified client-side against state value
+ *  - After OTP verification: sets isDemo=true + demo user in useAuth → pageView='demoDashboard'
+ *  - No /api/auth/* routes called. No /api/demo/* routes called for auth.
+ *
+ * All 5 auth methods shown. Only Email OTP is functional.
+ * Non-OTP methods show inline "Demo mode only" message.
+ */
+
+import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Shield,
-  KeyRound,
   Mail,
-  ArrowRight,
-  Lock,
+  KeyRound,
+  Smartphone,
+  QrCode,
   ArrowLeft,
-  Sparkles,
-  Hash,
-  Eye,
-  User,
+  Lock,
+  Info,
   CheckCircle2,
+  AlertCircle,
+  Loader2,
   Moon,
   Sun,
   Monitor,
@@ -30,366 +46,430 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 import { useLandingTheme } from '@/hooks/useLandingTheme';
-import { startDemo, demoPasskey, demoOTP, verifyOTP, createSession } from '@/services/auth-client';
-import { AuthLoadingOverlay } from '@/components/auth/AuthLoadingOverlay';
 import { fadeInUp, staggerContainer } from '@/lib/animations';
 import { StatusBadge } from '@/components/ui/status-badge';
-import { InfoCallout } from '@/components/ui/info-callout';
 
-type DemoStep = 'select' | 'passkey' | 'otp' | 'otp-verify';
+/* ── Types ── */
+type DemoStep = 'select' | 'otp-email' | 'otp-verify';
+type UnavailableMethod = 'passkey' | 'authenticator' | 'qr' | 'recovery' | null;
 
-/* ── Demo Auth Page Interactive Shield ── */
-function DemoShield() {
-  const [isHovered, setIsHovered] = useState(false);
+/* ── Generate a random 6-digit demo OTP using Web Crypto API ── */
+function generateDemoOTP(): string {
+  const buf = new Uint32Array(1);
+  crypto.getRandomValues(buf);
+  return String(100000 + (buf[0] % 900000));
+}
 
+/* ── Validate email (basic) ── */
+function isValidEmail(e: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
+}
+
+/* ── Method card component ── */
+function MethodCard({
+  icon,
+  label,
+  badge,
+  available,
+  onClick,
+  unavailableMessage,
+  isSelected,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  badge?: React.ReactNode;
+  available: boolean;
+  onClick: () => void;
+  unavailableMessage?: string;
+  isSelected: boolean;
+}) {
   return (
-    <div
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      className="relative cursor-pointer"
-    >
-      <motion.div
-        initial={{ opacity: 0, scale: 0.8 }}
-        animate={{ opacity: 1, scale: isHovered ? 1.08 : 1, y: [0, -8, 0] }}
-        transition={{ opacity: { duration: 0.8 }, scale: { duration: 0.3 }, y: { duration: 6, repeat: Infinity, ease: 'easeInOut' } }}
+    <div className="w-full">
+      <button
+        type="button"
+        onClick={onClick}
+        className={`w-full flex items-center gap-3.5 p-4 rounded-xl border text-left transition-all duration-200 ${
+          available
+            ? 'border-border hover:border-primary/50 hover:bg-primary/5 cursor-pointer bg-card'
+            : 'border-border/50 bg-muted/20 cursor-pointer opacity-80'
+        }`}
       >
-        <svg viewBox="0 0 160 192" width="160" height="192" className="drop-shadow-2xl">
-          <defs>
-            <linearGradient id="demoShieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#FFFFFF" stopOpacity={isHovered ? 0.35 : 0.25} />
-              <stop offset="100%" stopColor="#FFFFFF" stopOpacity={isHovered ? 0.15 : 0.08} />
-            </linearGradient>
-          </defs>
-          <path d="M80 10 L150 42 L150 125 C150 150 125 178 80 186 C35 178 10 150 10 125 L10 42 Z" fill="url(#demoShieldGrad)" stroke="white" strokeWidth="1.5" opacity="0.9" />
-          <path d="M80 28 L134 52 L134 118 C134 136 112 160 80 168 C48 160 26 136 26 118 L26 52 Z" fill="none" stroke="white" strokeWidth="0.8" opacity="0.4" />
-          <rect x="62" y="88" width="36" height="28" rx="4" fill="white" opacity="0.85" />
-          <path d="M70 88 L70 78 C70 68 80 60 90 68 L90 78 L90 88" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" opacity="0.85" />
-          <circle cx="80" cy="100" r="3.5" fill="#2563EB" />
-          <path d="M66 48 L76 58 L98 38" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.7" />
-        </svg>
-      </motion.div>
+        <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${available ? 'bg-primary/10' : 'bg-muted/40'}`}>
+          {icon}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className={`text-sm font-semibold ${available ? 'text-foreground' : 'text-muted-foreground'}`}>{label}</span>
+            {badge}
+          </div>
+          {!available && (
+            <p className="text-[11px] text-muted-foreground mt-0.5">Not available in Demo Mode</p>
+          )}
+        </div>
+        {available && (
+          <div className="w-5 h-5 rounded-full border-2 border-primary/30 flex items-center justify-center shrink-0">
+            <div className="w-2 h-2 rounded-full bg-primary" />
+          </div>
+        )}
+      </button>
+
+      {/* Inline message for unavailable methods */}
       <AnimatePresence>
-        {isHovered && (
+        {isSelected && !available && unavailableMessage && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.5 }}
-            animate={{ opacity: 0.3, scale: 1.4 }}
-            exit={{ opacity: 0, scale: 0.5 }}
-            className="absolute inset-0 pointer-events-none"
-            style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.25) 0%, transparent 60%)' }}
-          />
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="mt-1.5 mx-1 p-3 rounded-xl bg-primary/5 border border-primary/20 flex items-start gap-2">
+              <Info className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
+              <p className="text-[11px] text-muted-foreground leading-relaxed">{unavailableMessage}</p>
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>
   );
 }
 
-/* ── Demo Auth Page ── */
+/* ── Main Demo Auth Page ── */
 export function DemoAuthPage() {
   const { setUser, setSession, setPageView, setIsDemo } = useAuth();
   const { themePref, setThemePref, resolvedTheme } = useLandingTheme();
+
   const [step, setStep] = useState<DemoStep>('select');
-  const [demoUserId, setDemoUserId] = useState('');
-  const [otpCode, setOtpCode] = useState('');
-  const [demoOtpCode, setDemoOtpCode] = useState('');
-  const [overlayVisible, setOverlayVisible] = useState(false);
-  const [overlayStatus, setOverlayStatus] = useState<'loading' | 'success' | 'error'>('loading');
-  const [overlayMessage, setOverlayMessage] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
+  const [selectedUnavailable, setSelectedUnavailable] = useState<UnavailableMethod>(null);
 
-  const handleStartDemo = async (): Promise<string | null> => {
-    setOverlayVisible(true);
-    setOverlayStatus('loading');
-    setOverlayMessage('Starting Demo...');
-    setErrorMessage('');
+  // OTP state (pure client-side, zero real API)
+  const [email, setEmail] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [generatedOtp, setGeneratedOtp] = useState('');
+  const [enteredOtp, setEnteredOtp] = useState('');
+  const [otpError, setOtpError] = useState('');
+  const [verifying, setVerifying] = useState(false);
+  const [otpGenerated, setOtpGenerated] = useState(false);
 
-    try {
-      const result = await startDemo();
-      if (!result.success || !result.demoUser || !result.demoSession) {
-        setOverlayStatus('error');
-        setErrorMessage(result.error || 'Failed to start demo');
-        return null;
-      }
+  const handleUnavailableMethod = useCallback((method: UnavailableMethod) => {
+    setSelectedUnavailable((prev) => prev === method ? null : method);
+  }, []);
 
-      const userId = result.demoUser.id;
-      setDemoUserId(userId);
-      setIsDemo(true);
-      setUser({ id: userId, email: result.demoUser.email, name: 'Demo User' });
-      setSession(result.demoSession.token);
+  const handleOtpMethodClick = useCallback(() => {
+    setSelectedUnavailable(null);
+    setStep('otp-email');
+  }, []);
 
-      setOverlayVisible(false);
-      return userId;
-    } catch (error) {
-      setOverlayStatus('error');
-      setErrorMessage(error instanceof Error ? error.message : 'An unexpected error occurred');
-      return null;
+  const handleGenerateOtp = useCallback(() => {
+    const trimmedEmail = email.trim();
+    if (!isValidEmail(trimmedEmail)) {
+      setEmailError('Please enter a valid email address.');
+      return;
     }
-  };
+    setEmailError('');
+    const otp = generateDemoOTP();
+    setGeneratedOtp(otp);
+    setOtpGenerated(true);
+    setEnteredOtp('');
+    setOtpError('');
+    setStep('otp-verify');
+  }, [email]);
 
-  const handleDemoPasskey = async () => {
-    const userId = await handleStartDemo();
-    if (!userId) return;
-
-    setOverlayVisible(true);
-    setOverlayStatus('loading');
-    setOverlayMessage('Simulating Passkey Verification...');
-
-    try {
-      const result = await demoPasskey(userId);
-      if (!result.success) {
-        setOverlayStatus('error');
-        setErrorMessage(result.error || 'Demo passkey failed');
-        return;
-      }
-
-      setOverlayStatus('success');
-      setOverlayMessage('Passkey Verified!');
-
-      setTimeout(() => {
-        setOverlayVisible(false);
-        setPageView('demoDashboard');
-      }, 1000);
-    } catch (error) {
-      setOverlayStatus('error');
-      setErrorMessage(error instanceof Error ? error.message : 'An unexpected error occurred');
+  const handleVerifyOtp = useCallback(async () => {
+    if (enteredOtp.length !== 6) return;
+    if (enteredOtp !== generatedOtp) {
+      setOtpError('Incorrect code. Please check the demo OTP displayed above and try again.');
+      return;
     }
-  };
 
-  const handleDemoOTP = async () => {
-    const userId = await handleStartDemo();
-    if (!userId) return;
+    setVerifying(true);
+    setOtpError('');
 
-    setOverlayVisible(true);
-    setOverlayStatus('loading');
-    setOverlayMessage('Generating Demo OTP...');
+    // Simulate a brief verification delay for UX realism (no real API call)
+    await new Promise((resolve) => setTimeout(resolve, 800));
 
-    try {
-      const result = await demoOTP(userId);
-      if (!result.success) {
-        setOverlayStatus('error');
-        setErrorMessage(result.error || 'Failed to generate demo OTP');
-        return;
-      }
+    // Set demo user in auth state — purely frontend, no DB writes
+    setIsDemo(true);
+    setUser({ id: 'demo-user-001', email: email.trim() || 'demo@authx.dev', name: 'Demo User' });
+    setSession('demo-session-token');
+    setPageView('demoDashboard');
+  }, [enteredOtp, generatedOtp, email, setIsDemo, setUser, setSession, setPageView]);
 
-      setDemoOtpCode(result.otpCode || '123456');
-      setOverlayVisible(false);
-      setStep('otp-verify');
-    } catch (error) {
-      setOverlayStatus('error');
-      setErrorMessage(error instanceof Error ? error.message : 'An unexpected error occurred');
-    }
-  };
-
-  const handleVerifyDemoOTP = async () => {
-    if (otpCode.length !== 6) return;
-
-    setOverlayVisible(true);
-    setOverlayStatus('loading');
-    setOverlayMessage('Verifying OTP...');
-    setErrorMessage('');
-
-    try {
-      const verifyResult = await verifyOTP('demo@bankshield.app', otpCode);
-      if (!verifyResult.success) {
-        setOverlayStatus('error');
-        setErrorMessage(verifyResult.error || 'Invalid OTP');
-        return;
-      }
-
-      setOverlayStatus('success');
-      setOverlayMessage('Verified Successfully!');
-
-      setTimeout(() => {
-        setOverlayVisible(false);
-        setPageView('demoDashboard');
-      }, 1000);
-    } catch (error) {
-      setOverlayStatus('error');
-      setErrorMessage(error instanceof Error ? error.message : 'An unexpected error occurred');
-    }
-  };
-
-  const handleDismissError = () => {
-    setOverlayVisible(false);
-    setOverlayStatus('loading');
+  const handleBack = useCallback(() => {
     if (step === 'otp-verify') {
-      setOtpCode('');
+      setStep('otp-email');
+      setEnteredOtp('');
+      setOtpError('');
+    } else if (step === 'otp-email') {
+      setStep('select');
+      setEmail('');
+      setEmailError('');
+      setOtpGenerated(false);
     }
-  };
+  }, [step]);
 
   return (
     <div className={`min-h-screen flex flex-col lg:flex-row transition-colors duration-300 ${resolvedTheme === 'dark' ? 'dark bg-[#0D1110] text-[#D7DDD9]' : 'bg-[#FFF4E1] text-[#1A312C]'}`}>
+
       {/* ── LEFT: Dark Panel ── */}
-      <div
-        className={`hidden lg:flex lg:flex-[1_1_45%] flex-col items-center justify-center p-12 xl:p-16 order-1 relative overflow-hidden ${resolvedTheme === 'dark' ? 'bg-[#08110F]' : 'bg-[#1A312C]'}`}
-      >
-        <div className="absolute inset-0 pointer-events-none opacity-20 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.1)_0%,transparent_100%)]" style={{ backgroundImage: 'radial-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px)', backgroundSize: '24px 24px' }}></div>
-        <motion.div
-          className="flex flex-col items-start w-full max-w-md z-10"
-          initial="hidden"
-          animate="visible"
-          variants={staggerContainer}
-        >
+      <div className={`hidden lg:flex lg:flex-[1_1_42%] flex-col items-center justify-center p-12 xl:p-16 relative overflow-hidden ${resolvedTheme === 'dark' ? 'bg-[#08110F]' : 'bg-[#1A312C]'}`}>
+        <div className="absolute inset-0 pointer-events-none opacity-10" style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,0.12) 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
+        <motion.div className="flex flex-col items-start w-full max-w-md z-10" initial="hidden" animate="visible" variants={staggerContainer}>
           {/* Logo */}
-          <motion.div variants={fadeInUp} className="flex items-center gap-2 mb-12">
+          <motion.div variants={fadeInUp} className="flex items-center gap-2.5 mb-12">
             <Shield className="w-8 h-8 text-white" />
             <span className="font-heading text-2xl font-bold text-white">AuthX</span>
             <StatusBadge variant="warning">Demo</StatusBadge>
           </motion.div>
 
-          {/* Heading */}
-          <motion.div variants={fadeInUp}>
-            <h2 className="font-heading text-3xl font-bold text-white mb-4">
-              Demo Environment
-            </h2>
-            <p className="text-sm text-zinc-400 leading-relaxed mb-12">
-              Experience passwordless authentication in a safe demo environment. No real data is stored.
+          <motion.div variants={fadeInUp} className="mb-10">
+            <h2 className="font-heading text-3xl font-bold text-white mb-3">Demo Environment</h2>
+            <p className="text-sm text-zinc-400 leading-relaxed">
+              Experience AuthX&apos;s security platform in a completely isolated demo. No real data is stored or modified.
             </p>
           </motion.div>
 
-          {/* Feature list */}
-          <motion.div variants={fadeInUp} className="flex flex-col gap-6 w-full mb-12">
-            <div className="flex items-center gap-4">
-              <KeyRound className="w-5 h-5 text-[#89D7B7]" />
-              <span className="text-sm font-medium text-white/90">Simulated Passkeys</span>
-            </div>
-            <div className="flex items-center gap-4">
-              <Mail className="w-5 h-5 text-[#89D7B7]" />
-              <span className="text-sm font-medium text-white/90">Mock Email OTP</span>
-            </div>
+          {/* Method showcase */}
+          <motion.div variants={fadeInUp} className="w-full space-y-4 mb-10">
+            {[
+              { icon: <Mail className="w-4 h-4 text-[#89D7B7]" />, label: 'Email OTP', note: 'Functional in demo', active: true },
+              { icon: <KeyRound className="w-4 h-4 text-zinc-500" />, label: 'Passkey / WebAuthn', note: 'Full version only', active: false },
+              { icon: <Smartphone className="w-4 h-4 text-zinc-500" />, label: 'Authenticator App', note: 'Full version only', active: false },
+              { icon: <QrCode className="w-4 h-4 text-zinc-500" />, label: 'QR Login', note: 'Full version only', active: false },
+            ].map(({ icon, label, note, active }) => (
+              <div key={label} className="flex items-center gap-3">
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${active ? 'bg-[#89D7B7]/10' : 'bg-zinc-800'}`}>
+                  {icon}
+                </div>
+                <div>
+                  <p className={`text-sm font-medium ${active ? 'text-white' : 'text-zinc-500'}`}>{label}</p>
+                  <p className="text-[11px] text-zinc-600">{note}</p>
+                </div>
+                {active && <span className="ml-auto text-[10px] bg-[#89D7B7]/10 text-[#89D7B7] border border-[#89D7B7]/20 px-2 py-0.5 rounded-full font-medium">Active</span>}
+              </div>
+            ))}
           </motion.div>
 
-          {/* Footer */}
-          <motion.div variants={fadeInUp} className="mt-auto pt-8 border-t border-zinc-800/50 w-full">
-            <p className="text-xs text-zinc-500 font-medium tracking-wide uppercase">
-              Safe Demo Mode · Auto Cleanup
+          <motion.div variants={fadeInUp} className="pt-8 border-t border-zinc-800/50 w-full">
+            <p className="text-xs text-zinc-600 font-medium tracking-wide uppercase">
+              Safe Demo Mode · No Real Data · Auto Isolated
             </p>
           </motion.div>
         </motion.div>
       </div>
 
       {/* ── RIGHT: Auth Panel ── */}
-      <div className={`flex-1 lg:flex-[1_1_55%] flex items-center justify-center p-6 md:p-12 lg:p-16 order-2 ${resolvedTheme === 'dark' ? 'bg-[#0D1110]' : 'bg-[#FFF4E1]'}`}>
-        <motion.div
-          className="w-full max-w-md mx-auto"
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
-        >
-          {/* Header controls */}
+      <div className={`flex-1 lg:flex-[1_1_58%] flex items-center justify-center p-5 sm:p-8 lg:p-12 xl:p-16 min-h-screen lg:min-h-0`}>
+        <motion.div className="w-full max-w-md mx-auto" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}>
+
+          {/* Top controls */}
           <div className="flex items-center justify-between mb-8">
             <button
               onClick={() => setPageView('landing')}
-              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-smooth"
+              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
               Back to home
             </button>
-            <div className="flex items-center gap-2 bg-muted/50 p-1 rounded-full border border-border">
-              <button
-                onClick={() => setThemePref('light')}
-                className={`p-1.5 rounded-full transition-colors ${themePref === 'light' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-                title="Light mode"
-              >
-                <Sun className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setThemePref('dark')}
-                className={`p-1.5 rounded-full transition-colors ${themePref === 'dark' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-                title="Dark mode"
-              >
-                <Moon className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setThemePref('system')}
-                className={`p-1.5 rounded-full transition-colors ${themePref === 'system' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-                title="System theme"
-              >
-                <Monitor className="w-4 h-4" />
-              </button>
+            <div className="flex items-center gap-1 bg-muted/50 p-1 rounded-full border border-border">
+              {(['light', 'dark', 'system'] as const).map((t) => (
+                <button key={t} onClick={() => setThemePref(t)} className={`p-1.5 rounded-full transition-colors ${themePref === t ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`} title={`${t} mode`}>
+                  {t === 'light' ? <Sun className="w-3.5 h-3.5" /> : t === 'dark' ? <Moon className="w-3.5 h-3.5" /> : <Monitor className="w-3.5 h-3.5" />}
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* Logo + Demo badge */}
-          <div className="flex items-center gap-3 mb-8">
-            <Shield className="w-8 h-8 text-primary" />
+          {/* Logo */}
+          <div className="flex items-center gap-3 mb-6">
+            <Shield className="w-7 h-7 text-primary" />
             <span className="font-heading text-xl font-bold text-foreground">AuthX</span>
-            <StatusBadge variant="warning">Demo</StatusBadge>
+            <StatusBadge variant="warning">Demo Mode</StatusBadge>
           </div>
 
-          {/* Heading */}
-          <h1 className="font-heading text-2xl font-semibold text-foreground mb-2">
-            Demo Authentication
-          </h1>
-          <p className="text-sm text-muted-foreground mb-8">
-            Choose a method to try passwordless authentication in demo mode.
-          </p>
-
           <AnimatePresence mode="wait">
-            {step === 'select' && (
-              <motion.div key="select" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                <div className="grid grid-cols-2 gap-3">
-                  {/* Passkey option */}
-                  <button
-                    onClick={handleDemoPasskey}
-                    className={`flex flex-col items-center gap-2 p-3 rounded-lg transition-smooth cursor-pointer text-center border ${resolvedTheme === 'dark' ? 'bg-[#1D2724] border-[#31443F] hover:border-[#5FA895] hover:bg-[#5FA895]/5' : 'bg-white border-[#E5D7C3] hover:border-[#428475] hover:bg-[#428475]/5'}`}
-                  >
-                    <KeyRound className="w-5 h-5 text-[#428475]" />
-                    <span className="text-sm font-medium text-foreground">Passkey Demo</span>
-                  </button>
 
-                  {/* OTP option */}
-                  <button
-                    onClick={handleDemoOTP}
-                    className={`flex flex-col items-center gap-2 p-3 rounded-lg transition-smooth cursor-pointer text-center border ${resolvedTheme === 'dark' ? 'bg-[#1D2724] border-[#31443F] hover:border-[#5FA895] hover:bg-[#5FA895]/5' : 'bg-white border-[#E5D7C3] hover:border-[#428475] hover:bg-[#428475]/5'}`}
-                  >
-                    <Mail className="w-5 h-5 text-[#428475]" />
-                    <span className="text-sm font-medium text-foreground">OTP Demo</span>
-                  </button>
+            {/* ── STEP: Method Selection ── */}
+            {step === 'select' && (
+              <motion.div key="select" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }}>
+                <h1 className="font-heading text-2xl font-bold text-foreground mb-1.5">Choose Authentication</h1>
+                <p className="text-sm text-muted-foreground mb-6">
+                  Select a method to explore AuthX authentication. Only Email OTP is active in Demo Mode.
+                </p>
+
+                <div className="space-y-2.5">
+                  {/* Email OTP — FUNCTIONAL */}
+                  <MethodCard
+                    icon={<Mail className="w-5 h-5 text-primary" />}
+                    label="Email OTP"
+                    badge={<Badge className="bg-primary/10 text-primary border-primary/20 text-[9px] px-1.5 py-0">ACTIVE</Badge>}
+                    available={true}
+                    onClick={handleOtpMethodClick}
+                    isSelected={false}
+                    unavailableMessage=""
+                  />
+
+                  {/* Passkey — unavailable */}
+                  <MethodCard
+                    icon={<KeyRound className="w-5 h-5 text-muted-foreground" />}
+                    label="Passkey / WebAuthn"
+                    available={false}
+                    onClick={() => handleUnavailableMethod('passkey')}
+                    isSelected={selectedUnavailable === 'passkey'}
+                    unavailableMessage="Passkey authentication is available in the full AuthX experience. Demo Mode currently supports Email OTP only. In the full version, you can register and authenticate with hardware security keys and device biometrics."
+                  />
+
+                  {/* Authenticator App — unavailable */}
+                  <MethodCard
+                    icon={<Smartphone className="w-5 h-5 text-muted-foreground" />}
+                    label="Authenticator App (TOTP)"
+                    available={false}
+                    onClick={() => handleUnavailableMethod('authenticator')}
+                    isSelected={selectedUnavailable === 'authenticator'}
+                    unavailableMessage="Authenticator App (TOTP) is available in the full AuthX experience. Demo Mode currently supports Email OTP only. In the full version, you can configure apps like Google Authenticator or Authy for 6-digit time-based codes."
+                  />
+
+                  {/* QR Login — unavailable */}
+                  <MethodCard
+                    icon={<QrCode className="w-5 h-5 text-muted-foreground" />}
+                    label="QR Code Login"
+                    available={false}
+                    onClick={() => handleUnavailableMethod('qr')}
+                    isSelected={selectedUnavailable === 'qr'}
+                    unavailableMessage="QR Login is available in the full AuthX experience. Demo Mode currently supports Email OTP only. In the full version, you can approve cross-device logins by scanning a QR code from your mobile device."
+                  />
+
+                  {/* Recovery Code — unavailable */}
+                  <MethodCard
+                    icon={<Shield className="w-5 h-5 text-muted-foreground" />}
+                    label="Recovery Code"
+                    available={false}
+                    onClick={() => handleUnavailableMethod('recovery')}
+                    isSelected={selectedUnavailable === 'recovery'}
+                    unavailableMessage="Recovery Codes are available in the full AuthX experience. Demo Mode currently supports Email OTP only. In the full version, you can generate a Recovery Kit with 12 single-use backup codes."
+                  />
                 </div>
 
-                {/* Demo notice */}
-                <div className="mt-8">
-                  <InfoCallout variant="info" title="Demo Mode">
-                    This is a simulated environment. No real authentication is performed. Demo data is cleaned up when you exit.
-                  </InfoCallout>
+                {/* Demo info notice */}
+                <div className="mt-6 p-3.5 rounded-xl bg-muted/40 border border-border/60 flex items-start gap-2.5">
+                  <Info className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    <strong className="text-foreground">Demo Mode</strong> — This is a safe, isolated showcase environment. No real accounts, sessions, or emails are created. All data is cleared when you exit.
+                  </p>
                 </div>
               </motion.div>
             )}
 
-            {step === 'otp-verify' && (
-              <motion.div key="otp-verify" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-                <div className="space-y-5">
-                  {/* Back button */}
-                  <button
-                    onClick={() => { setStep('select'); setOtpCode(''); }}
-                    className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-smooth"
-                  >
-                    <ArrowLeft className="w-4 h-4" />
-                    Back to methods
-                  </button>
+            {/* ── STEP: OTP Email Entry ── */}
+            {step === 'otp-email' && (
+              <motion.div key="otp-email" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }}>
+                <button
+                  onClick={handleBack}
+                  className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  Back to methods
+                </button>
 
-                  {/* Method header */}
-                  <div className="flex items-center gap-3 mb-5">
-                    <div className="w-10 h-10 rounded-lg bg-warning/10 flex items-center justify-center">
-                      <Mail className="w-5 h-5 text-warning" />
-                    </div>
-                    <span className="font-heading text-xl font-semibold text-foreground">Demo OTP Verification</span>
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <Mail className="w-5 h-5 text-primary" />
                   </div>
+                  <div>
+                    <h1 className="font-heading text-xl font-bold text-foreground">Demo Email OTP</h1>
+                    <p className="text-xs text-muted-foreground">No real email will be sent</p>
+                  </div>
+                </div>
 
-                  {/* Show the OTP code */}
-                  <InfoCallout variant="success" title="Your Demo OTP Code">
-                    <span className="text-3xl font-bold tracking-widest font-mono text-success">{demoOtpCode}</span>
-                    <p className="text-xs mt-1 text-success/80">Enter this code below to verify</p>
-                  </InfoCallout>
+                <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/20 mb-5">
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    <strong className="text-foreground">Demo Mode:</strong> Enter any email address. A 6-digit demo OTP will be generated instantly — no real email is sent.
+                  </p>
+                </div>
 
-                  {/* OTP input */}
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Enter 6-Digit Code</Label>
+                <div className="space-y-2 mb-5">
+                  <Label htmlFor="demo-email" className="text-sm font-medium">Email Address</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      id="demo-email"
+                      type="email"
+                      placeholder="you@example.com"
+                      value={email}
+                      onChange={(e) => { setEmail(e.target.value); setEmailError(''); }}
+                      onKeyDown={(e) => e.key === 'Enter' && handleGenerateOtp()}
+                      className="h-11 pl-10 rounded-xl"
+                      autoComplete="email"
+                      autoFocus
+                    />
+                  </div>
+                  {emailError && (
+                    <p className="text-xs text-danger flex items-center gap-1.5">
+                      <AlertCircle className="w-3.5 h-3.5" />{emailError}
+                    </p>
+                  )}
+                </div>
+
+                <Button
+                  className="w-full h-11 rounded-xl"
+                  onClick={handleGenerateOtp}
+                  disabled={!email.trim()}
+                >
+                  Generate Demo OTP
+                  <Mail className="w-4 h-4 ml-2" />
+                </Button>
+              </motion.div>
+            )}
+
+            {/* ── STEP: OTP Verification ── */}
+            {step === 'otp-verify' && (
+              <motion.div key="otp-verify" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }}>
+                <button
+                  onClick={handleBack}
+                  className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  Change email
+                </button>
+
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <Mail className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <h1 className="font-heading text-xl font-bold text-foreground">Enter Demo OTP</h1>
+                    <p className="text-xs text-muted-foreground">{email}</p>
+                  </div>
+                </div>
+
+                {/* Demo OTP display — callout showing the actual generated code */}
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.96 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="mb-5 p-4 rounded-xl bg-success/5 border border-success/25"
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <CheckCircle2 className="w-4 h-4 text-success" />
+                    <p className="text-xs font-semibold text-success">Demo Verification Code</p>
+                    <Badge className="bg-warning/10 text-warning border-warning/20 text-[9px] px-1.5 ml-auto">DEMO ONLY</Badge>
+                  </div>
+                  <p className="text-3xl font-bold tracking-[0.35em] font-mono text-success text-center py-2">
+                    {generatedOtp}
+                  </p>
+                  <p className="text-[11px] text-success/70 text-center">
+                    Your demo OTP is: <strong>{generatedOtp}</strong> — Enter it below to verify
+                  </p>
+                </motion.div>
+
+                {/* OTP input */}
+                <div className="space-y-3 mb-5">
+                  <Label className="text-sm font-medium">Enter 6-Digit Code</Label>
+                  <div className="flex justify-center">
                     <InputOTP
                       maxLength={6}
-                      value={otpCode}
-                      onChange={setOtpCode}
-                      onComplete={handleVerifyDemoOTP}
+                      value={enteredOtp}
+                      onChange={(v) => { setEnteredOtp(v); setOtpError(''); }}
+                      onComplete={handleVerifyOtp}
                     >
                       <InputOTPGroup>
                         <InputOTPSlot index={0} />
@@ -405,28 +485,34 @@ export function DemoAuthPage() {
                     </InputOTP>
                   </div>
 
-                  <Button
-                    className="w-full h-11 rounded-lg bg-[#428475] text-white hover:bg-[#356B5F] shadow-sm transition-smooth"
-                    disabled={otpCode.length !== 6}
-                    onClick={handleVerifyDemoOTP}
-                  >
-                    Verify Code
-                    <Lock className="w-4 h-4 ml-2" />
-                  </Button>
+                  {otpError && (
+                    <div className="flex items-center gap-2 p-3 rounded-xl bg-danger/5 border border-danger/20">
+                      <AlertCircle className="w-4 h-4 text-danger shrink-0" />
+                      <p className="text-xs text-danger">{otpError}</p>
+                    </div>
+                  )}
                 </div>
+
+                <Button
+                  className="w-full h-11 rounded-xl"
+                  disabled={enteredOtp.length !== 6 || verifying}
+                  onClick={handleVerifyOtp}
+                >
+                  {verifying ? (
+                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Verifying…</>
+                  ) : (
+                    <><Lock className="w-4 h-4 mr-2" />Verify Code</>
+                  )}
+                </Button>
+
+                <p className="text-[11px] text-muted-foreground text-center mt-4">
+                  The code shown above is your demo OTP. No email has been sent.
+                </p>
               </motion.div>
             )}
           </AnimatePresence>
         </motion.div>
       </div>
-
-      <AuthLoadingOverlay
-        isVisible={overlayVisible}
-        message={overlayMessage}
-        status={overlayStatus}
-        errorMessage={errorMessage}
-        onDismiss={handleDismissError}
-      />
     </div>
   );
 }
