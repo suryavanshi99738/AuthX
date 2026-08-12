@@ -290,3 +290,144 @@ export async function sendSecurityAlertEmail(params: SecurityAlertEmailParams): 
     console.warn('[security-email] Background security email dispatch error:', err);
   }
 }
+
+/* ── Emergency Lockdown Alert Email ── */
+
+export interface LockdownAlertEmailParams {
+  userId: string;
+  email: string;
+  methodLabel: string;
+  deviceName: string;
+  os?: string;
+  browser?: string;
+  location?: string;
+  ipAddress?: string;
+  revokedCount: number;
+}
+
+/**
+ * Send Emergency Lockdown activation email.
+ * NON-BLOCKING: never throws, never breaks the lockdown operation.
+ */
+export async function sendLockdownAlertEmail(params: LockdownAlertEmailParams): Promise<void> {
+  try {
+    const { email, userId, methodLabel, deviceName, os, browser, location, ipAddress, revokedCount } = params;
+
+    if (!email || !email.includes('@')) return;
+
+    // Check securityAlerts preference
+    const settings = await db.userSettings.findUnique({
+      where: { userId },
+      select: { securityAlerts: true },
+    });
+
+    if (settings && settings.securityAlerts === false) return;
+
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) return;
+
+    const formattedIp = maskIpAddress(ipAddress);
+    const dateStr = new Date().toLocaleString('en-US', {
+      dateStyle: 'full',
+      timeStyle: 'medium',
+      timeZone: 'Asia/Kolkata',
+    });
+
+    const subject = 'AuthX Security Alert — Emergency Lockdown Activated';
+    const html = `<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>${escapeHtml(subject)}</title>
+  </head>
+  <body style="margin:0;padding:0;background:#FFF4E1;font-family:Inter,Arial,Helvetica,sans-serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#FFF4E1;padding:32px 16px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="max-width:480px;width:100%;background:#ffffff;border:1px solid #E5D7C3;border-radius:16px;overflow:hidden;box-shadow:0 4px 12px rgba(26,49,44,0.08);">
+            <tr>
+              <td style="background:#7F1D1D;padding:24px 32px;text-align:center;">
+                <div style="font-size:20px;font-weight:700;color:#ffffff;letter-spacing:0.5px;">AuthX Platform</div>
+                <div style="font-size:12px;color:#FCA5A5;margin-top:4px;">Security Notification Service</div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:32px 32px 24px;">
+                <h1 style="margin:0 0 16px;font-size:20px;font-weight:700;color:#7F1D1D;">⚠️ Emergency Lockdown Activated</h1>
+                <div style="background:#FEF2F2;border:1px solid #FCA5A5;border-radius:12px;padding:16px;margin-bottom:20px;">
+                  <p style="margin:0;color:#991B1B;font-size:14px;line-height:1.5;">
+                    Emergency Lockdown was successfully activated on your AuthX account.
+                    <strong>${revokedCount} other active session${revokedCount !== 1 ? 's were' : ' was'} revoked.</strong>
+                    Your current session remains active.
+                  </p>
+                </div>
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #E5D7C3;border-radius:12px;margin-bottom:24px;font-size:13px;line-height:1.6;">
+                  <tr>
+                    <td style="padding:10px 16px;border-bottom:1px solid #E5D7C3;color:#5C6E69;width:40%;font-weight:600;">Verification Method</td>
+                    <td style="padding:10px 16px;border-bottom:1px solid #E5D7C3;color:#1A312C;font-weight:700;">${escapeHtml(methodLabel)}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:10px 16px;border-bottom:1px solid #E5D7C3;color:#5C6E69;font-weight:600;">Sessions Revoked</td>
+                    <td style="padding:10px 16px;border-bottom:1px solid #E5D7C3;color:#991B1B;font-weight:700;">${revokedCount}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:10px 16px;border-bottom:1px solid #E5D7C3;color:#5C6E69;font-weight:600;">Device</td>
+                    <td style="padding:10px 16px;border-bottom:1px solid #E5D7C3;color:#1A312C;">${escapeHtml(deviceName)}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:10px 16px;border-bottom:1px solid #E5D7C3;color:#5C6E69;font-weight:600;">OS &amp; Browser</td>
+                    <td style="padding:10px 16px;border-bottom:1px solid #E5D7C3;color:#1A312C;">${escapeHtml(os || 'Unknown')} • ${escapeHtml(browser || 'Browser')}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:10px 16px;border-bottom:1px solid #E5D7C3;color:#5C6E69;font-weight:600;">Location</td>
+                    <td style="padding:10px 16px;border-bottom:1px solid #E5D7C3;color:#1A312C;">${escapeHtml(location || 'Unknown')}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:10px 16px;border-bottom:1px solid #E5D7C3;color:#5C6E69;font-weight:600;">IP Address</td>
+                    <td style="padding:10px 16px;border-bottom:1px solid #E5D7C3;color:#1A312C;font-family:monospace;">${escapeHtml(formattedIp)}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:10px 16px;color:#5C6E69;font-weight:600;">Date &amp; Time</td>
+                    <td style="padding:10px 16px;color:#1A312C;">${escapeHtml(dateStr)}</td>
+                  </tr>
+                </table>
+                <div style="background:#FFF4E1;border:1px solid #E5D7C3;border-radius:12px;padding:16px;text-align:center;margin-bottom:24px;">
+                  <p style="margin:0 0 8px;font-size:13px;font-weight:700;color:#1A312C;">Wasn't you?</p>
+                  <p style="margin:0;font-size:12px;color:#5C6E69;line-height:1.5;">
+                    If you did not activate Emergency Lockdown, your account may be compromised. Change your credentials and contact support immediately.
+                  </p>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:0 32px 24px;border-top:1px solid #E5D7C3;">
+                <p style="margin:16px 0 0;color:#94a3b8;font-size:11px;text-align:center;line-height:1.5;">
+                  You received this alert because Emergency Lockdown was activated on your AuthX account.
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+
+    await fetch(RESEND_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: resolveFromHeader(),
+        to: [email],
+        subject,
+        html,
+      }),
+    }).catch(() => {});
+  } catch (err) {
+    console.warn('[security-email] Lockdown alert email error:', err);
+  }
+}

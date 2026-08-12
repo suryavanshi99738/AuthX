@@ -87,6 +87,7 @@ import {
   SessionItem,
 } from '@/services/auth-client';
 import { RecoveryKitSection } from '@/components/dashboard/RecoveryKitSection';
+import { LockdownStepUpModal, type AvailableMethods } from '@/components/dashboard/LockdownStepUpModal';
 import { MobileQRScannerModal } from '@/components/auth/MobileQRScannerModal';
 import { fadeInUp, staggerContainer, scaleIn } from '@/lib/animations';
 import { PageHeader } from '@/components/ui/page-header';
@@ -216,12 +217,16 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
   // Vertical Settings Section Selector
   const [settingsSection, setSettingsSection] = useState<'appearance' | 'security' | 'account' | 'notifications'>('appearance');
 
-  // Lockdown Modal Dialog
+  // Lockdown Modal Dialog (for toggle-type actions: disable_qr, disable_passkeys, require_otp)
   const [lockdownModalOpen, setLockdownModalOpen] = useState(false);
   const [pendingLockdownAction, setPendingLockdownAction] = useState<string | null>(null);
   const [lockdownActionTitle, setLockdownActionTitle] = useState('');
   const [lockdownProcessing, setLockdownProcessing] = useState(false);
   const [lockdownSuccessMsg, setLockdownSuccessMsg] = useState('');
+
+  // Step-Up Lockdown Modal (for logout_all — requires identity verification)
+  const [stepUpModalOpen, setStepUpModalOpen] = useState(false);
+  const [stepUpRevokedCount, setStepUpRevokedCount] = useState<number | null>(null);
 
   // Initial Fetching
   const fetchAllData = () => {
@@ -502,6 +507,13 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
   };
 
   const handleTriggerLockdown = async (action: string, title: string) => {
+    // 'logout_all' requires fresh step-up authentication — open the step-up modal
+    if (action === 'logout_all') {
+      setStepUpRevokedCount(null);
+      setStepUpModalOpen(true);
+      return;
+    }
+    // Other toggle-type lockdown actions use the simple confirmation modal
     setPendingLockdownAction(action);
     setLockdownActionTitle(title);
     setLockdownModalOpen(true);
@@ -2398,7 +2410,38 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
         )}
       </AnimatePresence>
 
-      {/* Lockdown Confirmation Modal Dialog */}
+      {/* Emergency Lockdown — Step-Up Authentication Modal */}
+      <AnimatePresence>
+        {stepUpModalOpen && sessionToken && (
+          <LockdownStepUpModal
+            sessionToken={sessionToken}
+            availableMethods={{
+              totp: Boolean(authenticatorStatus?.enabled),
+              passkey: hasPasskey,
+              recovery: Boolean(recoveryStatus?.configured && (recoveryStatus?.remaining ?? 0) > 0),
+            }}
+            onClose={() => {
+              setStepUpModalOpen(false);
+              setStepUpRevokedCount(null);
+            }}
+            onSuccess={(count) => {
+              setStepUpRevokedCount(count);
+              // Refresh sessions after lockdown
+              if (user?.id) {
+                getActiveSessions(user.id, sessionToken || undefined).then((res) => {
+                  if (res.success && res.sessions) {
+                    setSessionsList(res.sessions as SessionItem[]);
+                    const active = (res.sessions as SessionItem[]).filter((s: SessionItem) => s.status === 'active');
+                    setSessionSummary((prev) => prev ? { ...prev, activeSessionsCount: active.length } : prev);
+                  }
+                }).catch(() => {});
+              }
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Lockdown Confirmation Modal Dialog (toggle-type: disable_qr, disable_passkeys, require_otp) */}
       <AnimatePresence>
         {lockdownModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
