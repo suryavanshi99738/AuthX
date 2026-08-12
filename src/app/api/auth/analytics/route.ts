@@ -27,11 +27,15 @@ export async function GET(req: Request) {
     const otpLogs = loginHistory.filter((h) => h.method.toLowerCase().includes('otp') || h.method.toLowerCase().includes('email'));
     const passkeyLogs = loginHistory.filter((h) => h.method.toLowerCase().includes('passkey'));
     const qrLogs = loginHistory.filter((h) => h.method.toLowerCase().includes('qr'));
+    // Biometric: matches 'Biometric' or 'biometric' method — recorded by /api/auth/biometric/auth-verify
+    const biometricLogs = loginHistory.filter((h) => h.method.toLowerCase().includes('biometric'));
 
     const otpValue = otpLogs.length || (otpCount > 0 ? otpCount : 1);
     const passkeyValue = passkeyLogs.length || (passkeyCount > 0 ? passkeyCount : 1);
     const qrValue = qrLogs.length || (qrRequestsCount > 0 ? qrRequestsCount : 1);
-    const totalAuthUsage = otpValue + passkeyValue + qrValue;
+    // Biometric value is the real count only — no fallback padding (starts at 0 naturally).
+    const biometricValue = biometricLogs.length;
+    const totalAuthUsage = otpValue + passkeyValue + qrValue + Math.max(biometricValue, 0);
 
     const formatTimeAgo = (date?: Date) => {
       if (!date) return 'Just now';
@@ -63,6 +67,13 @@ export async function GET(req: Request) {
         percentage: `${((qrValue / totalAuthUsage) * 100).toFixed(1)}%`,
         lastUsed: formatTimeAgo(qrLogs[0]?.createdAt),
         fill: '#6366F1',
+      },
+      {
+        name: 'Biometric',
+        value: biometricValue,
+        percentage: totalAuthUsage > 0 ? `${((biometricValue / totalAuthUsage) * 100).toFixed(1)}%` : '0.0%',
+        lastUsed: formatTimeAgo(biometricLogs[0]?.createdAt),
+        fill: '#F59E0B',
       },
     ];
 

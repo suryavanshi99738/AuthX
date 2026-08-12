@@ -108,6 +108,25 @@ export async function verifyPasskeyAuth(
   });
 }
 
+/* ── Biometric / Device Auth APIs ── */
+
+export async function authenticateBiometric(userId: string): Promise<ApiResult & { options?: unknown }> {
+  return apiCall('/api/auth/biometric/authenticate', {
+    method: 'POST',
+    body: JSON.stringify({ userId }),
+  });
+}
+
+export async function verifyBiometricAuth(
+  userId: string,
+  credential: AuthenticationResponseJSON
+): Promise<ApiResult & { session?: SessionResult }> {
+  return apiCall('/api/auth/biometric/auth-verify', {
+    method: 'POST',
+    body: JSON.stringify({ userId, credential, clientHints: getClientHints() }),
+  });
+}
+
 export async function generateOTP(email: string, isDemo = false): Promise<ApiResult & { userId?: string; isDemo?: boolean; otpCode?: string }> {
   return apiCall('/api/auth/otp/generate', {
     method: 'POST',
@@ -304,6 +323,48 @@ export async function performPasskeyAuthentication(userId: string) {
   const verifyResult = await verifyPasskeyAuth(userId, credential);
   if (!verifyResult.success || !verifyResult.session) {
     return { success: false, error: verifyResult.error || 'Passkey verification failed', code: verifyResult.code };
+  }
+
+  return { success: true, session: verifyResult.session };
+}
+
+export async function performBiometricAuthentication(userId: string) {
+  // Step 1: Get authentication options from biometric-specific endpoint.
+  const authResult = await authenticateBiometric(userId);
+  if (!authResult.success || !authResult.options) {
+    return {
+      success: false,
+      error: authResult.error || 'Failed to generate authentication options',
+      code: authResult.code,
+    };
+  }
+
+  // Step 2: Browser WebAuthn ceremony.
+  // Passing authenticatorSelection hint to prefer platform authenticators
+  // (Touch ID, Face ID, Windows Hello). The browser/OS manages biometric matching.
+  // AuthX never receives, stores, or processes biometric data.
+  let credential: AuthenticationResponseJSON;
+  try {
+    const options = authResult.options as PublicKeyCredentialRequestOptionsJSON;
+    credential = await startAuthentication({ optionsJSON: options });
+  } catch (err) {
+    const cancelled = isUserCancellation(err);
+    const msg = cancelled
+      ? 'Biometric authentication was cancelled'
+      : err instanceof Error
+      ? err.message
+      : 'Biometric authentication failed';
+    return { success: false, error: msg, isCancelled: cancelled, code: authResult.code };
+  }
+
+  // Step 3: Verify authentication — creates session with loginMethod='Biometric'.
+  const verifyResult = await verifyBiometricAuth(userId, credential);
+  if (!verifyResult.success || !verifyResult.session) {
+    return {
+      success: false,
+      error: verifyResult.error || 'Biometric verification failed',
+      code: verifyResult.code,
+    };
   }
 
   return { success: true, session: verifyResult.session };

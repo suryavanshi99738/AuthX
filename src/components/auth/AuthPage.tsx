@@ -34,6 +34,7 @@ import { PasskeyAuthForm } from './PasskeyAuthForm';
 import { OTPAuthForm } from './OTPAuthForm';
 import { QRAuthForm } from './QRAuthForm';
 import { RecoveryAuthForm } from './RecoveryAuthForm';
+import { BiometricAuthForm } from './BiometricAuthForm';
 import { MobileQRScannerModal } from './MobileQRScannerModal';
 import { UnderDevelopmentModal } from './UnderDevelopmentModal';
 import { fadeInUp, staggerContainer, scaleIn } from '@/lib/animations';
@@ -144,8 +145,8 @@ export function AuthPage() {
   const visibleAuthMethods = AUTH_METHODS.filter((m) => !isDemo || m.id !== 'passkey');
 
   const handleMethodClick = (methodId: string) => {
-    if (methodId === 'passkey' || methodId === 'otp' || methodId === 'qr' || methodId === 'recovery') {
-      setAuthMethod(methodId as 'passkey' | 'otp' | 'qr' | 'recovery');
+    if (methodId === 'passkey' || methodId === 'otp' || methodId === 'qr' || methodId === 'recovery' || methodId === 'biometric') {
+      setAuthMethod(methodId as 'passkey' | 'otp' | 'qr' | 'recovery' | 'biometric');
     } else {
       setUnderDevFeature('Biometric Authentication');
       setUnderDevOpen(true);
@@ -153,11 +154,11 @@ export function AuthPage() {
   };
 
   const handleSignupMethodClick = (methodId: string, fromExists = false) => {
-    if (methodId === 'otp' || methodId === 'passkey' || methodId === 'qr') {
+    if (methodId === 'otp' || methodId === 'passkey' || methodId === 'qr' || methodId === 'biometric') {
       if (fromExists) {
         setLoginEmailDraft(existingEmail);
       }
-      setAuthMethod(methodId as 'otp' | 'passkey' | 'qr');
+      setAuthMethod(methodId as 'otp' | 'passkey' | 'qr' | 'biometric');
     } else {
       setUnderDevFeature('Biometric');
       setUnderDevOpen(true);
@@ -471,6 +472,7 @@ export function AuthPage() {
                       {authMethod === 'otp' && <OTPAuthForm />}
                       {authMethod === 'qr' && <QRAuthForm />}
                       {authMethod === 'recovery' && <RecoveryAuthForm />}
+                      {authMethod === 'biometric' && <BiometricAuthForm />}
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -642,6 +644,7 @@ export function AuthPage() {
                       {authMethod === 'otp' && <OTPAuthForm />}
                       {authMethod === 'passkey' && <PasskeyAuthForm />}
                       {authMethod === 'qr' && <QRAuthForm />}
+                      {authMethod === 'biometric' && <BiometricAuthForm />}
                     </motion.div>
                   )}
                 </AnimatePresence>

@@ -6,7 +6,8 @@ import { deleteSession } from '@/services/auth-client';
 /* ── Types ── */
 export type PageView = 'landing' | 'auth' | 'dashboard' | 'demoAuth' | 'demoDashboard';
 export type AuthTab = 'login' | 'signup';
-export type AuthMethod = 'default' | 'passkey' | 'otp' | 'qr' | 'recovery';
+export type AuthMethod = 'default' | 'passkey' | 'otp' | 'qr' | 'recovery' | 'biometric';
+
 
 export interface AuthUser {
   id: string;
