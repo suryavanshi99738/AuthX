@@ -30,6 +30,7 @@ model User {
   riskAssessments RiskAssessment[]
   settings        UserSettings?
   authenticator   AuthenticatorCredential?
+  recoveryCodes   RecoveryCode[]
 }
 
 model Session {
@@ -236,4 +237,19 @@ model AuthenticatorCredential {
   lastUsedAt      DateTime?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// Hashed single-use backup recovery codes for account recovery
+model RecoveryCode {
+  id        String    @id @default(cuid())
+  userId    String
+  codeHash  String    // scrypt hash — never plaintext
+  used      Boolean   @default(false)
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, used])
 }

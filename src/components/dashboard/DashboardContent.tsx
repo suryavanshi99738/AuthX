@@ -83,8 +83,10 @@ import {
   verifyAuthenticator,
   getAuthenticatorStatus,
   disableAuthenticator,
+  getRecoveryStatus,
   SessionItem,
 } from '@/services/auth-client';
+import { RecoveryKitSection } from '@/components/dashboard/RecoveryKitSection';
 import { MobileQRScannerModal } from '@/components/auth/MobileQRScannerModal';
 import { fadeInUp, staggerContainer, scaleIn } from '@/lib/animations';
 import { PageHeader } from '@/components/ui/page-header';
@@ -169,6 +171,7 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
 
   // Authenticator App (TOTP) States
   const [authenticatorStatus, setAuthenticatorStatus] = useState<{ enabled: boolean; configuredAt?: string | null; lastUsedAt?: string | null } | null>(null);
+  const [recoveryStatus, setRecoveryStatus] = useState<{ configured: boolean; total: number; remaining: number } | null>(null);
   const [totpModalOpen, setTotpModalOpen] = useState(false);
   const [totpStep, setTotpStep] = useState<'scan' | 'verify' | 'success'>('scan');
   const [totpSecret, setTotpSecret] = useState('');
@@ -232,9 +235,17 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
       getUserSettings(user.id),
       getActiveSessions(user.id, sessionToken || undefined),
       getAuthenticatorStatus(user.id),
-    ]).then(([devRes, histRes, riskRes, analyticsRes, settingsRes, sessionRes, authStatusRes]) => {
+      getRecoveryStatus(user.id),
+    ]).then(([devRes, histRes, riskRes, analyticsRes, settingsRes, sessionRes, authStatusRes, recoveryRes]) => {
       if (authStatusRes?.success) {
         setAuthenticatorStatus(authStatusRes);
+      }
+      if (recoveryRes?.success) {
+        setRecoveryStatus({
+          configured: Boolean(recoveryRes.configured),
+          total: Number(recoveryRes.total ?? 0),
+          remaining: Number(recoveryRes.remaining ?? 0),
+        });
       }
       if (devRes.success && devRes.devices) {
         setTrustedDevices(devRes.devices);
@@ -2017,6 +2028,15 @@ export function DashboardContent({ activeSection = 'home', dashboardData }: Dash
                           <span>If you lose access to your authenticator app, use your <strong>Recovery Kit</strong> to regain access.</span>
                         </div>
                       </div>
+
+                      {/* ── RECOVERY KIT ── */}
+                      {user?.id && (
+                        <RecoveryKitSection
+                          userId={user.id}
+                          status={recoveryStatus}
+                          onStatusChange={(s) => setRecoveryStatus(s)}
+                        />
+                      )}
                     </div>
                   </CardContent>
                 </Card>

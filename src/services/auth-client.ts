@@ -524,3 +524,27 @@ export async function updateSessionActivity(sessionToken: string, isUserInteract
     body: JSON.stringify({ sessionToken, isUserInteraction }),
   });
 }
+
+/* ── Recovery Kit APIs ── */
+
+export async function getRecoveryStatus(userId: string): Promise<ApiResult & { configured?: boolean; total?: number; remaining?: number }> {
+  return apiCall(`/api/recovery/status?userId=${encodeURIComponent(userId)}`);
+}
+
+export async function generateRecoveryKit(userId: string): Promise<ApiResult & { codes?: string[]; count?: number; generatedAt?: string }> {
+  return apiCall('/api/recovery/generate', {
+    method: 'POST',
+    body: JSON.stringify({ userId }),
+  });
+}
+
+export async function verifyRecoveryCode(
+  userId: string,
+  recoveryCode: string,
+  clientHints?: Record<string, unknown>
+): Promise<ApiResult & { verified?: boolean; session?: { token: string; expiresAt: string; deviceName: string | null }; user?: UserResult; remainingCodes?: number }> {
+  return apiCall('/api/recovery/verify', {
+    method: 'POST',
+    body: JSON.stringify({ userId, recoveryCode, clientHints }),
+  });
+}

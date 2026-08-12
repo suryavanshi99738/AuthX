@@ -33,6 +33,7 @@ import { useLandingTheme } from '@/hooks/useLandingTheme';
 import { PasskeyAuthForm } from './PasskeyAuthForm';
 import { OTPAuthForm } from './OTPAuthForm';
 import { QRAuthForm } from './QRAuthForm';
+import { RecoveryAuthForm } from './RecoveryAuthForm';
 import { MobileQRScannerModal } from './MobileQRScannerModal';
 import { UnderDevelopmentModal } from './UnderDevelopmentModal';
 import { fadeInUp, staggerContainer, scaleIn } from '@/lib/animations';
@@ -143,8 +144,8 @@ export function AuthPage() {
   const visibleAuthMethods = AUTH_METHODS.filter((m) => !isDemo || m.id !== 'passkey');
 
   const handleMethodClick = (methodId: string) => {
-    if (methodId === 'passkey' || methodId === 'otp' || methodId === 'qr') {
-      setAuthMethod(methodId as 'passkey' | 'otp' | 'qr');
+    if (methodId === 'passkey' || methodId === 'otp' || methodId === 'qr' || methodId === 'recovery') {
+      setAuthMethod(methodId as 'passkey' | 'otp' | 'qr' | 'recovery');
     } else {
       setUnderDevFeature('Biometric Authentication');
       setUnderDevOpen(true);
@@ -451,6 +452,17 @@ export function AuthPage() {
                           <Lock className="w-3 h-3" />
                           <span>Your data is encrypted and never stored on our servers.</span>
                         </div>
+
+                        {/* Recovery code fallback */}
+                        <div className="flex justify-center pt-1">
+                          <button
+                            type="button"
+                            onClick={() => setAuthMethod('recovery')}
+                            className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline transition-colors"
+                          >
+                            Use a Recovery Code instead
+                          </button>
+                        </div>
                       </div>
                     </motion.div>
                   ) : (
@@ -458,6 +470,7 @@ export function AuthPage() {
                       {authMethod === 'passkey' && <PasskeyAuthForm />}
                       {authMethod === 'otp' && <OTPAuthForm />}
                       {authMethod === 'qr' && <QRAuthForm />}
+                      {authMethod === 'recovery' && <RecoveryAuthForm />}
                     </motion.div>
                   )}
                 </AnimatePresence>
